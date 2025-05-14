@@ -1,0 +1,111 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code related
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Flutter/Dart specific
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+lib/generated_plugin_registrant.dart
+
+# Android specific
+android/.gradle/
+android/.idea/
+android/build/
+android/local.properties
+android/*.keystore
+android/*.jks
+
+# iOS specific
+ios/.build/
+ios/Pods/
+ios/Podfile.lock
+ios/Runner.xcworkspace/
+ios/Runner.xcodeproj/project.xcworkspace/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+
+# Windows specific
+windows/.vs/
+windows/build/
+windows/Runner/Debug/
+windows/Runner/Release/
+windows/Runner/Profile/
+
+# macOS specific
+macos/.build/
+macos/Pods/
+macos/Podfile.lock
+macos/Runner.xcworkspace/
+macos/Runner.xcodeproj/project.xcworkspace/
+macos/Flutter/Generated.xcconfig
+
+# Web specific
+web/build/
+
+# Dependency directories
+**/build/
+
+# Environment variables and secrets
+.env
+.env.*
+*.key
+*.pem
+*.cert
+*.ovpn
+*.conf
+
+# Local configuration files
+*.local
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.gen.dart
+*.pb.dart
+*.pbenum.dart
+*.pbserver.dart
+*.pbjson.dart
+
+# Other
+Thumbs.db
+*.lock
+
+.metadata
+**/generated_plugin_registrant.*
+**/GeneratedPluginRegistrant.*
+**/generated_plugins.cmake
