@@ -31,9 +31,9 @@ dependencies:
   flutter:
     sdk: flutter
   provider: ^6.1.5 # Для управления состоянием
-  flutter_secure_storage: ^8.0.0 # Для хранения токенов/данных
+  flutter_secure_storage: ^9.2.4 # Для хранения токенов/данных
   http: ^1.1.0 # Для API-запросов
-  intl: ^0.18.1 # Для локализации
+  intl: ^0.20.2 # Для локализации
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
