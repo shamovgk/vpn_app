@@ -48,6 +48,13 @@ class HomeScreen extends StatelessWidget {
                 }
               },
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/subscription');
+              },
+              child: const Text('Manage Subscription'),
+            ),
           ],
         ),
       ),
