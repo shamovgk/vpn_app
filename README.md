@@ -2,6 +2,12 @@
 
 A cross-platform VPN application built with Flutter for Windows, macOS, Android, and iOS. The app allows users to connect to a VPN server, purchase individual or family subscriptions, and use the service across multiple devices.
 
+## Status
+The project is in active development (alpha stage). Current features include basic UI for login and home screens. Upcoming features:
+ - VPN connection via WireGuard/OpenVPN.
+ - Subscription management with in-app purchases.
+ - Multi-device synchronization.
+
 ## Features
 - Secure VPN connection using protocols like WireGuard or OpenVPN.
 - Individual and family subscription plans.
@@ -17,7 +23,7 @@ A cross-platform VPN application built with Flutter for Windows, macOS, Android,
 - [Android Studio](https://developer.android.com/studio) for Android development.
 - [Xcode](https://developer.apple.com/xcode/) for iOS/macOS development (requires macOS).
 - [Visual Studio](https://visualstudio.microsoft.com/) with Desktop development with C++ for Windows development.
-- Git for version control.
+- [Git](https://git-scm.com/) for version control.
 
 ### Installation
 1. Clone the repository:
@@ -71,6 +77,7 @@ vpn_app/
 ├── .gitattributes        # Line ending rules  
 ├── README.md             # Project documentation  
 ├── CONTRIBUTING.md       # Contribution guidelines  
+├── LICENSE               # License file  
 
 ## Contributing
 Contributions are welcome!  

@@ -82,6 +82,7 @@ web/build/
 *.cert
 *.ovpn
 *.conf
+*.wg
 
 # Local configuration files
 *.local

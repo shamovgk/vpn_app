@@ -1,4 +1,4 @@
-# Указываем, что текстовые файлы должны использовать LF (для кроссплатформенной совместимости)
+# Text files with LF endings
 *.dart text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
@@ -7,21 +7,19 @@
 *.sh text eol=lf
 *.gitignore text eol=lf
 *.gitattributes text eol=lf
+.metadata text eol=lf
 
-# Файлы, специфичные для платформ, должны сохранять свои окончания строк
-# Linux
+# Platform-specific files
 linux/* text eol=lf
-# macOS
 macos/* text eol=lf
-# Windows (используем CRLF для файлов, специфичных для Windows)
 windows/* text eol=crlf
 
-# Сгенерированные файлы Flutter
+# Generated Flutter files
 **/generated_plugin_registrant.* text eol=lf
 **/GeneratedPluginRegistrant.* text eol=lf
 **/generated_plugins.cmake text eol=lf
 
-# Бинарные файлы (не трогаем окончания строк)
+# Binary files
 *.png binary
 *.jpg binary
 *.jpeg binary
@@ -32,6 +30,3 @@ windows/* text eol=crlf
 *.exe binary
 *.dylib binary
 *.so binary
-
-# Игнорируем изменения в окончаниях строк для специфичных файлов
-.metadata text eol=lf
