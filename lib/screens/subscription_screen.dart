@@ -7,39 +7,65 @@ class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
 
   @override
-  _SubscriptionScreenState createState() => _SubscriptionScreenState();
+  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
 }
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final InAppPurchase _iap = InAppPurchase.instance;
   bool _isAvailable = false;
   List<ProductDetails> _products = [];
+  late Stream<List<PurchaseDetails>> _purchaseStream;
 
   @override
   void initState() {
     super.initState();
+    _purchaseStream = _iap.purchaseStream;
+    _purchaseStream.listen(_handlePurchases);
     _initializeIAP();
   }
 
+  void _handlePurchases(List<PurchaseDetails> purchases) {
+    final vpnProvider = context.read<VpnProvider>();
+    for (var purchase in purchases) {
+      if (purchase.status == PurchaseStatus.purchased) {
+        vpnProvider.selectPlan(purchase.productID);
+      } else if (purchase.status == PurchaseStatus.error) {
+        vpnProvider.setPurchaseError('Purchase error: ${purchase.error?.details}');
+      }
+      if (purchase.pendingCompletePurchase) {
+        _iap.completePurchase(purchase);
+      }
+    }
+  }
+
   Future<void> _initializeIAP() async {
+    if (!mounted) return;
+
     final bool isAvailable = await _iap.isAvailable();
     if (!isAvailable) {
-      setState(() => _isAvailable = false);
+      if (mounted) {
+        setState(() => _isAvailable = false);
+      }
       return;
     }
 
-    setState(() => _isAvailable = true);
+    if (mounted) {
+      setState(() => _isAvailable = true);
+    }
 
     // Загружаем продукты (mock-идентификаторы, замените на реальные)
     const Set<String> productIds = {'individual_plan', 'family_plan'};
     final ProductDetailsResponse response =
         await _iap.queryProductDetails(productIds);
     if (response.notFoundIDs.isNotEmpty) {
-      // Обработка отсутствующих продуктов
-      context.read<VpnProvider>().setPurchaseError('Products not found');
+      if (mounted) {
+        context.read<VpnProvider>().setPurchaseError('Products not found');
+      }
       return;
     }
-    setState(() => _products = response.productDetails);
+    if (mounted) {
+      setState(() => _products = response.productDetails);
+    }
   }
 
   Future<void> _buyProduct(ProductDetails product) async {
@@ -50,7 +76,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     try {
       final PurchaseParam param = PurchaseParam(productDetails: product);
       await _iap.buyNonConsumable(purchaseParam: param);
-      vpnProvider.selectPlan(product.id);
     } catch (e) {
       vpnProvider.setPurchaseError('Purchase failed: $e');
     } finally {
