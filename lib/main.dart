@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/vpn_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/subscription_screen.dart';
 
 void main() {
   runApp(
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
+        '/subscription': (context) => const SubscriptionScreen(),
       },
     );
   }
