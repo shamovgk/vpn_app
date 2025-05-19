@@ -15,9 +15,9 @@ dependencies:
   http: ^1.1.0 # Для API-запросов
   intl: ^0.20.2 # Для локализации
   cupertino_icons: ^1.0.8
-  in_app_purchase: 3.2.0 # Для подписок
-  firebase_auth: 5.3.1 # Для аутентификации
-  firebase_core: 3.6.0 # Для Firebase
+  in_app_purchase: ^3.2.3 # Для подписок
+  firebase_auth: ^5.5.3 # Для аутентификации
+  firebase_core: ^3.13.0 # Для Firebase
 
 dev_dependencies:
   flutter_test:
