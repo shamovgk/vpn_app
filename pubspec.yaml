@@ -15,15 +15,14 @@ dependencies:
   http: ^1.1.0 # Для API-запросов
   intl: ^0.20.2 # Для локализации
   cupertino_icons: ^1.0.8
-  in_app_purchase: ^3.2.3 # Для подписок
-  firebase_auth: ^5.5.3 # Для аутентификации
-  firebase_core: ^3.13.0 # Для Firebase
+  flutter_spinkit: ^5.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   test: ^1.25.15 # Для написания тестов
+  mockito: ^5.4.4
 
 flutter:
   uses-material-design: true
