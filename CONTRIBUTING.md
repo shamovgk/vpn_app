@@ -6,7 +6,7 @@ Thank you for considering contributing to the VPN App! This document outlines th
 1. Fork the repository on GitHub.
 2. Clone your fork:
    ```bash
-   git clone https://github.com/your-username/vpn_app.git
+   git clone https://github.com/shamovgk/vpn_app.git
    cd vpn_app
 3. Install dependencies:
    ```bash
