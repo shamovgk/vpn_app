@@ -102,11 +102,21 @@ web/build/
 *.pbserver.dart
 *.pbjson.dart
 
+# VPN-specific files
+vpn_keys/
+vpn_config.json
+lib/config/vpn_config.dart
+wireguard_logs/
+*.wg-quick
+
 # Other
 Thumbs.db
 *.lock
-
 .metadata
 **/generated_plugin_registrant.*
 **/GeneratedPluginRegistrant.*
 **/generated_plugins.cmake
+config.yaml
+settings.json
+.flutter/
+test/config/

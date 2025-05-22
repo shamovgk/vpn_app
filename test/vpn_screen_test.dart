@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import '../lib/providers/vpn_provider.dart';
-import '../lib/screens/vpn_screen.dart';
+import 'package:vpn_app/providers/vpn_provider.dart';
+import 'package:vpn_app/screens/vpn_screen.dart';
 
 void main() {
   testWidgets('VPN screen renders correctly', (WidgetTester tester) async {

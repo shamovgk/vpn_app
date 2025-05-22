@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../providers/vpn_provider.dart';
+import 'settings_screen.dart'; // Импорт SettingsScreen
 
-class VpnScreen extends StatelessWidget {
-  const VpnScreen({Key? key}) : super(key: key);
+class VpnScreen extends StatefulWidget {
+  const VpnScreen({super.key});
 
+  @override
+  State<VpnScreen> createState() => _VpnScreenState();
+}
+
+class _VpnScreenState extends State<VpnScreen> {
   @override
   Widget build(BuildContext context) {
     final vpnProvider = Provider.of<VpnProvider>(context);
@@ -53,18 +59,27 @@ class VpnScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: vpnProvider.isConnecting
                     ? null
-                    : () async {
-                        try {
+                    : () {
+                        // Сохраняем ScaffoldMessenger перед async операцией
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                        // Локальная функция для обработки VPN-действия
+                        Future<void> handleVpnAction() async {
                           if (vpnProvider.isConnected) {
                             await vpnProvider.disconnect();
                           } else {
                             await vpnProvider.connect();
                           }
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
                         }
+
+                        // Выполняем действие и обрабатываем ошибки
+                        handleVpnAction().catchError((e) {
+                          if (mounted) {
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(content: Text('Ошибка: $e')),
+                            );
+                          }
+                        });
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: vpnProvider.isConnected ? Colors.red : Colors.blue,
@@ -83,6 +98,35 @@ class VpnScreen extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+              ),
+            ),
+            const SizedBox(height: 16), // Отступ перед кнопкой Settings
+            // Кнопка Settings
+            SizedBox(
+              width: 200,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[700],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  elevation: 2,
+                ),
+                child: const Text(
+                  'Settings',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],
