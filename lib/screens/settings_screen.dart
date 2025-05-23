@@ -51,11 +51,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
+                final privateKey = _privateKeyController.text.trim();
+                final serverPublicKey = _serverPublicKeyController.text.trim();
+                final serverAddress = _serverAddressController.text.trim();
+            
+                if (privateKey.isEmpty || serverPublicKey.isEmpty || serverAddress.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Все поля должны быть заполнены')),
+                  );
+                  return;
+                }
+                if (!privateKey.endsWith('=') || privateKey.length < 40) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Неверный формат Private Key')),
+                  );
+                  return;
+                }
+                if (!serverPublicKey.endsWith('=') || serverPublicKey.length < 40) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Неверный формат Server Public Key')),
+                  );
+                  return;
+                }
+                if (!RegExp(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}$').hasMatch(serverAddress)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Неверный формат Server Address (IP:Port)')),
+                  );
+                  return;
+                }
+            
                 try {
                   await vpnProvider.saveConfig(
-                    privateKey: _privateKeyController.text,
-                    serverPublicKey: _serverPublicKeyController.text,
-                    serverAddress: _serverAddressController.text,
+                    privateKey: privateKey,
+                    serverPublicKey: serverPublicKey,
+                    serverAddress: serverAddress,
                   );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
