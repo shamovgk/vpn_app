@@ -40,21 +40,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               decoration: const InputDecoration(labelText: 'Private Key'),
               obscureText: true,
             ),
-            TextField(
-              controller: _serverPublicKeyController,
-              decoration: const InputDecoration(labelText: 'Server Public Key'),
-            ),
-            TextField(
-              controller: _serverAddressController,
-              decoration: const InputDecoration(labelText: 'Server Address (IP:Port)'),
-            ),
+            // TextField(
+            //   controller: _serverPublicKeyController,
+            //   decoration: const InputDecoration(labelText: 'Server Public Key'),
+            // ),
+            // TextField(
+            //   controller: _serverAddressController,
+            //   decoration: const InputDecoration(labelText: 'Server Address (IP:Port)'),
+            // ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
                 final privateKey = _privateKeyController.text.trim();
-                final serverPublicKey = _serverPublicKeyController.text.trim();
-                final serverAddress = _serverAddressController.text.trim();
-            
+                // final serverPublicKey = _serverPublicKeyController.text.trim();
+                // final serverAddress = _serverAddressController.text.trim();
+                final serverPublicKey = "p5fE09SR1FzW+a81zbSmZjW0h528cNx7IRKN+w0ulxo=";
+                final serverAddress = "95.214.10.8:51820";
+
                 if (privateKey.isEmpty || serverPublicKey.isEmpty || serverAddress.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Все поля должны быть заполнены')),

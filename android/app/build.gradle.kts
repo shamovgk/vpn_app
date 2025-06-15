@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.vpn_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -30,11 +30,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../keystore/my-release-key.jks") // Путь к вашему .jks файлу
+            storePassword = "abdsham" // Пароль, который вы задали
+            keyAlias = "mykey" // Псевдоним ключа
+            keyPassword = "abdsham" // Пароль ключа
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
