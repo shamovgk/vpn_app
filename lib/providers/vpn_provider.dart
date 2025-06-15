@@ -1,23 +1,22 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart'; // Для kDebugMode
+import 'package:flutter/foundation.dart';
 import 'package:wireguard_flutter/wireguard_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:wireguard_flutter/wireguard_flutter_platform_interface.dart'; // Для интерфейса
+import 'package:wireguard_flutter/wireguard_flutter_platform_interface.dart';
 
 class VpnProvider with ChangeNotifier {
-  WireGuardFlutterInterface? wireguard; // Nullable
+  WireGuardFlutterInterface? wireguard;
   final _storage = const FlutterSecureStorage();
   bool _isConnecting = false;
   bool _isConnected = false;
-  final Completer<void> _initializationCompleter = Completer<void>(); // Синхронизация
+  final Completer<void> _initializationCompleter = Completer<void>();
 
-  static const String tunnelName = 'vpn_app_tunnel'; // Фиксированное имя туннеля
+  static const String tunnelName = 'vpn_app_tunnel';
 
   bool get isConnecting => _isConnecting;
   bool get isConnected => _isConnected;
 
-  // Инициализация WireGuardFlutter
   VpnProvider() {
     _initializeWireGuard();
   }
@@ -25,35 +24,33 @@ class VpnProvider with ChangeNotifier {
   Future<void> _initializeWireGuard() async {
     if (kDebugMode) print('Starting WireGuard initialization...');
     if (wireguard != null) {
-      if (kDebugMode) print('WireGuard already initialized');
+      print('WireGuard already initialized');
       _initializationCompleter.complete();
       return;
     }
 
     try {
       wireguard = WireGuardFlutter.instance;
-      if (kDebugMode) print('Instance retrieved: $wireguard');
+      print('Instance retrieved: $wireguard');
 
       await wireguard!.initialize(interfaceName: tunnelName);
-      if (kDebugMode) print('WireGuard initialized with $tunnelName');
+      print('WireGuard initialized with $tunnelName');
 
-      // Очистка старых временных файлов при инициализации
       await _clearTempFiles();
 
       _initializationCompleter.complete();
     } catch (e) {
       _initializationCompleter.completeError(e);
-      if (kDebugMode) print('Error initializing WireGuard: $e');
+      print('Error initializing WireGuard: $e');
       if (e.toString().contains('Permission')) {
-        if (kDebugMode) print('Error: Run the app as Administrator on Windows.');
+        print('Error: Run the app as Administrator on Windows.');
       } else if (e.toString().contains('WireGuard not installed')) {
-        if (kDebugMode) print('Error: WireGuard client is not installed.');
+        print('Error: WireGuard client is not installed.');
       }
       rethrow;
     }
   }
 
-  // Сохранение конфигурации
   Future<void> saveConfig({
     required String privateKey,
     required String serverPublicKey,
@@ -64,7 +61,6 @@ class VpnProvider with ChangeNotifier {
     await _storage.write(key: 'vpn_server_address_$tunnelName', value: serverAddress);
   }
 
-  // Получение конфигурации
   Future<Map<String, String?>> getConfig() async {
     return {
       'privateKey': await _storage.read(key: 'vpn_private_key_$tunnelName'),
@@ -73,36 +69,34 @@ class VpnProvider with ChangeNotifier {
     };
   }
 
-  // Очистка временных файлов
   Future<void> _clearTempFiles() async {
     try {
       final tempDir = await getTemporaryDirectory();
       final tempFiles = tempDir.listSync().where((file) => file.path.contains('wg_'));
       for (var file in tempFiles) {
-        if (kDebugMode) print('Deleting temp file: ${file.path}');
+        print('Deleting temp file: ${file.path}');
         try {
-          await file.delete(); // Асинхронное удаление
+          await file.delete();
         } catch (e) {
-          if (kDebugMode) print('Failed to delete temp file ${file.path}: $e');
+          print('Failed to delete temp file ${file.path}: $e');
         }
       }
-      if (kDebugMode) print('Temp files cleared successfully');
+      print('Temp files cleared successfully');
     } catch (e) {
-      if (kDebugMode) print('Error clearing temp files: $e');
+      print('Error clearing temp files: $e');
     }
   }
 
-  // Подключение к VPN
   Future<void> connect() async {
     try {
-      await _initializationCompleter.future; // Ждём завершения инициализации
+      await _initializationCompleter.future;
     } catch (e) {
-      if (kDebugMode) print('Initialization failed: $e');
+      print('Initialization failed: $e');
       rethrow;
     }
 
     if (wireguard == null) {
-      if (kDebugMode) print('WireGuard instance is null, reinitializing...');
+      print('WireGuard instance is null, reinitializing...');
       await _initializeWireGuard();
       if (wireguard == null) throw Exception('Failed to initialize WireGuard');
     }
@@ -111,14 +105,13 @@ class VpnProvider with ChangeNotifier {
     notifyListeners();
     try {
       final stage = await wireguard!.stage();
-      if (kDebugMode) print('Current VPN stage: $stage');
+      print('Current VPN stage: $stage');
       if (stage == VpnStage.connected) {
-        if (kDebugMode) print('Stopping existing VPN service...');
-        await wireguard!.stopVpn(); // Остановка текущей службы
-        await Future.delayed(const Duration(seconds: 3)); // Задержка
+        print('Stopping existing VPN service...');
+        await wireguard!.stopVpn();
+        await Future.delayed(const Duration(seconds: 3));
       }
 
-      // Очистка временных файлов перед новым подключением
       await _clearTempFiles();
 
       final configData = await getConfig();
@@ -145,10 +138,10 @@ class VpnProvider with ChangeNotifier {
         providerBundleIdentifier: 'com.shamovgk.vpn_app',
       );
       _isConnected = true;
-      if (kDebugMode) print('VPN connected with new config');
+      print('VPN connected with new config');
     } catch (e) {
       _isConnected = false;
-      if (kDebugMode) print('Connection error: $e');
+      print('Connection error: $e');
       rethrow;
     } finally {
       _isConnecting = false;
@@ -156,10 +149,9 @@ class VpnProvider with ChangeNotifier {
     }
   }
 
-  // Отключение VPN
   Future<void> disconnect() async {
     if (wireguard == null) {
-      if (kDebugMode) print('WireGuard not initialized, skipping disconnect');
+      print('WireGuard not initialized, skipping disconnect');
       return;
     }
 
@@ -167,14 +159,27 @@ class VpnProvider with ChangeNotifier {
     notifyListeners();
     try {
       await wireguard!.stopVpn();
+      await Future.delayed(const Duration(seconds: 3)); // Увеличенная задержка
       _isConnected = false;
-      if (kDebugMode) print('VPN disconnected');
+      print('VPN disconnected');
     } catch (e) {
-      if (kDebugMode) print('Disconnect error: $e');
+      print('Disconnect error: $e');
       rethrow;
     } finally {
       _isConnecting = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    if (isConnected) {
+      disconnect().then((_) {
+        print('VPN disconnected on provider dispose');
+      }).catchError((e) {
+        print('Error disconnecting VPN on provider dispose: $e');
+      });
+    }
+    super.dispose();
   }
 }

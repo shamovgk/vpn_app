@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  
   provider: ^6.1.5 # Для управления состоянием
   flutter_secure_storage: ^9.2.4 # Для хранения токенов/данных
   http: ^1.1.0 # Для API-запросов
@@ -20,6 +21,7 @@ dependencies:
   path_provider: ^2.1.1
   window_size: ^0.1.0 # Добавлено для управления размером окна
 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -28,4 +30,8 @@ dev_dependencies:
   mockito: ^5.4.4
 
 flutter:
+  assets:
+    - assets/tray_icon.png
+    - assets/tray_icon.ico
   uses-material-design: true
+  
