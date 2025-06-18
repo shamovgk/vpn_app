@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/vpn_provider.dart';
+import '../providers/auth_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,11 +26,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final vpnProvider = Provider.of<VpnProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('VPN Settings'),
-        backgroundColor: Colors.blue,
+        backgroundColor: const Color(0xFF142F1F),
+        foregroundColor: const Color(0xFF719EA6),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -37,25 +40,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             TextField(
               controller: _privateKeyController,
-              decoration: const InputDecoration(labelText: 'Private Key'),
+              decoration: const InputDecoration(
+                labelText: 'Private Key',
+                border: OutlineInputBorder(),
+              ),
               obscureText: true,
             ),
-            // TextField(
-            //   controller: _serverPublicKeyController,
-            //   decoration: const InputDecoration(labelText: 'Server Public Key'),
-            // ),
-            // TextField(
-            //   controller: _serverAddressController,
-            //   decoration: const InputDecoration(labelText: 'Server Address (IP:Port)'),
-            // ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _serverPublicKeyController,
+              decoration: const InputDecoration(
+                labelText: 'Server Public Key',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _serverAddressController,
+              decoration: const InputDecoration(
+                labelText: 'Server Address (IP:Port)',
+                border: OutlineInputBorder(),
+              ),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
                 final privateKey = _privateKeyController.text.trim();
-                // final serverPublicKey = _serverPublicKeyController.text.trim();
-                // final serverAddress = _serverAddressController.text.trim();
-                final serverPublicKey = "p5fE09SR1FzW+a81zbSmZjW0h528cNx7IRKN+w0ulxo=";
-                final serverAddress = "95.214.10.8:51820";
+                final serverPublicKey = _serverPublicKeyController.text.trim();
+                final serverAddress = _serverAddressController.text.trim();
 
                 if (privateKey.isEmpty || serverPublicKey.isEmpty || serverAddress.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -81,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   );
                   return;
                 }
-            
+
                 try {
                   await vpnProvider.saveConfig(
                     privateKey: privateKey,
@@ -101,7 +113,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }
                 }
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF719EA6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
               child: const Text('Save'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                await authProvider.logout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              child: const Text('Logout'),
             ),
           ],
         ),

@@ -4,6 +4,9 @@ import 'package:wireguard_flutter/wireguard_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wireguard_flutter/wireguard_flutter_platform_interface.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class VpnProvider with ChangeNotifier {
   WireGuardFlutterInterface? wireguard;
@@ -24,28 +27,28 @@ class VpnProvider with ChangeNotifier {
   Future<void> _initializeWireGuard() async {
     if (kDebugMode) print('Starting WireGuard initialization...');
     if (wireguard != null) {
-      print('WireGuard already initialized');
+      logger.i('WireGuard already initialized');
       _initializationCompleter.complete();
       return;
     }
 
     try {
       wireguard = WireGuardFlutter.instance;
-      print('Instance retrieved: $wireguard');
+      logger.i('Instance retrieved: $wireguard');
 
       await wireguard!.initialize(interfaceName: tunnelName);
-      print('WireGuard initialized with $tunnelName');
+      logger.i('WireGuard initialized with $tunnelName');
 
       await _clearTempFiles();
 
       _initializationCompleter.complete();
     } catch (e) {
       _initializationCompleter.completeError(e);
-      print('Error initializing WireGuard: $e');
+      logger.e('Error initializing WireGuard: $e');
       if (e.toString().contains('Permission')) {
-        print('Error: Run the app as Administrator on Windows.');
+        logger.e('Error: Run the app as Administrator on Windows.');
       } else if (e.toString().contains('WireGuard not installed')) {
-        print('Error: WireGuard client is not installed.');
+        logger.e('Error: WireGuard client is not installed.');
       }
       rethrow;
     }
@@ -74,16 +77,16 @@ class VpnProvider with ChangeNotifier {
       final tempDir = await getTemporaryDirectory();
       final tempFiles = tempDir.listSync().where((file) => file.path.contains('wg_'));
       for (var file in tempFiles) {
-        print('Deleting temp file: ${file.path}');
+        logger.i('Deleting temp file: ${file.path}');
         try {
           await file.delete();
         } catch (e) {
-          print('Failed to delete temp file ${file.path}: $e');
+          logger.w('Failed to delete temp file ${file.path}: $e');
         }
       }
-      print('Temp files cleared successfully');
+      logger.i('Temp files cleared successfully');
     } catch (e) {
-      print('Error clearing temp files: $e');
+      logger.e('Error clearing temp files: $e');
     }
   }
 
@@ -91,12 +94,12 @@ class VpnProvider with ChangeNotifier {
     try {
       await _initializationCompleter.future;
     } catch (e) {
-      print('Initialization failed: $e');
+      logger.e('Initialization failed: $e');
       rethrow;
     }
 
     if (wireguard == null) {
-      print('WireGuard instance is null, reinitializing...');
+      logger.w('WireGuard instance is null, reinitializing...');
       await _initializeWireGuard();
       if (wireguard == null) throw Exception('Failed to initialize WireGuard');
     }
@@ -105,11 +108,11 @@ class VpnProvider with ChangeNotifier {
     notifyListeners();
     try {
       final stage = await wireguard!.stage();
-      print('Current VPN stage: $stage');
+      logger.i('Current VPN stage: $stage');
       if (stage == VpnStage.connected) {
-        print('Stopping existing VPN service...');
+        logger.i('Stopping existing VPN service...');
         await wireguard!.stopVpn();
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 2));
       }
 
       await _clearTempFiles();
@@ -138,10 +141,10 @@ class VpnProvider with ChangeNotifier {
         providerBundleIdentifier: 'com.shamovgk.vpn_app',
       );
       _isConnected = true;
-      print('VPN connected with new config');
+      logger.i('VPN connected with new config');
     } catch (e) {
       _isConnected = false;
-      print('Connection error: $e');
+      logger.e('Connection error: $e');
       rethrow;
     } finally {
       _isConnecting = false;
@@ -151,7 +154,7 @@ class VpnProvider with ChangeNotifier {
 
   Future<void> disconnect() async {
     if (wireguard == null) {
-      print('WireGuard not initialized, skipping disconnect');
+      logger.w('WireGuard not initialized, skipping disconnect');
       return;
     }
 
@@ -159,11 +162,11 @@ class VpnProvider with ChangeNotifier {
     notifyListeners();
     try {
       await wireguard!.stopVpn();
-      await Future.delayed(const Duration(seconds: 3)); // Увеличенная задержка
+      await Future.delayed(const Duration(seconds: 2)); 
       _isConnected = false;
-      print('VPN disconnected');
+      logger.i('VPN disconnected');
     } catch (e) {
-      print('Disconnect error: $e');
+      logger.e('Disconnect error: $e');
       rethrow;
     } finally {
       _isConnecting = false;
@@ -175,9 +178,9 @@ class VpnProvider with ChangeNotifier {
   void dispose() {
     if (isConnected) {
       disconnect().then((_) {
-        print('VPN disconnected on provider dispose');
+        logger.i('VPN disconnected on provider dispose');
       }).catchError((e) {
-        print('Error disconnecting VPN on provider dispose: $e');
+        logger.e('Error disconnecting VPN on provider dispose: $e');
       });
     }
     super.dispose();
