@@ -26,7 +26,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       try {
-        authProvider.login(_usernameController.text, _passwordController.text);
+        authProvider.login(_usernameController.text, _passwordController.text).then((_) {
+          print('Login completed, isAuthenticated: ${authProvider.isAuthenticated}');
+        });
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString())),

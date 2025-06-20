@@ -79,12 +79,24 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
           _emailController.text,
           _passwordController.text,
         );
-      } catch (e) {
-        setState(() {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString()), duration: const Duration(seconds: 2)),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Регистрация успешна! Войдите, пожалуйста.'), duration: Duration(seconds: 2)),
+        );
+        _usernameController.clear();
+        _emailController.clear();
+        _passwordController.clear();
+        Future.delayed(const Duration(seconds: 2), () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
-          _formKey.currentState!.reset();
+        });
+      } catch (e) {
+        logger.e('Registration error: $e');
+        setState(() {
+            ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка: $e'), duration: Duration(seconds: 2)),
+          );
         });
         if (_focusNodes[0].canRequestFocus) FocusScope.of(context).requestFocus(_focusNodes[0]);
       }
