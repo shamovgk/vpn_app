@@ -29,7 +29,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
   style &= ~(WS_MAXIMIZEBOX | WS_SIZEBOX); 
   SetWindowLongPtr(hwnd, GWL_STYLE, style);
-  // SetWindowPos(hwnd, nullptr, 0, 0, 370, 650, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
   window.SetQuitOnClose(false); 
 
 

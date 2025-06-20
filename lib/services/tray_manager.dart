@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tray_manager/tray_manager.dart' as tray;
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/vpn_provider.dart';
 import 'package:logger/logger.dart';
 
@@ -14,23 +15,51 @@ class TrayManagerHandler with tray.TrayListener {
     _initializeTray();
   }
 
+  bool _isInitialized = false;
+
   Future<void> _initializeTray() async {
-    await tray.TrayManager.instance.setIcon('assets/tray_icon.ico');
+     if (_isInitialized) return;
+    _isInitialized = true;
+
+    await tray.TrayManager.instance.setIcon('assets/tray_icon_disconnect.ico');
+    tray.TrayManager.instance.addListener(this);
+  }
+
+  Future<void> updateTrayIconAndMenu() async {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     final menu = tray.Menu(
       items: [
-        tray.MenuItem(key: 'show_window', label: 'Show Window',),
-        tray.MenuItem(key: 'connect', label: 'Connect'),
-        tray.MenuItem(key: 'disconnect', label: 'Disconnect'),
+        tray.MenuItem(key: 'show_window', label: 'Show Window'),
+        tray.MenuItem.separator(),
+        tray.MenuItem(
+          key: 'connect',
+          label: 'Connect',
+          disabled:  !authProvider.isAuthenticated || vpnProvider.isConnected || vpnProvider.isConnecting,
+        ),
+        tray.MenuItem(
+          key: 'disconnect',
+          label: 'Disconnect',
+          disabled:  !authProvider.isAuthenticated || !vpnProvider.isConnected
+        ),
+        tray.MenuItem.separator(),
         tray.MenuItem(key: 'exit', label: 'Exit App'),
       ],
     );
-    await tray.TrayManager.instance.setContextMenu(menu);
-    tray.TrayManager.instance.addListener(this);
+  await tray.TrayManager.instance.setContextMenu(menu);
+    final iconPath = vpnProvider.isConnected
+        ? 'assets/tray_icon_connect.ico'
+        : 'assets/tray_icon_disconnect.ico';
+  await tray.TrayManager.instance.setIcon(iconPath);
   }
 
   @override
   void onTrayIconRightMouseDown() {
+    updateTrayIconAndMenu();
     tray.TrayManager.instance.popUpContextMenu();
   }
 
@@ -45,11 +74,20 @@ class TrayManagerHandler with tray.TrayListener {
     if (context == null) return;
 
     final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     switch (menuItem.key) {
       case 'show_window':
         windowManager.show();
         break;
       case 'connect':
+       if (!authProvider.isAuthenticated) {
+          logger.w('Cannot connect: Not authenticated');
+          return;
+        }
+        if (vpnProvider.isConnected || vpnProvider.isConnecting) {
+          logger.w('Cannot connect: Already connected or connecting');
+          return;
+        }
         vpnProvider.connect().then((_) => logger.i('VPN connected from tray')).catchError((e) => logger.e('Connect error: $e'));
         break;
       case 'disconnect':
@@ -61,9 +99,13 @@ class TrayManagerHandler with tray.TrayListener {
         windowManager.destroy();
         break;
     }
+    logger.i('Menu item clicked: ${menuItem.key}');
   }
 
   void dispose() {
     tray.TrayManager.instance.removeListener(this);
+    _isInitialized = false;
   }
 }
+
+late TrayManagerHandler trayHandler;
