@@ -10,7 +10,7 @@ import 'providers/vpn_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
-  await windowManager.setPreventClose(true);
+  await windowManager.setPreventClose(true); 
 
   TrayManagerHandler();
 
@@ -54,14 +54,14 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  void _init() {
+   void _init() {
     windowManager.waitUntilReadyToShow().then((_) async {
       await windowManager.setTitle('TowerVPN');
       await windowManager.setSize(const Size(360, 640));
       await windowManager.setMinimumSize(const Size(360, 640));
       await windowManager.setMaximumSize(const Size(360, 640));
       await windowManager.show();
-    });
+      });
   }
 
   @override

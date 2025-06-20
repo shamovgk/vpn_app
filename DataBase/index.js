@@ -6,7 +6,6 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-// Путь к базе данных (локальный файл на Windows)
 const dbPath = path.join(__dirname, 'vpn.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -17,7 +16,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Создание таблиц
 function createTables() {
   db.serialize(() => {
     db.run(`
@@ -25,101 +23,321 @@ function createTables() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
-        is_paid BOOLEAN DEFAULT FALSE
+        email TEXT NOT NULL UNIQUE,
+        email_verified INTEGER DEFAULT 0,
+        is_paid INTEGER DEFAULT 0,
+        vpn_key TEXT,
+        trial_end_date TEXT,
+        device_count INTEGER DEFAULT 0,
+        family_group_id INTEGER,
+        auth_token TEXT,
+        token_expiry TEXT,
+        FOREIGN KEY (family_group_id) REFERENCES FamilyGroups(id)
       )
     `);
 
     db.run(`
-      CREATE TABLE IF NOT EXISTS Keys (
+       CREATE TABLE IF NOT EXISTS FamilyGroups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        max_users INTEGER DEFAULT 5,
+        is_paid INTEGER DEFAULT 0
+      )
+    `);
+
+     db.run(`
+      CREATE TABLE IF NOT EXISTS Devices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
-        client_private_key TEXT NOT NULL,
-        is_active BOOLEAN DEFAULT TRUE,
+        device_token TEXT NOT NULL UNIQUE,
         FOREIGN KEY (user_id) REFERENCES Users(id)
       )
     `);
   });
 }
 
-// Регистрация нового пользователя
+function getCurrentDatePlusDays(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+}
+
+function generateToken() {
+  return crypto.randomBytes(16).toString('hex');
+}
+
 app.post('/register', (req, res) => {
+  const { username, password, email } = req.body;
+  if (!username || !password || !email) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+  const hashedPassword = bcrypt.hashSync(password, 10); 
+  const trialEndDate = getCurrentDatePlusDays(3); 
+
+db.run(
+    `INSERT INTO Users (username, password, email, trial_end_date) VALUES (?, ?, ?, ?)`,
+    [username, hashedPassword, email, trialEndDate],
+    function (err) {
+      if (err) {
+        console.error('Registration error:', err.message);
+        return res.status(400).json({ error: err.message });
+      }
+      res.json({ id: this.lastID, username, email, trial_end_date: trialEndDate });
+    }
+  );
+});
+
+app.post('/login', (req, res) => {
   const { username, password } = req.body;
-  const hashedPassword = bcrypt.hashSync(password, 10); // Хеширование пароля
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
 
-  db.run(
-    `INSERT INTO Users (username, password) VALUES (?, ?)`,
-    [username, hashedPassword],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ error: err.message });
-      }
-      res.json({ id: this.lastID, username });
-    }
-  );
-});
-
-// Добавление ключа для пользователя (семейная подписка)
-app.post('/add-key', (req, res) => {
-  const { user_id, client_private_key } = req.body;
-
-  db.run(
-    `INSERT INTO Keys (user_id, client_private_key) VALUES (?, ?)`,
-    [user_id, client_private_key],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ error: err.message });
-      }
-      res.json({ id: this.lastID, user_id, client_private_key });
-    }
-  );
-});
-
-// Проверка оплаты и получение активных ключей
-app.get('/user/:username', (req, res) => {
-  const { username } = req.params;
-
-  db.get(
-    `SELECT id, username, is_paid FROM Users WHERE username = ?`,
+ db.get(
+    `SELECT id, username, password, email_verified, is_paid, vpn_key, trial_end_date, device_count, family_group_id 
+     FROM Users WHERE username = ?`,
     [username],
     (err, user) => {
-      if (err || !user) {
+      if (err) {
+        console.error('Login error:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
+      if (!bcrypt.compareSync(password, user.password)) {
+        return res.status(401).json({ error: 'Invalid password' });
+      }
+      if (user.email_verified === 0) {
+        return res.status(403).json({ error: 'Email not verified' });
+      }
+      const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
+      if (!user.is_paid && trialExpired) {
+        return res.status(403).json({ error: 'Trial period expired' });
+      }
 
-      db.all(
-        `SELECT client_private_key FROM Keys WHERE user_id = ? AND is_active = TRUE`,
-        [user.id],
-        (err, keys) => {
+      const token = generateToken();
+      const tokenExpiry = getCurrentDatePlusDays(30); 
+      db.run(
+        `UPDATE Users SET auth_token = ?, token_expiry = ? WHERE id = ?`,
+        [token, tokenExpiry, user.id],
+        (err) => {
           if (err) {
+            console.error('Token update error:', err.message);
             return res.status(500).json({ error: err.message });
           }
-          res.json({ ...user, keys: keys.map(k => k.client_private_key) });
+          res.json({
+            id: user.id,
+            username: user.username,
+            email_verified: user.email_verified,
+            is_paid: user.is_paid,
+            vpn_key: user.vpn_key,
+            device_count: user.device_count,
+            family_group_id: user.family_group_id,
+            auth_token: token
+          });
         }
       );
     }
   );
 });
 
-// Обновление статуса оплаты
-app.put('/pay/:username', (req, res) => {
-  const { username } = req.params;
-
+app.post('/verify-email', (req, res) => {
+  const { username, email } = req.body;
   db.run(
-    `UPDATE Users SET is_paid = TRUE WHERE username = ?`,
-    [username],
+    `UPDATE Users SET email_verified = 1 WHERE username = ? AND email = ?`,
+    [username, email],
     function (err) {
       if (err) {
+        console.error('Email verification error:', err.message);
         return res.status(400).json({ error: err.message });
       }
       if (this.changes === 0) {
-        return res.status(404).json({ error: 'User not found' });
+        return res.status(404).json({ error: 'User or email not found' });
       }
-      res.json({ message: 'Payment status updated' });
+      res.json({ message: 'Email verified successfully' });
     }
   );
 });
 
-// Запуск сервера
+app.post('/add-device', (req, res) => {
+  const { user_id, device_token } = req.body;
+  db.get(
+    `SELECT device_count FROM Users WHERE id = ?`,
+    [user_id],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      if (user.device_count >= 3) {
+        return res.status(400).json({ error: 'Maximum device limit (3) reached' });
+      }
+
+      db.run(
+        `INSERT INTO Devices (user_id, device_token) VALUES (?, ?)`,
+        [user_id, device_token],
+        (err) => {
+          if (err) {
+            console.error('Device add error:', err.message);
+            return res.status(400).json({ error: err.message });
+          }
+          db.run(
+            `UPDATE Users SET device_count = device_count + 1 WHERE id = ?`,
+            [user_id],
+            (err) => {
+              if (err) {
+                console.error('Device count update error:', err.message);
+                return res.status(500).json({ error: err.message });
+              }
+              res.json({ message: 'Device added successfully' });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+app.post('/create-family-group', (req, res) => {
+  const { user_id } = req.body;
+  db.run(
+    `INSERT INTO FamilyGroups (is_paid) VALUES (0)`,
+    [],
+    function (err) {
+      if (err) {
+        console.error('Family group creation error:', err.message);
+        return res.status(400).json({ error: err.message });
+      }
+      const groupId = this.lastID;
+      db.run(
+        `UPDATE Users SET family_group_id = ? WHERE id = ?`,
+        [groupId, user_id],
+        (err) => {
+          if (err) {
+            console.error('Family group update error:', err.message);
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ id: groupId, message: 'Family group created' });
+        }
+      );
+    }
+  );
+});
+
+app.post('/add-to-family-group', (req, res) => {
+  const { group_id, user_id } = req.body;
+  db.get(
+    `SELECT max_users, is_paid FROM FamilyGroups WHERE id = ?`,
+    [group_id],
+    (err, group) => {
+      if (err || !group) {
+        return res.status(404).json({ error: 'Family group not found' });
+      }
+      db.get(
+        `SELECT COUNT(*) as count FROM Users WHERE family_group_id = ?`,
+        [group_id],
+        (err, result) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          if (result.count >= group.max_users) {
+            return res.status(400).json({ error: 'Maximum users (5) reached in family group' });
+          }
+          db.run(
+            `UPDATE Users SET family_group_id = ? WHERE id = ?`,
+            [group_id, user_id],
+            (err) => {
+              if (err) {
+                return res.status(400).json({ error: err.message });
+              }
+              res.json({ message: 'User added to family group' });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+app.put('/pay', (req, res) => {
+  const { user_id, is_family } = req.body;
+  if (is_family) {
+    db.run(
+      `UPDATE FamilyGroups SET is_paid = 1 WHERE id = (SELECT family_group_id FROM Users WHERE id = ?)`,
+      [user_id],
+      function (err) {
+        if (err || this.changes === 0) {
+          return res.status(404).json({ error: 'Family group not found' });
+        }
+        res.json({ message: 'Family plan paid' });
+      }
+    );
+  } else {
+    db.run(
+      `UPDATE Users SET is_paid = 1 WHERE id = ?`,
+      [user_id],
+      function (err) {
+        if (err || this.changes === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+        res.json({ message: 'Individual plan paid' });
+      }
+    );
+  }
+});
+
+app.get('/validate-token', (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  db.get(
+    `SELECT id, username, email_verified, is_paid, vpn_key, trial_end_date, device_count, family_group_id 
+     FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    [token, new Date().toISOString()],
+    (err, user) => {
+      if (err) {
+        console.error('Token validation error:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      res.json({
+        id: user.id,
+        username: user.username,
+        email_verified: user.email_verified,
+        is_paid: user.is_paid,
+        vpn_key: user.vpn_key,
+        device_count: user.device_count,
+        family_group_id: user.family_group_id
+      });
+    }
+  );
+});
+
+app.post('/logout', (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  db.run(
+    `UPDATE Users SET auth_token = NULL, token_expiry = NULL WHERE auth_token = ?`,
+    [token],
+    function (err) {
+      if (err) {
+        console.error('Logout error:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Token not found' });
+      }
+      res.json({ message: 'Logged out successfully' });
+    }
+  );
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
