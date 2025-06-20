@@ -5,69 +5,24 @@ import 'login_screen.dart';
 import 'package:logger/logger.dart';
 
 final logger = Logger();
-
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
-
 class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObserver {
-  late TextEditingController _usernameController;
-  late TextEditingController _emailController;
-  late TextEditingController _passwordController;
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  late List<FocusNode> _focusNodes;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeControllersAndFocus();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  void _initializeControllersAndFocus() {
-    _usernameController = TextEditingController();
-    _emailController = TextEditingController();
-    _passwordController = TextEditingController();
-    _focusNodes = [FocusNode(), FocusNode(), FocusNode()];
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_focusNodes[0].canRequestFocus) FocusScope.of(context).requestFocus(_focusNodes[0]);
-    });
-  }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    for (var node in _focusNodes) {
-      node.dispose();
-    }
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
-      setState(() {
-        logger.i('App resumed, reinitializing controllers and focus');
-        _disposeCurrentControllersAndFocus();
-        _initializeControllersAndFocus(); 
-      });
-    }
-  }
-
-  void _disposeCurrentControllersAndFocus() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    for (var node in _focusNodes) {
-      node.dispose();
-    }
   }
 
   void _register() {
@@ -85,12 +40,10 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
         _usernameController.clear();
         _emailController.clear();
         _passwordController.clear();
-        Future.delayed(const Duration(seconds: 2), () {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
-        });
       } catch (e) {
         logger.e('Registration error: $e');
         setState(() {
@@ -98,10 +51,7 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
             SnackBar(content: Text('Ошибка: $e'), duration: Duration(seconds: 2)),
           );
         });
-        if (_focusNodes[0].canRequestFocus) FocusScope.of(context).requestFocus(_focusNodes[0]);
       }
-    } else {
-      if (_focusNodes[0].canRequestFocus) FocusScope.of(context).requestFocus(_focusNodes[0]);
     }
   }
 
@@ -127,7 +77,6 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _usernameController,
-                  focusNode: _focusNodes[0],
                   decoration: const InputDecoration(
                     labelText: 'Логин',
                     border: OutlineInputBorder(),
@@ -137,13 +86,10 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                     if (value == null || value.isEmpty) return 'Введите логин';
                     return null;
                   },
-                  onTap: () => FocusScope.of(context).requestFocus(_focusNodes[0]),
-                  onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_focusNodes[1]),
                   ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _emailController,
-                  focusNode: _focusNodes[1],
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(),
@@ -154,13 +100,10 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) return 'Неверный формат email';
                     return null;
                   },
-                  onTap: () => FocusScope.of(context).requestFocus(_focusNodes[1]),
-                  onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_focusNodes[2]),
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
-                  focusNode: _focusNodes[2],
                   decoration: const InputDecoration(
                     labelText: 'Пароль',
                     border: OutlineInputBorder(),
@@ -172,7 +115,6 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                     if (value.length < 6) return 'Пароль должен содержать минимум 6 символов';
                     return null;
                   },
-                  onTap: () => FocusScope.of(context).requestFocus(_focusNodes[2]),
                 ),
                 const SizedBox(height: 40),
                 ElevatedButton(

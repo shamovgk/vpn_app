@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wireguard_flutter/wireguard_flutter_platform_interface.dart';
 import 'package:logger/logger.dart';
+import '../services/tray_manager.dart';
 
 final logger = Logger();
 
@@ -149,6 +150,7 @@ class VpnProvider with ChangeNotifier {
     } finally {
       _isConnecting = false;
       notifyListeners();
+      trayHandler.updateTrayIconAndMenu();
     }
   }
 
@@ -171,6 +173,7 @@ class VpnProvider with ChangeNotifier {
     } finally {
       _isConnecting = false;
       notifyListeners();
+      trayHandler.updateTrayIconAndMenu(); 
     }
   }
 
