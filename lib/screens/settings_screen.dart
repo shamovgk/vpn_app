@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/vpn_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/vpn_provider.dart';
+import '../providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,130 +12,100 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _privateKeyController = TextEditingController();
-  final _serverPublicKeyController = TextEditingController();
-  final _serverAddressController = TextEditingController();
-
-  @override
-  void dispose() {
-    _privateKeyController.dispose();
-    _serverPublicKeyController.dispose();
-    _serverAddressController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final vpnProvider = Provider.of<VpnProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final vpnProvider = Provider.of<VpnProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('VPN Settings'),
-        backgroundColor: const Color(0xFF142F1F),
-        foregroundColor: const Color(0xFF719EA6),
+        backgroundColor: Theme.of(context).primaryColor,
+        title: Text(
+          'Настройки',
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+              ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _privateKeyController,
-              decoration: const InputDecoration(
-                labelText: 'Private Key',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
+            Text(
+              'Статус авторизации: ${authProvider.isAuthenticated ? 'Авторизован' : 'Не авторизован'}',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _serverPublicKeyController,
-              decoration: const InputDecoration(
-                labelText: 'Server Public Key',
-                border: OutlineInputBorder(),
-              ),
+            const SizedBox(height: 10),
+            Text(
+              'Статус оплаты: ${authProvider.isPaid ? 'Оплачено' : 'Не оплачено'}',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _serverAddressController,
-              decoration: const InputDecoration(
-                labelText: 'Server Address (IP:Port)',
-                border: OutlineInputBorder(),
-              ),
+            const SizedBox(height: 10),
+            Text(
+              'Статус VPN: ${vpnProvider.isConnected ? 'Подключено' : 'Отключено'}',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                final privateKey = _privateKeyController.text.trim();
-                final serverPublicKey = _serverPublicKeyController.text.trim();
-                final serverAddress = _serverAddressController.text.trim();
-
-                if (privateKey.isEmpty || serverPublicKey.isEmpty || serverAddress.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Все поля должны быть заполнены')),
-                  );
-                  return;
-                }
-                if (!privateKey.endsWith('=') || privateKey.length < 40) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Неверный формат Private Key')),
-                  );
-                  return;
-                }
-                if (!serverPublicKey.endsWith('=') || serverPublicKey.length < 40) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Неверный формат Server Public Key')),
-                  );
-                  return;
-                }
-                if (!RegExp(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}$').hasMatch(serverAddress)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Неверный формат Server Address (IP:Port)')),
-                  );
-                  return;
-                }
-
-                try {
-                  await vpnProvider.saveConfig(
-                    privateKey: privateKey,
-                    serverPublicKey: serverPublicKey,
-                    serverAddress: serverAddress,
-                  );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Конфигурация сохранена')),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+            const SizedBox(height: 20),
+            if (authProvider.isAuthenticated)
+              ElevatedButton(
+                onPressed: () async {
+                  if (!mounted) return;
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  try {
+                    if (vpnProvider.isConnected) {
+                      await vpnProvider.disconnect();
+                      if (!mounted) return;
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(content: Text('VPN отключён')),
+                      );
+                    } else {
+                      await vpnProvider.connect();
+                      if (!mounted) return;
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(content: Text('VPN подключён')),
+                      );
+                    }
+                  } catch (e) {
+                    if (!mounted) return;
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(content: Text('Ошибка: $e')),
                     );
                   }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF719EA6),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
+                },
+                style: Theme.of(context).elevatedButtonTheme.style,
+                child: Text(vpnProvider.isConnected ? 'Отключить VPN' : 'Подключить VPN'),
               ),
-              child: const Text('Save'),
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
+            if (authProvider.isAuthenticated)
+              ElevatedButton(
+                onPressed: () async {
+                  if (!mounted) return;
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  try {
+                    await authProvider.logout();
+                    if (!mounted) return;
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(content: Text('Выход выполнен')),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(content: Text('Ошибка выхода: $e')),
+                    );
+                  }
+                },
+                style: Theme.of(context).elevatedButtonTheme.style,
+                child: const Text('Выйти'),
+              ),
+            const SizedBox(height: 10),
             ElevatedButton(
-              onPressed: () async {
-                await authProvider.logout();
+              onPressed: () {
+                themeProvider.toggleTheme();
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
-              child: const Text('Logout'),
+              style: Theme.of(context).elevatedButtonTheme.style,
+              child: Text('Переключить на ${themeProvider.themeMode == ThemeMode.dark ? 'Светлую' : 'Тёмную'} тему'),
             ),
           ],
         ),

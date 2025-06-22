@@ -5,7 +5,8 @@ import 'screens/login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/tray_manager.dart';
 import 'screens/vpn_screen.dart';
-import 'providers/vpn_provider.dart'; 
+import 'providers/vpn_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,17 +26,18 @@ void main() async {
     await windowManager.setMinimumSize(const Size(360, 640));
     await windowManager.setMaximumSize(const Size(360, 640));
     await windowManager.show();
-    });
+  });
 
   runApp(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuthStatus()),
-          ChangeNotifierProvider(create: (_) => VpnProvider()),
-        ],
-        child: const MyApp(),
-      ),
-    );
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuthStatus()),
+        ChangeNotifierProvider(create: (_) => VpnProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -46,31 +48,53 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'TowerVPN',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        textTheme: const TextTheme(
-          headlineLarge: TextStyle(color: Color(0xFF719EA6), fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF719EA6),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        return MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'TowerVPN',
+          theme: ThemeData(
+            primaryColor: const Color(0xFF719EA6),
+            scaffoldBackgroundColor: Colors.white,
+            textTheme: const TextTheme(
+              headlineLarge: TextStyle(color: Color(0xFF719EA6), fontSize: 24, fontWeight: FontWeight.bold),
+              bodyMedium: TextStyle(color: Colors.black),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF719EA6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              ),
+            ),
           ),
-        ),
-      ),
-      home: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) => authProvider.isAuthenticated ? const VpnScreen() : const LoginScreen(),
-      ),
+          darkTheme: ThemeData(
+            primaryColor: const Color(0xFF142F1F),
+            scaffoldBackgroundColor: const Color(0xFF1A2B21),
+            textTheme: const TextTheme(
+              headlineLarge: TextStyle(color: Color(0xFFABCF9C), fontSize: 24, fontWeight: FontWeight.bold),
+              bodyMedium: TextStyle(color: Colors.white),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF142F1F),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              ),
+            ),
+          ),
+          themeMode: themeProvider.themeMode,
+          home: Consumer<AuthProvider>(
+            builder: (context, authProvider, _) => authProvider.isAuthenticated ? const VpnScreen() : const LoginScreen(),
+          ),
+        );
+      },
     );
   }
 }
+
 class MyWindowListener extends WindowListener {
   @override
   void onWindowClose() async {

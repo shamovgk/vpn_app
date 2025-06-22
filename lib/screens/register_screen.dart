@@ -5,17 +5,20 @@ import 'login_screen.dart';
 import 'package:logger/logger.dart';
 
 final logger = Logger();
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
+
 class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObserver {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -25,33 +28,37 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
     super.dispose();
   }
 
-  void _register() {
+  void _register() async {
     if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       try {
-        authProvider.register(
+        await authProvider.register(
           _usernameController.text,
           _emailController.text,
           _passwordController.text,
         );
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Регистрация успешна! Войдите, пожалуйста.'), duration: Duration(seconds: 2)),
         );
         _usernameController.clear();
         _emailController.clear();
         _passwordController.clear();
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       } catch (e) {
+        if (!mounted) return;
         logger.e('Registration error: $e');
-        setState(() {
-            ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка: $e'), duration: Duration(seconds: 2)),
-          );
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), duration: Duration(seconds: 2)),
+        );
       }
+      if (!mounted) return;
+      setState(() => _isLoading = false);
     }
   }
 
@@ -64,6 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -73,27 +81,29 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.person_add, size: 100, color: Color(0xFF719EA6)),
+                Icon(Icons.person_add, size: 100, color: Theme.of(context).primaryColor),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _usernameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Логин',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.person),
+                    labelStyle: Theme.of(context).textTheme.bodyMedium,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Введите логин';
                     return null;
                   },
-                  ),
+                ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.email),
+                    labelStyle: Theme.of(context).textTheme.bodyMedium,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Введите email';
@@ -104,10 +114,11 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Пароль',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock),
+                    labelStyle: Theme.of(context).textTheme.bodyMedium,
                   ),
                   obscureText: true,
                   validator: (value) {
@@ -119,12 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: _register,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF719EA6),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  ),
+                  style: Theme.of(context).elevatedButtonTheme.style,
                   child: const Text(
                     'Зарегистрироваться',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -133,9 +139,9 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                 const SizedBox(height: 20),
                 TextButton(
                   onPressed: _navigateToLogin,
-                  child: const Text(
+                  child: Text(
                     'Уже есть аккаунт? Войти',
-                    style: TextStyle(color: Color(0xFF719EA6)),
+                    style: TextStyle(color: Theme.of(context).primaryColor),
                   ),
                 ),
               ],

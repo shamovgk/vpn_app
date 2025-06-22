@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,18 +26,19 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  void _login() async {
     if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       try {
-        authProvider.login(_usernameController.text, _passwordController.text).then((_) {
-          print('Login completed, isAuthenticated: ${authProvider.isAuthenticated}');
-        });
+        await authProvider.login(_usernameController.text, _passwordController.text);
+        logger.i('Login completed, isAuthenticated: ${authProvider.isAuthenticated}');
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
+      if (!mounted) return;
+      setState(() => _isLoading = false);
     }
   }
 
@@ -46,6 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -55,14 +61,15 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.lock, size: 100, color: Color(0xFF719EA6)),
+                Icon(Icons.lock, size: 100, color: Theme.of(context).primaryColor),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _usernameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Логин',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.person),
+                    labelStyle: Theme.of(context).textTheme.bodyMedium,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Введите логин';
@@ -72,10 +79,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Пароль',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock),
+                    labelStyle: Theme.of(context).textTheme.bodyMedium,
                   ),
                   obscureText: true,
                   validator: (value) {
@@ -86,14 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: _login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF719EA6),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
+                  style: Theme.of(context).elevatedButtonTheme.style,
                   child: const Text(
                     'Войти',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -102,9 +103,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 TextButton(
                   onPressed: _navigateToRegister,
-                  child: const Text(
+                  child: Text(
                     'Зарегистрироваться',
-                    style: TextStyle(color: Color(0xFF719EA6)),
+                    style: TextStyle(color: Theme.of(context).primaryColor),
                   ),
                 ),
               ],

@@ -1,17 +1,19 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:wireguard_flutter/wireguard_flutter.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wireguard_flutter/wireguard_flutter_platform_interface.dart';
 import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
 import '../services/tray_manager.dart';
+import '../providers/auth_provider.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 final logger = Logger();
 
 class VpnProvider with ChangeNotifier {
   WireGuardFlutterInterface? wireguard;
-  final _storage = const FlutterSecureStorage();
   bool _isConnecting = false;
   bool _isConnected = false;
   final Completer<void> _initializationCompleter = Completer<void>();
@@ -26,7 +28,7 @@ class VpnProvider with ChangeNotifier {
   }
 
   Future<void> _initializeWireGuard() async {
-    if (kDebugMode) print('Starting WireGuard initialization...');
+    logger.i('Starting WireGuard initialization...');
     if (wireguard != null) {
       logger.i('WireGuard already initialized');
       _initializationCompleter.complete();
@@ -55,24 +57,6 @@ class VpnProvider with ChangeNotifier {
     }
   }
 
-  Future<void> saveConfig({
-    required String privateKey,
-    required String serverPublicKey,
-    required String serverAddress,
-  }) async {
-    await _storage.write(key: 'vpn_private_key_$tunnelName', value: privateKey);
-    await _storage.write(key: 'vpn_server_public_key_$tunnelName', value: serverPublicKey);
-    await _storage.write(key: 'vpn_server_address_$tunnelName', value: serverAddress);
-  }
-
-  Future<Map<String, String?>> getConfig() async {
-    return {
-      'privateKey': await _storage.read(key: 'vpn_private_key_$tunnelName'),
-      'serverPublicKey': await _storage.read(key: 'vpn_server_public_key_$tunnelName'),
-      'serverAddress': await _storage.read(key: 'vpn_server_address_$tunnelName'),
-    };
-  }
-
   Future<void> _clearTempFiles() async {
     try {
       final tempDir = await getTemporaryDirectory();
@@ -91,13 +75,48 @@ class VpnProvider with ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> _getVpnConfig(String baseUrl, String? token) async {
+    if (token == null) throw Exception('Не авторизован');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/get-vpn-config'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Ошибка получения конфигурации: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> _getTestVpnConfig() async {
+    const String serverPublicKey = 'p5fE09SR1FzW+a81zbSmZjW0h528cNx7IRKN+w0ulxo='; 
+    const String serverAddress = '95.214.10.8:51820';
+    return {
+      'serverAddress': serverAddress,
+      'serverPublicKey': serverPublicKey,
+    };
+  }
+
+  final bool _isTestMode = true;
+
   Future<void> connect() async {
+    String? token;
     try {
       await _initializationCompleter.future;
     } catch (e) {
       logger.e('Initialization failed: $e');
       rethrow;
     }
+
+    final authProvider = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
+    if (!authProvider.isAuthenticated || authProvider.vpnKey == null) {
+      throw Exception('Не авторизован или отсутствует VPN-ключ');
+    }
+    token = authProvider.token;
 
     if (wireguard == null) {
       logger.w('WireGuard instance is null, reinitializing...');
@@ -118,14 +137,13 @@ class VpnProvider with ChangeNotifier {
 
       await _clearTempFiles();
 
-      final configData = await getConfig();
-      if (configData['privateKey']!.isEmpty || configData['serverPublicKey']!.isEmpty || configData['serverAddress']!.isEmpty) {
-        throw Exception('Конфигурация не настроена');
-      }
+      final configData = _isTestMode
+          ? await _getTestVpnConfig()
+          : await _getVpnConfig(AuthProvider.baseUrl, token);
 
       final config = '''
       [Interface]
-      PrivateKey = ${configData['privateKey']}
+      PrivateKey = ${authProvider.vpnKey}
       Address = 10.0.0.2/32
       DNS = 8.8.8.8, 1.1.1.1
       MTU = 1280
@@ -137,12 +155,12 @@ class VpnProvider with ChangeNotifier {
       ''';
 
       await wireguard!.startVpn(
-        serverAddress: configData['serverAddress']!,
+        serverAddress: configData['serverAddress'],
         wgQuickConfig: config,
         providerBundleIdentifier: 'com.shamovgk.vpn_app',
       );
       _isConnected = true;
-      logger.i('VPN connected with new config');
+      logger.i('VPN connected with ${_isTestMode ? 'test' : 'real'} config');
     } catch (e) {
       _isConnected = false;
       logger.e('Connection error: $e');

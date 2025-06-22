@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const express = require('express');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const path = require('path');
 
 const app = express();
@@ -65,25 +66,36 @@ function generateToken() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+function generateVpnKey() {
+  return crypto.randomBytes(32).toString('base64');
+}
+
 app.post('/register', (req, res) => {
   const { username, password, email } = req.body;
   if (!username || !password || !email) {
     return res.status(400).json({ error: 'All fields are required' });
   }
-  const hashedPassword = bcrypt.hashSync(password, 10); 
-  const trialEndDate = getCurrentDatePlusDays(3); 
 
-db.run(
-    `INSERT INTO Users (username, password, email, trial_end_date) VALUES (?, ?, ?, ?)`,
-    [username, hashedPassword, email, trialEndDate],
-    function (err) {
-      if (err) {
-        console.error('Registration error:', err.message);
-        return res.status(400).json({ error: err.message });
+  // Проверка уникальности email
+  db.get(`SELECT id FROM Users WHERE email = ?`, [email], (err, row) => {
+    if (row) return res.status(400).json({ error: 'Email already in use' });
+
+    const hashedPassword = bcrypt.hashSync(password, 10); 
+    const trialEndDate = getCurrentDatePlusDays(3);
+    const vpnKey = generateVpnKey(); 
+
+    db.run(
+      `INSERT INTO Users (username, password, email, trial_end_date, vpn_key) VALUES (?, ?, ?, ?, ?)`,
+      [username, hashedPassword, email, trialEndDate, vpnKey],
+      function (err) {
+        if (err) {
+          console.error('Registration error:', err.message);
+          return res.status(400).json({ error: err.message });
+        }
+        res.json({ id: this.lastID, username, email, trial_end_date: trialEndDate, vpn_key: vpnKey });
       }
-      res.json({ id: this.lastID, username, email, trial_end_date: trialEndDate });
-    }
-  );
+    );
+  });
 });
 
 app.post('/login', (req, res) => {
@@ -139,6 +151,90 @@ app.post('/login', (req, res) => {
       );
     }
   );
+});
+
+app.get('/validate-token', (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  db.get(
+    `SELECT id, username, email_verified, is_paid, vpn_key, trial_end_date, device_count, family_group_id 
+     FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    [token, new Date().toISOString()],
+    (err, user) => {
+      if (err) {
+        console.error('Token validation error:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      res.json({
+        id: user.id,
+        username: user.username,
+        email_verified: user.email_verified,
+        is_paid: user.is_paid,
+        vpn_key: user.vpn_key,
+        device_count: user.device_count,
+        family_group_id: user.family_group_id
+      });
+    }
+  );
+});
+
+app.post('/logout', (req, res) => {
+  const { token } = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  db.run(
+    `UPDATE Users SET auth_token = NULL, token_expiry = NULL WHERE auth_token = ?`,
+    [token],
+    function (err) {
+      if (err) {
+        console.error('Logout error:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Token not found' });
+      }
+      res.json({ message: 'Logged out successfully' });
+    }
+  );
+});
+
+app.put('/pay', (req, res) => {
+  const { token } = req.headers.authorization?.split(' ')[1];
+  const { is_family } = req.body;
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+  if (is_family) {
+    db.run(
+      `UPDATE FamilyGroups SET is_paid = 1 WHERE id = (SELECT family_group_id FROM Users WHERE auth_token = ?)`,
+      [token],
+      function (err) {
+        if (err || this.changes === 0) {
+          return res.status(404).json({ error: 'Family group not found' });
+        }
+        res.json({ message: 'Family plan paid' });
+      }
+    );
+  } else {
+    db.run(
+      `UPDATE Users SET is_paid = 1 WHERE auth_token = ?`,
+      [token],
+      function (err) {
+        if (err || this.changes === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+        res.json({ message: 'Individual plan paid' });
+      }
+    );
+  }
 });
 
 app.post('/verify-email', (req, res) => {
@@ -258,82 +354,26 @@ app.post('/add-to-family-group', (req, res) => {
   );
 });
 
-app.put('/pay', (req, res) => {
-  const { user_id, is_family } = req.body;
-  if (is_family) {
-    db.run(
-      `UPDATE FamilyGroups SET is_paid = 1 WHERE id = (SELECT family_group_id FROM Users WHERE id = ?)`,
-      [user_id],
-      function (err) {
-        if (err || this.changes === 0) {
-          return res.status(404).json({ error: 'Family group not found' });
-        }
-        res.json({ message: 'Family plan paid' });
-      }
-    );
-  } else {
-    db.run(
-      `UPDATE Users SET is_paid = 1 WHERE id = ?`,
-      [user_id],
-      function (err) {
-        if (err || this.changes === 0) {
-          return res.status(404).json({ error: 'User not found' });
-        }
-        res.json({ message: 'Individual plan paid' });
-      }
-    );
-  }
-});
-
-app.get('/validate-token', (req, res) => {
-  const { token } = req.query;
+app.get('/get-vpn-config', (req, res) => {
+  const { token } = req.headers.authorization?.split(' ')[1];
   if (!token) {
     return res.status(400).json({ error: 'Token is required' });
   }
 
   db.get(
-    `SELECT id, username, email_verified, is_paid, vpn_key, trial_end_date, device_count, family_group_id 
-     FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    `SELECT id, vpn_key FROM Users WHERE auth_token = ? AND token_expiry > ?`,
     [token, new Date().toISOString()],
     (err, user) => {
-      if (err) {
-        console.error('Token validation error:', err.message);
-        return res.status(500).json({ error: err.message });
-      }
-      if (!user) {
+      if (err || !user) {
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
+      // Генерация динамического privateKey и фиксированный serverAddress
+      const privateKey = crypto.randomBytes(32).toString('base64');
+      const serverAddress = '95.214.10.8:51820'; // Замени на реальный адрес сервера
       res.json({
-        id: user.id,
-        username: user.username,
-        email_verified: user.email_verified,
-        is_paid: user.is_paid,
-        vpn_key: user.vpn_key,
-        device_count: user.device_count,
-        family_group_id: user.family_group_id
+        privateKey: privateKey,
+        serverAddress: serverAddress
       });
-    }
-  );
-});
-
-app.post('/logout', (req, res) => {
-  const { token } = req.body;
-  if (!token) {
-    return res.status(400).json({ error: 'Token is required' });
-  }
-
-  db.run(
-    `UPDATE Users SET auth_token = NULL, token_expiry = NULL WHERE auth_token = ?`,
-    [token],
-    function (err) {
-      if (err) {
-        console.error('Logout error:', err.message);
-        return res.status(500).json({ error: err.message });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Token not found' });
-      }
-      res.json({ message: 'Logged out successfully' });
     }
   );
 });
