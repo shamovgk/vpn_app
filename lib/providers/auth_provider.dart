@@ -2,139 +2,202 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:logger/logger.dart';
 
+final logger = Logger();
 class AuthProvider with ChangeNotifier {
   final _storage = const FlutterSecureStorage();
   bool _isAuthenticated = false;
   bool _isPaid = false;
   String? _username;
   String? _vpnKey;
+  String? _token;
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isPaid => _isPaid;
   String? get username => _username;
   String? get vpnKey => _vpnKey;
+  String? get token => _token;
 
   static const String _baseUrl = 'http://95.214.10.8:3000';
+  static String get baseUrl => _baseUrl;
+  
+  final bool _isTestMode = true;
 
   Future<void> checkAuthStatus() async {
-    final token = await _storage.read(key: 'auth_token');
-    if (token != null) {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/validate-token?token=$token'),
-        headers: {'Content-Type': 'application/json'},
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(response.body);
-        _isAuthenticated = true;
-        _isPaid = (userData['is_paid'] as int) == 1;
-        _username = userData['username'];
-        _vpnKey = userData['vpn_key'];
-        notifyListeners();
-      } else {
-        await _storage.delete(key: 'auth_token');
-        _isAuthenticated = false;
-      }
+    if (_isTestMode) {
+      _isAuthenticated = true;
+      _isPaid = true;
+      _username = 'test_user';
+      _vpnKey = 'QO4kryQQIaEXvCo2akiLmia25Y/q2L0kRFrbD1kATmo=';
+      _token = 'test_token_abc123';
+      logger.i('Test mode: Authenticated as $username with VPN key: $_vpnKey');
     } else {
-      _isAuthenticated = false;
+      final token = await _storage.read(key: 'auth_token');
+      if (token != null) {
+        final response = await http.get(
+          Uri.parse('$_baseUrl/validate-token?token=$token'),
+          headers: {'Content-Type': 'application/json'},
+        );
+        if (response.statusCode == 200) {
+          final userData = jsonDecode(response.body);
+          _isAuthenticated = true;
+          _isPaid = (userData['is_paid'] as int) == 1;
+          _username = userData['username'];
+          _vpnKey = userData['vpn_key'];
+          _token = token;
+          notifyListeners();
+        } else {
+          await _storage.delete(key: 'auth_token');
+          _isAuthenticated = false;
+          _isPaid = false;
+          _username = null;
+          _vpnKey = null;
+          _token = null;
+          notifyListeners();
+        }
+      } else {
+        _isAuthenticated = false;
+        _isPaid = false;
+        _username = null;
+        _vpnKey = null;
+        _token = null;
+        notifyListeners();
+      }
     }
     notifyListeners();
   }
 
   Future<void> login(String username, String password) async {
-    print('Attempting login for username: $username');
-    final response = await http.post(
-      Uri.parse('$_baseUrl/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
-    print('Login response: ${response.statusCode} - ${response.body}');
-
-    if (response.statusCode == 200) {
-      final userData = jsonDecode(response.body);
-      print('User data: $userData');
-      if (userData['id'] != null) {
-        print('Setting auth token and state');
-        await _storage.write(key: 'auth_token', value: userData['auth_token']);
+    if (_isTestMode) {
+      if (username == 'test' && password == 'test') {
         _isAuthenticated = true;
-        _isPaid = (userData['is_paid'] as int) == 1;
-        _username = userData['username'];
-        _vpnKey = userData['vpn_key'];
-        print('Authenticated: $_isAuthenticated, Paid: $_isPaid');
+        _isPaid = true;
+        _username = 'test_user';
+        _vpnKey = 'QO4kryQQIaEXvCo2akiLmia25Y/q2L0kRFrbD1kATmo=';
+        _token = 'test_token_abc123';
+        logger.i('Test mode: Login successful for $username');
         notifyListeners();
       } else {
-        throw Exception('Неверный пароль или пользователь');
+        throw Exception('Неверный тестовый логин или пароль (используй "test"/"test")');
       }
     } else {
-      throw Exception('Ошибка логина: ${response.body}');
+      logger.i('Attempting login for username: $username');
+      final response = await http.post(
+        Uri.parse('$_baseUrl/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      );
+      logger.i('Login response: ${response.statusCode} - ${response.body}');
+
+      if (response.statusCode == 200) {
+        final userData = jsonDecode(response.body);
+        if (userData['id'] != null) {
+          logger.i('Setting auth token and state');
+          await _storage.write(key: 'auth_token', value: userData['auth_token']);
+          _isAuthenticated = true;
+          _isPaid = (userData['is_paid'] as int) == 1;
+          _username = userData['username'];
+          _vpnKey = userData['vpn_key'];
+          _token = userData['auth_token'];
+          logger.i('Authenticated: $_isAuthenticated, Paid: $_isPaid');
+          notifyListeners();
+        } else {
+          throw Exception('Неверный пароль или пользователь');
+        }
+      } else {
+        throw Exception('Ошибка логина: ${response.body}');
+      }
     }
   }
 
   Future<void> register(String username, String email, String password) async {
-    print('Attempting registration for username: $username, email: $email');
-    final response = await http.post(
-      Uri.parse('$_baseUrl/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password, 'email': email}),
-    );
-    print('Register response: ${response.statusCode} - ${response.body}');
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      await _storage.write(key: 'payment_status', value: 'unpaid');
+    if (_isTestMode) {
       _isAuthenticated = false;
       _isPaid = false;
-      _username = data['username'];
+      _username = username;
+      _vpnKey = 'QO4kryQQIaEXvCo2akiLmia25Y/q2L0kRFrbD1kATmo=';
+      logger.i('Test mode: Registered as $username');
       notifyListeners();
-    } else if (response.statusCode == 400) {
-      final error = jsonDecode(response.body)['error'];
-      throw Exception('Ошибка регистрации: $error');
     } else {
-      throw Exception('Ошибка регистрации: ${response.body}');
+      logger.i('Attempting registration for username: $username, email: $email');
+      final response = await http.post(
+        Uri.parse('$_baseUrl/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password, 'email': email}),
+      );
+      logger.i('Register response: ${response.statusCode} - ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _isAuthenticated = false;
+        _isPaid = false;
+        _username = data['username'];
+        _vpnKey = data['vpn_key'];
+        notifyListeners();
+      } else if (response.statusCode == 400) {
+        final error = jsonDecode(response.body)['error'];
+        throw Exception('Ошибка регистрации: $error');
+      } else {
+        throw Exception('Ошибка регистрации: ${response.body}');
+      }
     }
   }
 
- Future<void> logout() async {
-    final token = await _storage.read(key: 'auth_token');
-    if (token != null) {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/logout'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'token': token}),
-      );
-      if (response.statusCode == 200) {
-        await _storage.delete(key: 'auth_token');
-        await _storage.delete(key: 'payment_status');
-        _isAuthenticated = false;
-        _isPaid = false;
-        _username = null;
-        _vpnKey = null;
-        notifyListeners();
-      } else {
-        throw Exception('Ошибка выхода: ${response.body}');
-      }
-    } else {
+  Future<void> logout() async {
+    if (_isTestMode) {
       _isAuthenticated = false;
       _isPaid = false;
       _username = null;
       _vpnKey = null;
+      _token = null;
+      logger.i('Test mode: Logout successful');
       notifyListeners();
+    } else {
+      if (_token != null) {
+        final response = await http.post(
+          Uri.parse('$_baseUrl/logout'),
+          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $_token'},
+        );
+        if (response.statusCode == 200) {
+          await _storage.delete(key: 'auth_token');
+          _isAuthenticated = false;
+          _isPaid = false;
+          _username = null;
+          _vpnKey = null;
+          _token = null;
+          notifyListeners();
+        } else {
+          throw Exception('Ошибка выхода: ${response.body}');
+        }
+      } else {
+        _isAuthenticated = false;
+        _isPaid = false;
+        _username = null;
+        _vpnKey = null;
+        _token = null;
+        notifyListeners();
+      }
     }
   }
- Future<void> verifyPayment() async {
-    final token = await _storage.read(key: 'auth_token');
-    if (token != null) {
+
+  Future<void> verifyPayment() async {
+    if (_isTestMode) {
+      _isPaid = true;
+      logger.i('Test mode: Payment verified');
+      notifyListeners();
+    } else {
+      if (_token == null) throw Exception('Не авторизован');
       final response = await http.put(
         Uri.parse('$_baseUrl/pay'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': token, 'is_family': false}),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $_token'},
+        body: jsonEncode({'is_family': false}),
       );
       if (response.statusCode == 200) {
-        await _storage.write(key: 'payment_status', value: 'paid');
         _isPaid = true;
         notifyListeners();
       } else {
-        throw Exception('Ошибка подтверждения оплаты');
+        throw Exception('Ошибка подтверждения оплаты: ${response.body}');
       }
     }
   }
