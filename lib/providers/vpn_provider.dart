@@ -182,7 +182,6 @@ class VpnProvider with ChangeNotifier {
     notifyListeners();
     try {
       await wireguard!.stopVpn();
-      await Future.delayed(const Duration(seconds: 2)); 
       _isConnected = false;
       logger.i('VPN disconnected');
     } catch (e) {

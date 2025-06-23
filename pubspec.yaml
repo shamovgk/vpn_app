@@ -23,7 +23,8 @@ dependencies:
   window_manager: ^0.5.0
   logger: ^2.5.0
   http: ^1.4.0 # Для API-запросов
-
+  flutter_animate: ^4.5.2
+  gif: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -38,5 +39,6 @@ flutter:
     - assets/tray_icon_connect.ico
     - assets/tray_icon_disconnect.png
     - assets/tray_icon_disconnect.ico
+    - assets/vpn_animation.gif
   uses-material-design: true
   
