@@ -112,75 +112,51 @@ If conflicts occur, follow the instructions in the "Resolving Merge Conflicts" s
         expect(find.text('Login'), findsOneWidget);
     });
 
-##DataBase
+## DataBase
 1. Подключение к серверу
-
 Подключитесь к серверу по SSH. Замените user и server-ip на ваше имя пользователя и IP-адрес сервера:
-
-ssh user@server-ip
-
+   ```bash
+   ssh user@server-ip
 2. Просмотр каталогов
-
 Проверьте доступные каталоги в текущей директории:
-
-ls -d */
-
+   ```bash
+   ls -d */
 Эта команда отображает все каталоги в текущем пути.
-
 3. Переход в каталог проекта
-
 Перейдите в нужный каталог проекта (замените project-directory на реальное имя каталога, найденное на предыдущем шаге):
-
-cd project-directory
-
+   ```bash
+   cd project-directory
 4. Просмотр файлов в каталоге
-
 Посмотрите все файлы в текущем каталоге, чтобы убедиться в наличии node_modules, package-lock.json и других файлов:
-
-ls
-
+   ```bash
+   ls
 5. Удаление ненужных файлов
-
 Удалите каталог node_modules и файл package-lock.json для очистки проекта:
-
-rm -rf node_modules package-lock.json
-
+   ```bash
+   rm -rf node_modules package-lock.json
 6. Проверка удаления файлов
-
 Убедитесь, что файлы были удалены, просмотрев все файлы (включая скрытые) в каталоге:
-
-ls -la
-
+   ```bash
+   ls -la
 Проверьте, что node_modules и package-lock.json больше не отображаются.
-
 7. Проверка запущенных процессов PM2
-
 Просмотрите список всех запущенных процессов PM2, чтобы проверить статус vpn-server:
-
-pm2 list
-
+   ```bash
+   pm2 list
 8. Остановка сервера VPN
-
 Остановите процесс vpn-server, если он запущен:
-
-pm2 stop vpn-server
-
+   ```bash
+   pm2 stop vpn-server
 9. Удаление процесса сервера VPN
-
 Удалите процесс vpn-server из управления PM2:
-
-pm2 delete vpn-server
-
+   ```bash
+   pm2 delete vpn-server
 10. Запуск сервера VPN
-
 Запустите приложение Node.js (index.js) и назначьте ему имя vpn-server в PM2:
-
+   ```bash
 pm2 start index.js --name vpn-server
-
 11. Тестирование API регистрации
-
 Отправьте POST-запрос к конечной точке регистрации для проверки работы API и сервера:
-
-curl -X POST -H "Content-Type: application/json" -d '{"username":"testuser","password":"testpass123","email":"test@example.com"}' http://localhost:3000/register
-
+   ```bash
+   curl -X POST -H "Content-Type: application/json" -d '{"username":"testuser","password":"testpass123","email":"test@example.com"}' http://localhost:3000/register
 Эта команда отправляет JSON-данные на конечную точку /register. Проверьте ответ, чтобы убедиться, что запрос выполнен успешно.
