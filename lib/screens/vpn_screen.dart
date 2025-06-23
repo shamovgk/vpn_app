@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:vpn_app/providers/auth_provider.dart';
-import '../providers/vpn_provider.dart';
-import 'settings_screen.dart';
+import 'package:vpn_app/providers/vpn_provider.dart';
 import 'package:logger/logger.dart';
+import 'package:gif/gif.dart';
+import 'settings_screen.dart'; // Предполагаем, что этот файл существует
 
 final logger = Logger();
 
@@ -18,7 +17,7 @@ class VpnScreen extends StatefulWidget {
 class _VpnScreenState extends State<VpnScreen> {
   int _selectedIndex = 0;
 
-  static final List<Widget> _pages = <Widget>[_HomeContent(), SettingsScreen(),];
+  static final List<Widget> _pages = <Widget>[Center(child: _AnimationButton()), SettingsScreen()];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -37,7 +36,12 @@ class _VpnScreenState extends State<VpnScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(child: _pages[_selectedIndex]),
+            Expanded(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: _pages,
+              ),
+            ),
             Container(
               padding: EdgeInsets.zero,
               color: Theme.of(context).scaffoldBackgroundColor.withAlpha(230),
@@ -61,90 +65,80 @@ class _VpnScreenState extends State<VpnScreen> {
   }
 }
 
-class _HomeContent extends StatelessWidget {
+class _AnimationButton extends StatefulWidget {
+  @override
+  __AnimationButtonState createState() => __AnimationButtonState();
+}
+
+class __AnimationButtonState extends State<_AnimationButton> with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  late GifController _controller;
+  bool _isAnimating = false; // Флаг для управления анимацией
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = GifController(vsync: this);
+    _controller.reset(); // Инициализируем в начальном состоянии
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  bool get wantKeepAlive => true; // Сохраняем состояние виджета
+
+  Future<void> _handleTap() async {
+    final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    if (vpnProvider.isConnecting || _isAnimating) return;
+
+    setState(() {
+      _isAnimating = true; // Устанавливаем флаг анимации
+    });
+
+    try {
+      // Запускаем анимацию и операцию параллельно
+      if (vpnProvider.isConnected) {
+        await Future.wait([
+          _controller.reverse(), // Анимация назад
+          vpnProvider.disconnect(), // Отключение VPN
+        ]);
+      } else {
+        await Future.wait([
+          _controller.forward(), // Анимация вперёд
+          vpnProvider.connect(), // Подключение VPN
+        ]);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+      }
+    } finally {
+      setState(() {
+        _isAnimating = false; // Сбрасываем флаг после завершения
+      });
+      _controller.stop(); // Останавливаем анимацию
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final vpnProvider = Provider.of<VpnProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: ScaleTransition(scale: animation, child: child),
-            ),
-            child: vpnProvider.isConnecting
-                ? Container(
-                    key: const ValueKey('connecting'),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SpinKitCircle(color: Theme.of(context).primaryColor, size: 50),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Подключение... (Плейсхолдер)',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Text(
-                    vpnProvider.isConnected ? 'Подключено' : 'Отключено',
-                    key: ValueKey(vpnProvider.isConnected),
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: vpnProvider.isConnected
-                              ? const Color(0xFFABCF9C)
-                              : Theme.of(context).primaryColor,
-                        ),
-                  ),
-          ),
-          const SizedBox(height: 40),
-          SizedBox(
-            width: 200,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: vpnProvider.isConnecting
-                  ? null
-                  : () async {
-                      final scaffoldMessenger = ScaffoldMessenger.of(context);
-                      if (!authProvider.isAuthenticated) {
-                        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Не авторизован')));
-                        return;
-                      }
-                      try {
-                        if (vpnProvider.isConnected) {
-                          await vpnProvider.disconnect();
-                        } else {
-                          await vpnProvider.connect();
-                        }
-                      } catch (e) {
-                        if (context.mounted) scaffoldMessenger.showSnackBar(SnackBar(content: Text('Ошибка: $e')));
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: vpnProvider.isConnected ? Colors.red : Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                elevation: 5,
-              ),
-              child: vpnProvider.isConnecting
-                  ? SpinKitCircle(color: Colors.white, size: 24)
-                  : Text(
-                      vpnProvider.isConnected ? 'Отключить' : 'Подключить',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-            ),
-          ),
-        ],
+    super.build(context); // Обязательный вызов для AutomaticKeepAliveClientMixin
+    return GestureDetector(
+      onTap: _handleTap,
+      child: SizedBox(
+        width: 300,
+        height: 300,
+        child: Gif(
+          image: const AssetImage('assets/vpn_animation.gif'),
+          controller: _controller,
+          autostart: Autostart.no, // Отключаем автозапуск
+          placeholder: (context) => const SizedBox.shrink(),
+        ),
       ),
     );
   }
