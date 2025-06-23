@@ -43,8 +43,8 @@ Thank you for considering contributing to the VPN App! This document outlines th
 4. Commit changes with a clear message:
     ```bash
     git add .
-    git commit -m "Add your descriptive commit message"  
-
+    git commit -m "Add your descriptive commit message"
+    
 Example: Add subscription screen UI with plan selection. 
 
 5. Push your branch to GitHub:
@@ -61,7 +61,7 @@ Example: Add subscription screen UI with plan selection.
     ```bash
     git checkout main
     git pull origin main
-    git branch -d feature/subscription-screen  # Delete unneeded branch
+    git branch -d feature/your-feature  # Delete unneeded branch
 
 ### Resolving Merge Conflicts
 If conflicts occur during a PR or merge:
@@ -72,6 +72,7 @@ If conflicts occur during a PR or merge:
     git add <file>
     git commit
     git push origin feature/your-feature
+    
 ### Accidentally Pushed to the Wrong Branch
 If changes were pushed to main or another branch by mistake:
 
@@ -84,18 +85,19 @@ If changes were pushed to main or another branch by mistake:
     git reset --hard HEAD~1  # Revert the last commit (warning: data may be lost)
     git push origin main --force  # Force update main
 3. Switch back to your branch and continue working:
-    ```bash
+   ```bash
     git checkout feature/your-feature
     git push origin feature/your-feature
-### Forgot to Pull main
+   
+### Forgot to Pull main  
 If your branch feature/subscription-screen is outdated, pull changes from main:
-    ```bash
-    git checkout feature/subscription-screen # Switch to your branch
-    git merge main # Merge changes from main
 
-If conflicts occur, follow the instructions in the "Resolving Merge Conflicts" section.
+     git checkout feature/your-feature # Switch to your branch
+     git merge main # Merge changes from main
 
-## Code Standards
+If conflicts occur, follow the instructions in the "Resolving Merge Conflicts" section.  
+
+## Code Standards  
  - Follow the [Flutter style guide](https://dart.dev/effective-dart/style).
  - Run flutter format . to format code.
  - Run flutter analyze to catch issues.
@@ -113,50 +115,56 @@ If conflicts occur, follow the instructions in the "Resolving Merge Conflicts" s
     });
 
 ## DataBase
-1. Подключение к серверу
+1. Подключение к серверу  
 Подключитесь к серверу по SSH. Замените user и server-ip на ваше имя пользователя и IP-адрес сервера:
-   ```bash
-   ssh user@server-ip
-2. Просмотр каталогов
+     ```bash
+     ssh user@server-ip
+2. Просмотр каталогов  
 Проверьте доступные каталоги в текущей директории:
-   ```bash
-   ls -d */
-Эта команда отображает все каталоги в текущем пути.
-3. Переход в каталог проекта
+     ```bash
+     ls -d */
+   
+Эта команда отображает все каталоги в текущем пути.  
+
+3. Переход в каталог проекта  
 Перейдите в нужный каталог проекта (замените project-directory на реальное имя каталога, найденное на предыдущем шаге):
-   ```bash
-   cd project-directory
-4. Просмотр файлов в каталоге
+     ```bash
+     cd project-directory
+4. Просмотр файлов в каталоге  
 Посмотрите все файлы в текущем каталоге, чтобы убедиться в наличии node_modules, package-lock.json и других файлов:
-   ```bash
-   ls
-5. Удаление ненужных файлов
+     ```bash
+     ls
+5. Удаление ненужных файлов  
 Удалите каталог node_modules и файл package-lock.json для очистки проекта:
-   ```bash
-   rm -rf node_modules package-lock.json
-6. Проверка удаления файлов
+     ```bash
+     rm -rf node_modules package-lock.json
+6. Проверка удаления файлов  
 Убедитесь, что файлы были удалены, просмотрев все файлы (включая скрытые) в каталоге:
-   ```bash
-   ls -la
-Проверьте, что node_modules и package-lock.json больше не отображаются.
-7. Проверка запущенных процессов PM2
+     ```bash
+     ls -la
+   
+Проверьте, что node_modules и package-lock.json больше не отображаются.  
+
+7. Проверка запущенных процессов PM2  
 Просмотрите список всех запущенных процессов PM2, чтобы проверить статус vpn-server:
-   ```bash
-   pm2 list
-8. Остановка сервера VPN
+     ```bash
+     pm2 list
+8. Остановка сервера VPN  
 Остановите процесс vpn-server, если он запущен:
-   ```bash
-   pm2 stop vpn-server
-9. Удаление процесса сервера VPN
+     ```bash
+     pm2 stop vpn-server
+9. Удаление процесса сервера VPN  
 Удалите процесс vpn-server из управления PM2:
-   ```bash
-   pm2 delete vpn-server
-10. Запуск сервера VPN
+     ```bash
+     pm2 delete vpn-server
+10. Запуск сервера VPN  
 Запустите приложение Node.js (index.js) и назначьте ему имя vpn-server в PM2:
-   ```bash
-pm2 start index.js --name vpn-server
+    ```bash
+    pm2 start index.js --name vpn-server
 11. Тестирование API регистрации
 Отправьте POST-запрос к конечной точке регистрации для проверки работы API и сервера:
-   ```bash
-   curl -X POST -H "Content-Type: application/json" -d '{"username":"testuser","password":"testpass123","email":"test@example.com"}' http://localhost:3000/register
+    ```bash
+    curl -X POST -H "Content-Type: application/json" -d '{"username":"testuser","password":"testpass123","email":"test@example.com"}' http://localhost:3000/register
+
 Эта команда отправляет JSON-данные на конечную точку /register. Проверьте ответ, чтобы убедиться, что запрос выполнен успешно.
+
