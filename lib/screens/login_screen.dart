@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vpn_app/screens/vpn_screen.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
 import 'package:logger/logger.dart';
@@ -32,10 +33,23 @@ class _LoginScreenState extends State<LoginScreen> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       try {
         await authProvider.login(_usernameController.text, _passwordController.text);
-        logger.i('Login completed, isAuthenticated: ${authProvider.isAuthenticated}');
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const VpnScreen()),
+        );
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        if (e.toString().contains('Пожалуйста, проверьте email')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Пожалуйста, проверьте email для верификации'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        }
       }
       if (!mounted) return;
       setState(() => _isLoading = false);

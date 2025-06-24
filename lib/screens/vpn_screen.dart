@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:vpn_app/providers/vpn_provider.dart';
 import 'package:logger/logger.dart';
 import 'package:gif/gif.dart';
-import 'settings_screen.dart'; // Предполагаем, что этот файл существует
+import 'settings_screen.dart';
 
 final logger = Logger();
 

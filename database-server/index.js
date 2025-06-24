@@ -3,6 +3,8 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const path = require('path');
+const nodemailer = require('nodemailer');
+const Brevo = require('@getbrevo/brevo');
 
 const app = express();
 app.use(express.json());
@@ -33,19 +35,19 @@ function createTables() {
         family_group_id INTEGER,
         auth_token TEXT,
         token_expiry TEXT,
-        FOREIGN KEY (family_group_id) REFERENCES FamilyGroups(id)
+        verification_token TEXT
       )
     `);
 
     db.run(`
-       CREATE TABLE IF NOT EXISTS FamilyGroups (
+      CREATE TABLE IF NOT EXISTS FamilyGroups (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         max_users INTEGER DEFAULT 5,
         is_paid INTEGER DEFAULT 0
       )
     `);
 
-     db.run(`
+    db.run(`
       CREATE TABLE IF NOT EXISTS Devices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -70,28 +72,55 @@ function generateVpnKey() {
   return crypto.randomBytes(32).toString('base64');
 }
 
+// Настройка Brevo
+const apiKey = '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'; // Замени на твой API-ключ
+const apiInstance = new Brevo.TransactionalEmailsApi(); // Создаём экземпляр API
+let apiKeyAuth = apiInstance.authentications['apiKey']; // Получаем объект аутентификации
+apiKeyAuth.apiKey = apiKey; // Устанавливаем API-ключ
+
+function sendVerificationEmail(email, verificationToken) {
+  const verificationLink = `http://smtp-relay.brevo.com/verify-email?token=${verificationToken}`;
+  const sendSmtpEmail = new Brevo.SendSmtpEmail();
+
+  sendSmtpEmail.subject = 'Verify Your Email for UgbuganVPN';
+  sendSmtpEmail.sender = {
+    name: 'UgbuganVPN',
+    email: '9063a2002@smtp-brevo.com', // Замени на подтверждённый отправителя
+  };
+  sendSmtpEmail.to = [{ email }];
+  sendSmtpEmail.htmlContent = `<p>Please verify your email by clicking <a href="${verificationLink}">this link</a>.</p>`;
+  sendSmtpEmail.textContent = `Please verify your email by clicking this link: ${verificationLink}`;
+
+  return apiInstance.sendTransacEmail(sendSmtpEmail).then(
+    (data) => console.log('Email sent: ' + JSON.stringify(data)),
+    (error) => console.error('Email error: ', error)
+  );
+}
+
+
 app.post('/register', (req, res) => {
   const { username, password, email } = req.body;
   if (!username || !password || !email) {
     return res.status(400).json({ error: 'All fields are required' });
   }
 
-  // Проверка уникальности email
   db.get(`SELECT id FROM Users WHERE email = ?`, [email], (err, row) => {
     if (row) return res.status(400).json({ error: 'Email already in use' });
 
-    const hashedPassword = bcrypt.hashSync(password, 10); 
+    const hashedPassword = bcrypt.hashSync(password, 10);
     const trialEndDate = getCurrentDatePlusDays(3);
-    const vpnKey = generateVpnKey(); 
+    const vpnKey = generateVpnKey();
+    const verificationToken = generateToken();
 
     db.run(
-      `INSERT INTO Users (username, password, email, trial_end_date, vpn_key) VALUES (?, ?, ?, ?, ?)`,
-      [username, hashedPassword, email, trialEndDate, vpnKey],
+      `INSERT INTO Users (username, password, email, trial_end_date, vpn_key, verification_token, email_verified) VALUES (?, ?, ?, ?, ?, ?, 0)`,
+      [username, hashedPassword, email, trialEndDate, vpnKey, verificationToken],
       function (err) {
         if (err) {
           console.error('Registration error:', err.message);
           return res.status(400).json({ error: err.message });
         }
+        sendVerificationEmail(email, verificationToken);
         res.json({ id: this.lastID, username, email, trial_end_date: trialEndDate, vpn_key: vpnKey });
       }
     );
@@ -104,7 +133,7 @@ app.post('/login', (req, res) => {
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
- db.get(
+  db.get(
     `SELECT id, username, password, email_verified, is_paid, vpn_key, trial_end_date, device_count, family_group_id 
      FROM Users WHERE username = ?`,
     [username],
@@ -120,15 +149,10 @@ app.post('/login', (req, res) => {
         return res.status(401).json({ error: 'Invalid password' });
       }
       if (user.email_verified === 0) {
-        return res.status(403).json({ error: 'Email not verified' });
+        return res.status(403).json({ error: 'Email not verified. Please verify your email first.' });
       }
-      const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
-      if (!user.is_paid && trialExpired) {
-        return res.status(403).json({ error: 'Trial period expired' });
-      }
-
       const token = generateToken();
-      const tokenExpiry = getCurrentDatePlusDays(30); 
+      const tokenExpiry = getCurrentDatePlusDays(30);
       db.run(
         `UPDATE Users SET auth_token = ?, token_expiry = ? WHERE id = ?`,
         [token, tokenExpiry, user.id],
@@ -145,7 +169,7 @@ app.post('/login', (req, res) => {
             vpn_key: user.vpn_key,
             device_count: user.device_count,
             family_group_id: user.family_group_id,
-            auth_token: token
+            auth_token: token,
           });
         }
       );
@@ -178,7 +202,7 @@ app.get('/validate-token', (req, res) => {
         is_paid: user.is_paid,
         vpn_key: user.vpn_key,
         device_count: user.device_count,
-        family_group_id: user.family_group_id
+        family_group_id: user.family_group_id,
       });
     }
   );
@@ -237,20 +261,34 @@ app.put('/pay', (req, res) => {
   }
 });
 
-app.post('/verify-email', (req, res) => {
-  const { username, email } = req.body;
-  db.run(
-    `UPDATE Users SET email_verified = 1 WHERE username = ? AND email = ?`,
-    [username, email],
-    function (err) {
-      if (err) {
-        console.error('Email verification error:', err.message);
-        return res.status(400).json({ error: err.message });
+app.get('/verify-email', (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  db.get(
+    `SELECT id, email_verified FROM Users WHERE verification_token = ?`,
+    [token],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(401).json({ error: 'Invalid verification token' });
       }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'User or email not found' });
+      if (user.email_verified) {
+        return res.status(400).json({ error: 'Email already verified' });
       }
-      res.json({ message: 'Email verified successfully' });
+
+      db.run(
+        `UPDATE Users SET email_verified = 1, verification_token = NULL WHERE id = ?`,
+        [user.id],
+        (err) => {
+          if (err) {
+            console.error('Verification update error:', err.message);
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ message: 'Email verified successfully' });
+        }
+      );
     }
   );
 });
@@ -367,12 +405,10 @@ app.get('/get-vpn-config', (req, res) => {
       if (err || !user) {
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
-      // Генерация динамического privateKey и фиксированный serverAddress
-      const privateKey = crypto.randomBytes(32).toString('base64');
       const serverAddress = '95.214.10.8:51820'; // Замени на реальный адрес сервера
       res.json({
-        privateKey: privateKey,
-        serverAddress: serverAddress
+        privateKey: user.vpn_key,
+        serverAddress: serverAddress,
       });
     }
   );
