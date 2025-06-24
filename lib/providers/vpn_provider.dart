@@ -48,11 +48,6 @@ class VpnProvider with ChangeNotifier {
     } catch (e) {
       _initializationCompleter.completeError(e);
       logger.e('Error initializing WireGuard: $e');
-      if (e.toString().contains('Permission')) {
-        logger.e('Error: Run the app as Administrator on Windows.');
-      } else if (e.toString().contains('WireGuard not installed')) {
-        logger.e('Error: WireGuard client is not installed.');
-      }
       rethrow;
     }
   }

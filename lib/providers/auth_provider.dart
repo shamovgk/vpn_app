@@ -22,7 +22,7 @@ class AuthProvider with ChangeNotifier {
   static const String _baseUrl = 'http://95.214.10.8:3000';
   static String get baseUrl => _baseUrl;
   
-  final bool _isTestMode = true;
+  final bool _isTestMode = false;
 
   Future<void> checkAuthStatus() async {
     if (_isTestMode) {
@@ -105,10 +105,13 @@ class AuthProvider with ChangeNotifier {
         } else {
           throw Exception('Неверный пароль или пользователь');
         }
+      } else if (response.statusCode == 403 && response.body.contains('Email not verified')) {
+        throw Exception('Пожалуйста, проверьте email для верификации');
       } else {
         throw Exception('Ошибка логина: ${response.body}');
       }
     }
+    notifyListeners();
   }
 
   Future<void> register(String username, String email, String password) async {

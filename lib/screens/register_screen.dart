@@ -40,7 +40,10 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
         );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Регистрация успешна! Войдите, пожалуйста.'), duration: Duration(seconds: 2)),
+          const SnackBar(
+            content: Text('Регистрация успешна! Проверьте email для верификации.'),
+            duration: Duration(seconds: 5),
+          ),
         );
         _usernameController.clear();
         _emailController.clear();
