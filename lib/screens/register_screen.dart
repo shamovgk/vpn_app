@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'package:logger/logger.dart';
@@ -39,12 +40,15 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
           _passwordController.text,
         );
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Регистрация успешна! Проверьте email для верификации.'),
-            duration: Duration(seconds: 5),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Регистрация успешна! Проверьте email для верификации.'),
+              duration: const Duration(seconds: 5),
+              backgroundColor: Theme.of(context).extension<CustomColors>()!.success,
+            ),
+          );
+        }
         _usernameController.clear();
         _emailController.clear();
         _passwordController.clear();
@@ -55,10 +59,16 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
         );
       } catch (e) {
         if (!mounted) return;
-        logger.e('Registration error: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e'), duration: Duration(seconds: 2)),
-        );
+        if (mounted) {
+          logger.e('Registration error: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
       if (!mounted) return;
       setState(() => _isLoading = false);
