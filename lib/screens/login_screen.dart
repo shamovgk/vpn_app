@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/vpn_screen.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
@@ -41,14 +42,24 @@ class _LoginScreenState extends State<LoginScreen> {
       } catch (e) {
         if (!mounted) return;
         if (e.toString().contains('Пожалуйста, проверьте email')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Пожалуйста, проверьте email для верификации'),
-              duration: Duration(seconds: 5),
-            ),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Пожалуйста, проверьте email для верификации'),
+                duration: const Duration(seconds: 5),
+                backgroundColor: Theme.of(context).extension<CustomColors>()!.warning,
+              ),
+            );
+          }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(e.toString()),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
         }
       }
       if (!mounted) return;

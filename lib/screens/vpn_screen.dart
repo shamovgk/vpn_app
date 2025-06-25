@@ -33,32 +33,42 @@ class _VpnScreenState extends State<VpnScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).primaryColor,
+        title: Text(
+          'UgbuganVPN',
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+              ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+            onPressed: () => _onItemTapped(1),
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: IndexedStack(
-                index: _selectedIndex,
-                children: _pages,
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.zero,
-              color: Theme.of(context).scaffoldBackgroundColor.withAlpha(230),
-              child: BottomNavigationBar(
-                items: const <BottomNavigationBarItem>[
-                  BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
-                  BottomNavigationBarItem(icon: Icon(Icons.settings), label: ''),
-                ],
-                currentIndex: _selectedIndex,
-                selectedItemColor: Theme.of(context).primaryColor,
-                unselectedItemColor: const Color(0xFFABCF9C).withAlpha(150),
-                onTap: _onItemTapped,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-              ),
-            ),
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: _pages,
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.zero,
+        color: Theme.of(context).scaffoldBackgroundColor.withAlpha(230),
+        child: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
+            BottomNavigationBarItem(icon: Icon(Icons.settings), label: ''),
           ],
+          currentIndex: _selectedIndex,
+          selectedItemColor: Theme.of(context).primaryColor,
+          unselectedItemColor: const Color(0xFFABCF9C).withAlpha(150),
+          onTap: _onItemTapped,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
         ),
       ),
     );
@@ -92,8 +102,6 @@ class __AnimationButtonState extends State<_AnimationButton> with SingleTickerPr
 
   Future<void> _handleTap() async {
     final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
     if (vpnProvider.isConnecting || _isAnimating) return;
 
     setState(() {
@@ -114,14 +122,21 @@ class __AnimationButtonState extends State<_AnimationButton> with SingleTickerPr
         ]);
       }
     } catch (e) {
-      if (context.mounted) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     } finally {
-      setState(() {
-        _isAnimating = false; // Сбрасываем флаг после завершения
-      });
-      _controller.stop(); // Останавливаем анимацию
+      if (mounted) {
+        setState(() {
+          _isAnimating = false; // Сбрасываем флаг после завершения
+        });
+        _controller.stop(); // Останавливаем анимацию
+      }
     }
   }
 

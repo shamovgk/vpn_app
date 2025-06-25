@@ -51,49 +51,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (authProvider.isAuthenticated)
               ElevatedButton(
                 onPressed: () async {
-                  if (!mounted) return;
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
                   try {
-                    if (vpnProvider.isConnected) {
-                      await vpnProvider.disconnect();
-                      if (!mounted) return;
-                      scaffoldMessenger.showSnackBar(
-                        const SnackBar(content: Text('VPN отключён')),
-                      );
-                    } else {
-                      await vpnProvider.connect();
-                      if (!mounted) return;
-                      scaffoldMessenger.showSnackBar(
-                        const SnackBar(content: Text('VPN подключён')),
+                    await authProvider.logout();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Выход выполнен'),
+                          backgroundColor: Theme.of(context).extension<CustomColors>()!.success,
+                        ),
                       );
                     }
                   } catch (e) {
-                    if (!mounted) return;
-                    scaffoldMessenger.showSnackBar(
-                      SnackBar(content: Text('Ошибка: $e')),
-                    );
-                  }
-                },
-                style: Theme.of(context).elevatedButtonTheme.style,
-                child: Text(vpnProvider.isConnected ? 'Отключить VPN' : 'Подключить VPN'),
-              ),
-            const SizedBox(height: 10),
-            if (authProvider.isAuthenticated)
-              ElevatedButton(
-                onPressed: () async {
-                  if (!mounted) return;
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                  try {
-                    await authProvider.logout();
-                    if (!mounted) return;
-                    scaffoldMessenger.showSnackBar(
-                      const SnackBar(content: Text('Выход выполнен')),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    scaffoldMessenger.showSnackBar(
-                      SnackBar(content: Text('Ошибка выхода: $e')),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Ошибка выхода: $e'),
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                        ),
+                      );
+                    }
                   }
                 },
                 style: Theme.of(context).elevatedButtonTheme.style,
