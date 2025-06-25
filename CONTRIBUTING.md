@@ -135,15 +135,15 @@ If conflicts occur, follow the instructions in the "Resolving Merge Conflicts" s
      ```bash
      ls
 5. Удаление ненужных файлов  
-Удалите каталог node_modules и файл package-lock.json для очистки проекта:
+Удалите каталог node_modules и файлы package-lock.json и index.js для очистки проекта:
      ```bash
-     rm -rf node_modules package-lock.json
+     rm -rf node_modules package-lock.json index.js
 6. Проверка удаления файлов  
 Убедитесь, что файлы были удалены, просмотрев все файлы (включая скрытые) в каталоге:
      ```bash
      ls -la
    
-Проверьте, что node_modules и package-lock.json больше не отображаются.  
+Проверьте, что node_modules, package-lock.json и index.js больше не отображаются.  
 
 7. Проверка запущенных процессов PM2  
 Просмотрите список всех запущенных процессов PM2, чтобы проверить статус vpn-server:
@@ -157,11 +157,23 @@ If conflicts occur, follow the instructions in the "Resolving Merge Conflicts" s
 Удалите процесс vpn-server из управления PM2:
      ```bash
      pm2 delete vpn-server
-10. Запуск сервера VPN  
+10. Добавление новых файлов
+Добавьте новые файлы сервера через консоль windows:
+     ```bash
+     scp -r path-to-file\index.js user@server-ip:~/project-directory/
+11. Обновление модулей
+Обновите модули внутри каталога:
+     ```bash
+     npm install
+12. Проверка добавления файлов
+Посмотрите все файлы в текущем каталоге, чтобы убедиться в наличии node_modules, index.js и других файлов:
+      ```bash
+      ls
+13. Запуск сервера VPN  
 Запустите приложение Node.js (index.js) и назначьте ему имя vpn-server в PM2:
     ```bash
     pm2 start index.js --name vpn-server
-11. Тестирование API регистрации
+14. Тестирование API регистрации
 Отправьте POST-запрос к конечной точке регистрации для проверки работы API и сервера:
     ```bash
     curl -X POST -H "Content-Type: application/json" -d '{"username":"testuser","password":"testpass123","email":"test@example.com"}' http://localhost:3000/register
