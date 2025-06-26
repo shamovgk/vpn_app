@@ -31,6 +31,9 @@ void main() async {
       await windowManager.show();
     });
   }
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+  });
 
   runApp(
     MultiProvider(
@@ -58,37 +61,9 @@ class _MyAppState extends State<MyApp> {
       builder: (context, themeProvider, _) {
         return MaterialApp(
           navigatorKey: navigatorKey,
-          title: 'TowerVPN',
-          theme: ThemeData(
-            primaryColor: const Color(0xFF719EA6),
-            scaffoldBackgroundColor: Colors.white,
-            textTheme: const TextTheme(
-              headlineLarge: TextStyle(color: Color(0xFF719EA6), fontSize: 24, fontWeight: FontWeight.bold),
-              bodyMedium: TextStyle(color: Colors.black),
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF719EA6),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              ),
-            ),
-          ),
-          darkTheme: ThemeData(
-            primaryColor: const Color(0xFF142F1F),
-            scaffoldBackgroundColor: const Color(0xFF1A2B21),
-            textTheme: const TextTheme(
-              headlineLarge: TextStyle(color: Color(0xFFABCF9C), fontSize: 24, fontWeight: FontWeight.bold),
-              bodyMedium: TextStyle(color: Colors.white),
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF142F1F),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              ),
-            ),
-          ),
+          title: 'UgbuganVPN',
+          theme: themeProvider.lightTheme,
+          darkTheme: themeProvider.darkTheme,
           themeMode: themeProvider.themeMode,
           home: Consumer<AuthProvider>(
             builder: (context, authProvider, _) => authProvider.isAuthenticated ? const VpnScreen() : const LoginScreen(),

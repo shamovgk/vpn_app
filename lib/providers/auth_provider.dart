@@ -105,10 +105,13 @@ class AuthProvider with ChangeNotifier {
         } else {
           throw Exception('Неверный пароль или пользователь');
         }
+      } else if (response.statusCode == 403 && response.body.contains('Email not verified')) {
+        throw Exception('Пожалуйста, проверьте email для верификации');
       } else {
         throw Exception('Ошибка логина: ${response.body}');
       }
     }
+    notifyListeners();
   }
 
   Future<void> register(String username, String email, String password) async {
