@@ -7,26 +7,30 @@ import 'services/tray_manager.dart';
 import 'screens/vpn_screen.dart';
 import 'providers/vpn_provider.dart';
 import 'providers/theme_provider.dart';
+import 'dart:io' show Platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await windowManager.ensureInitialized();
-  await windowManager.setPreventClose(true);
-  
-  trayHandler = TrayManagerHandler();
-  windowManager.addListener(MyWindowListener());
 
-  WindowOptions windowOptions = WindowOptions(
-    center: true,
-    skipTaskbar: false,
-  );
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+    
+    trayHandler = TrayManagerHandler();
+    windowManager.addListener(MyWindowListener());
 
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.setTitle('TowerVPN');
-    await windowManager.setMinimumSize(const Size(360, 640));
-    await windowManager.setMaximumSize(const Size(360, 640));
-    await windowManager.show();
-  });
+    WindowOptions windowOptions = WindowOptions(
+      center: true,
+      skipTaskbar: false,
+    );
+
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.setTitle('TowerVPN');
+      await windowManager.setMinimumSize(const Size(360, 640));
+      await windowManager.setMaximumSize(const Size(360, 640));
+      await windowManager.show();
+    });
+  }
 
   runApp(
     MultiProvider(
@@ -98,6 +102,8 @@ class _MyAppState extends State<MyApp> {
 class MyWindowListener extends WindowListener {
   @override
   void onWindowClose() async {
-    await windowManager.hide();
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      await windowManager.hide();
+    }
   }
 }
