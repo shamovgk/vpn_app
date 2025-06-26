@@ -22,9 +22,6 @@ void main() async {
   );
 
   windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.setTitle('UgbuganVPN');
-    await windowManager.setMinimumSize(const Size(360, 640));
-    await windowManager.setMaximumSize(const Size(360, 640));
     await windowManager.show();
   });
 
