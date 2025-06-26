@@ -25,15 +25,9 @@ void main() async {
     );
 
     windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.setTitle('TowerVPN');
-      await windowManager.setMinimumSize(const Size(360, 640));
-      await windowManager.setMaximumSize(const Size(360, 640));
       await windowManager.show();
     });
   }
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-  });
 
   runApp(
     MultiProvider(
