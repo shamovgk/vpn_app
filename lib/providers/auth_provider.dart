@@ -22,7 +22,7 @@ class AuthProvider with ChangeNotifier {
   static const String _baseUrl = 'http://95.214.10.8:3000';
   static String get baseUrl => _baseUrl;
   
-  final bool _isTestMode = false;
+  final bool _isTestMode = true;
 
   Future<void> checkAuthStatus() async {
     if (_isTestMode) {
