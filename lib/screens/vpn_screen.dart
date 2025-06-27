@@ -50,10 +50,10 @@ class _VpnScreenState extends State<VpnScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context); // Для имени аккаунта
+    final authProvider = Provider.of<AuthProvider>(context);
 
     return PopScope(
-      canPop: false, // Блокируем возврат назад с кнопки устройства
+      canPop: false,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).primaryColor,
@@ -71,8 +71,8 @@ class _VpnScreenState extends State<VpnScreen> {
           ),
         ),
         drawer: Drawer(
-          width: 200, 
-          shape:LinearBorder(),
+          width: 200,
+          shape: LinearBorder(),
           child: SizedBox(
             height: double.infinity,
             child: Column(
@@ -91,76 +91,76 @@ class _VpnScreenState extends State<VpnScreen> {
                         ),
                   ),
                 ),
-                  Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.payment),
-                        title: const Text('Подписаться'),
-                        onTap: () {
-                          Navigator.pop(context); // Закрываем drawer
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Переход к Подписке')),
-                          );
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.settings),
-                        title: const Text('Настройки'),
-                        onTap: () {
-                          Navigator.pop(context); // Закрываем drawer
-                          _onItemTapped(context, 1); // Переход на экран настроек
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.help),
-                        title: const Text('Помощь'),
-                        onTap: () {
-                          Navigator.pop(context); // Закрываем drawer
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Переход в Помощь')),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.brightness_6),
-                        title: const Text('Смена темы'),
-                        onTap: () {
-                          Navigator.pop(context); // Закрываем drawer
-                          themeProvider.toggleTheme();
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Тема изменена на ${themeProvider.themeMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}'),
-                              backgroundColor: Theme.of(context).extension<CustomColors>()!.success,
-                            ),
-                          );
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.logout),
-                        title: const Text('Выйти'),
-                        onTap: () {
-                          Navigator.pop(context); // Закрываем drawer
-                          _logout();
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.payment),
+                      title: const Text('Подписаться'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Переход к Подписке')),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.settings),
+                      title: const Text('Настройки'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _onItemTapped(context, 1);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.help),
+                      title: const Text('Помощь'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Переход в Помощь')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.brightness_6),
+                      title: const Text('Смена темы'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        themeProvider.toggleTheme();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Тема изменена на ${themeProvider.themeMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}'),
+                            backgroundColor: Theme.of(context).extension<CustomColors>()!.success,
+                          ),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.logout),
+                      title: const Text('Выйти'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _logout();
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          body: const SafeArea(
-            child: Center(
-              child: _AnimationButton(),
-              ),
-          )
         ),
-      );
+        body: const SafeArea(
+          child: Center(
+            child: _AnimationButton(),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -171,15 +171,34 @@ class _AnimationButton extends StatefulWidget {
   __AnimationButtonState createState() => __AnimationButtonState();
 }
 
-class __AnimationButtonState extends State<_AnimationButton> with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+class __AnimationButtonState extends State<_AnimationButton> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late GifController _controller;
-  bool _isAnimating = false; // Флаг для управления анимацией
-
+  bool _isAnimating = false;
+  bool _currentIsConnected = false;
+  bool _isInitialized = false;
   @override
   void initState() {
     super.initState();
     _controller = GifController(vsync: this);
-    _controller.reset(); // Инициализируем в начальном состоянии
+    _controller.reset();
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed && _isAnimating && mounted) {
+        setState(() {
+          _isAnimating = false;
+          final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
+          _currentIsConnected = vpnProvider.isConnected;
+        });
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isInitialized && mounted) {
+        setState(() {
+          _isInitialized = true;
+          final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
+          _currentIsConnected = vpnProvider.isConnected;
+        });
+      }
+    });
   }
 
   @override
@@ -189,28 +208,24 @@ class __AnimationButtonState extends State<_AnimationButton> with SingleTickerPr
   }
 
   @override
-  bool get wantKeepAlive => true; // Сохраняем состояние виджета
+  bool get wantKeepAlive => true;
 
   Future<void> _handleTap() async {
     final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
     if (vpnProvider.isConnecting || _isAnimating) return;
 
     setState(() {
-      _isAnimating = true; // Устанавливаем флаг анимации
+      _isAnimating = true; 
+      _currentIsConnected = vpnProvider.isConnected; 
     });
 
     try {
-      // Запускаем анимацию и операцию параллельно
-      if (vpnProvider.isConnected) {
-        await Future.wait([
-          _controller.reverse(), // Анимация назад
-          vpnProvider.disconnect(), // Отключение VPN
-        ]);
+      _controller.reset();
+      await _controller.forward(); 
+      if (_currentIsConnected) {
+        await vpnProvider.disconnect(); 
       } else {
-        await Future.wait([
-          _controller.forward(), // Анимация вперёд
-          vpnProvider.connect(), // Подключение VPN
-        ]);
+        await vpnProvider.connect(); 
       }
     } catch (e) {
       if (!mounted) return;
@@ -221,25 +236,22 @@ class __AnimationButtonState extends State<_AnimationButton> with SingleTickerPr
         ),
       );
     }
-    if (!mounted) return;
-    setState(() {
-      _isAnimating = false; // Сбрасываем флаг после завершения
-    });
-    _controller.stop(); // Останавливаем анимацию
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Обязательный вызов для AutomaticKeepAliveClientMixin
+    super.build(context);
     return GestureDetector(
       onTap: _handleTap,
       child: SizedBox(
         width: 300,
         height: 300,
         child: Gif(
-          image: const AssetImage('assets/vpn_animation.gif'),
+          image: _currentIsConnected
+              ? const AssetImage('assets/dark_theme_vpn_disconnect.gif') 
+              : const AssetImage('assets/dark_theme_vpn_connect.gif'),   
           controller: _controller,
-          autostart: Autostart.no, // Отключаем автозапуск
+          autostart: Autostart.no,
           placeholder: (context) => const SizedBox.shrink(),
         ),
       ),
