@@ -38,6 +38,9 @@ flutter:
     - assets/tray_icon_connect.ico
     - assets/tray_icon_disconnect.png
     - assets/tray_icon_disconnect.ico
-    - assets/vpn_animation.gif
+    - assets/dark_theme_vpn_connect.gif
+    - assets/dark_theme_vpn_disconnect.gif
+    - assets/light_theme_vpn_connect.gif
+    - assets/light_theme_vpn_disconnect.gif
   uses-material-design: true
   

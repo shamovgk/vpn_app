@@ -3,6 +3,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
+import 'package:vpn_app/services/tray_manager.dart';
+import '../providers/vpn_provider.dart';
 
 final logger = Logger();
 class AuthProvider with ChangeNotifier {
@@ -148,6 +151,11 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    final vpnProvider = Provider.of<VpnProvider>(navigatorKey.currentContext!, listen: false);
+    if (vpnProvider.isConnected) {
+      await vpnProvider.disconnect();
+    }
+
     if (_isTestMode) {
       _isAuthenticated = false;
       _isPaid = false;
@@ -155,7 +163,6 @@ class AuthProvider with ChangeNotifier {
       _vpnKey = null;
       _token = null;
       logger.i('Test mode: Logout successful');
-      notifyListeners();
     } else {
       if (_token != null) {
         final response = await http.post(
@@ -182,6 +189,7 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
       }
     }
+    notifyListeners();
   }
 
   Future<void> verifyPayment() async {
