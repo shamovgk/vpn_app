@@ -3,8 +3,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const path = require('path');
-const nodemailer = require('nodemailer');
-const Brevo = require('@getbrevo/brevo');
+const { exec } = require('child_process'); // Для выполнения скриптов
 
 const app = express();
 app.use(express.json());
@@ -29,13 +28,13 @@ function createTables() {
         email TEXT NOT NULL UNIQUE,
         email_verified INTEGER DEFAULT 0,
         is_paid INTEGER DEFAULT 0,
-        vpn_key TEXT,
+        vpn_key TEXT, -- Сохраняем privateKey
         trial_end_date TEXT,
         device_count INTEGER DEFAULT 0,
         family_group_id INTEGER,
         auth_token TEXT,
         token_expiry TEXT,
-        verification_token TEXT
+        FOREIGN KEY (family_group_id) REFERENCES FamilyGroups(id)
       )
     `);
 
@@ -68,35 +67,7 @@ function generateToken() {
   return crypto.randomBytes(16).toString('hex');
 }
 
-function generateVpnKey() {
-  return crypto.randomBytes(32).toString('base64');
-}
-
-// Настройка Brevo
-const apiKey = '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'; // Замени на твой API-ключ
-const apiInstance = new Brevo.TransactionalEmailsApi(); // Создаём экземпляр API
-let apiKeyAuth = apiInstance.authentications['apiKey']; // Получаем объект аутентификации
-apiKeyAuth.apiKey = apiKey; // Устанавливаем API-ключ
-
-function sendVerificationEmail(email, verificationToken) {
-  const verificationLink = `http://smtp-relay.brevo.com/verify-email?token=${verificationToken}`;
-  const sendSmtpEmail = new Brevo.SendSmtpEmail();
-
-  sendSmtpEmail.subject = 'Verify Your Email for UgbuganVPN';
-  sendSmtpEmail.sender = {
-    name: 'UgbuganVPN',
-    email: '9063a2002@smtp-brevo.com', // Замени на подтверждённый отправителя
-  };
-  sendSmtpEmail.to = [{ email }];
-  sendSmtpEmail.htmlContent = `<p>Please verify your email by clicking <a href="${verificationLink}">this link</a>.</p>`;
-  sendSmtpEmail.textContent = `Please verify your email by clicking this link: ${verificationLink}`;
-
-  return apiInstance.sendTransacEmail(sendSmtpEmail).then(
-    (data) => console.log('Email sent: ' + JSON.stringify(data)),
-    (error) => console.error('Email error: ', error)
-  );
-}
-
+// Удаляем функцию generateVpnKey(), так как используем скрипт
 
 app.post('/register', (req, res) => {
   const { username, password, email } = req.body;
@@ -107,21 +78,107 @@ app.post('/register', (req, res) => {
   db.get(`SELECT id FROM Users WHERE email = ?`, [email], (err, row) => {
     if (row) return res.status(400).json({ error: 'Email already in use' });
 
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const hashedPassword = bcrypt.hashSync(password, 10); 
     const trialEndDate = getCurrentDatePlusDays(3);
-    const vpnKey = generateVpnKey();
-    const verificationToken = generateToken();
 
     db.run(
-      `INSERT INTO Users (username, password, email, trial_end_date, vpn_key, verification_token, email_verified) VALUES (?, ?, ?, ?, ?, ?, 0)`,
-      [username, hashedPassword, email, trialEndDate, vpnKey, verificationToken],
-      function (err) {
+      `INSERT INTO Users (username, password, email, trial_end_date) VALUES (?, ?, ?, ?)`,
+      [username, hashedPassword, email, trialEndDate],
+      async function (err) {
         if (err) {
           console.error('Registration error:', err.message);
           return res.status(400).json({ error: err.message });
         }
-        sendVerificationEmail(email, verificationToken);
-        res.json({ id: this.lastID, username, email, trial_end_date: trialEndDate, vpn_key: vpnKey });
+
+        try {
+          const scriptPath = '/root/vpn-server/generate_vpn_key.sh';
+          console.log('Executing script at:', scriptPath);
+
+          const { spawn } = require('child_process');
+          const child = spawn('bash', [scriptPath], { 
+            maxBuffer: 1024 * 1024,
+            encoding: 'utf8'
+          });
+
+          let stdout = '';
+          let stderr = '';
+
+          child.stdout.on('data', (data) => {
+            stdout += data;
+            console.log('Spawn stdout chunk:', data);
+          });
+
+          child.stderr.on('data', (data) => {
+            stderr += data;
+            console.error('Spawn stderr chunk:', data);
+          });
+
+          child.on('error', (error) => {
+            throw new Error(`Spawn error: ${error.message}`);
+          });
+
+          const exitCode = await new Promise((resolve) => {
+            child.on('close', (code) => resolve(code));
+          });
+
+          if (exitCode !== 0 || stderr) {
+            throw new Error(`Script execution failed: exit code ${exitCode}, stderr=${stderr}`);
+          }
+
+          console.log('Spawn stdout:', stdout);
+          const result = JSON.parse(stdout);
+          const privateKey = result.privateKey;
+
+          db.run(
+            `UPDATE Users SET vpn_key = ? WHERE id = ?`,
+            [privateKey, this.lastID],
+            async (err) => {
+              if (err) {
+                console.error('Error updating vpn_key:', err.message);
+                return res.status(500).json({ error: 'Failed to update vpn_key' });
+              }
+
+              // Запуск скрипта для обновления wg0.conf
+              const configScriptPath = '/root/vpn-server/add_to_wg_conf.sh';
+              const childConfig = spawn('bash', [configScriptPath, privateKey, this.lastID], {
+                maxBuffer: 1024 * 1024,
+                encoding: 'utf8'
+              });
+
+              let configStdout = '';
+              let configStderr = '';
+
+              childConfig.stdout.on('data', (data) => {
+                configStdout += data;
+                console.log('Config stdout chunk:', data);
+              });
+
+              childConfig.stderr.on('data', (data) => {
+                configStderr += data;
+                console.error('Config stderr chunk:', data);
+              });
+
+              childConfig.on('error', (error) => {
+                console.error('Config script error:', error.message);
+              });
+
+              const configExitCode = await new Promise((resolve) => {
+                childConfig.on('close', (code) => resolve(code));
+              });
+
+              if (configExitCode !== 0 || configStderr) {
+                console.error('Config generation failed:', `exit code ${configExitCode}, stderr=${configStderr}`);
+              } else {
+                console.log('Config updated:', configStdout);
+              }
+
+              res.json({ id: this.lastID, username, email, trial_end_date: trialEndDate });
+            }
+          );
+        } catch (e) {
+          console.error('Key generation error:', e.message);
+          return res.status(500).json({ error: 'Failed to generate VPN key' });
+        }
       }
     );
   });
@@ -148,11 +205,16 @@ app.post('/login', (req, res) => {
       if (!bcrypt.compareSync(password, user.password)) {
         return res.status(401).json({ error: 'Invalid password' });
       }
-      if (user.email_verified === 0) {
-        return res.status(403).json({ error: 'Email not verified. Please verify your email first.' });
+//      if (user.email_verified === 0) {
+  //      return res.status(403).json({ error: 'Email not verified' });
+    //  }
+      const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
+      if (!user.is_paid && trialExpired) {
+        return res.status(403).json({ error: 'Trial period expired' });
       }
+
       const token = generateToken();
-      const tokenExpiry = getCurrentDatePlusDays(30);
+      const tokenExpiry = getCurrentDatePlusDays(30); 
       db.run(
         `UPDATE Users SET auth_token = ?, token_expiry = ? WHERE id = ?`,
         [token, tokenExpiry, user.id],
@@ -166,10 +228,10 @@ app.post('/login', (req, res) => {
             username: user.username,
             email_verified: user.email_verified,
             is_paid: user.is_paid,
-            vpn_key: user.vpn_key,
+            vpn_key: user.vpn_key || null,
             device_count: user.device_count,
             family_group_id: user.family_group_id,
-            auth_token: token,
+            auth_token: token
           });
         }
       );
@@ -200,9 +262,9 @@ app.get('/validate-token', (req, res) => {
         username: user.username,
         email_verified: user.email_verified,
         is_paid: user.is_paid,
-        vpn_key: user.vpn_key,
+        vpn_key: user.vpn_key || null,
         device_count: user.device_count,
-        family_group_id: user.family_group_id,
+        family_group_id: user.family_group_id
       });
     }
   );
@@ -231,11 +293,18 @@ app.post('/logout', (req, res) => {
 });
 
 app.put('/pay', (req, res) => {
-  const { token } = req.headers.authorization?.split(' ')[1];
-  const { is_family } = req.body;
-  if (!token) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.error('Invalid or missing Authorization header:', req.headers.authorization);
     return res.status(400).json({ error: 'Token is required' });
   }
+  const token = authHeader.split(' ')[1];
+
+  const { is_family } = req.body;
+  if (is_family === undefined) {
+    return res.status(400).json({ error: 'is_family is required' });
+  }
+
   if (is_family) {
     db.run(
       `UPDATE FamilyGroups SET is_paid = 1 WHERE id = (SELECT family_group_id FROM Users WHERE auth_token = ?)`,
@@ -248,47 +317,49 @@ app.put('/pay', (req, res) => {
       }
     );
   } else {
-    db.run(
-      `UPDATE Users SET is_paid = 1 WHERE auth_token = ?`,
-      [token],
-      function (err) {
-        if (err || this.changes === 0) {
-          return res.status(404).json({ error: 'User not found' });
+    db.get(
+      `SELECT id, username, vpn_key, is_paid, trial_end_date FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+      [token, new Date().toISOString()],
+      (err, user) => {
+        if (err || !user) {
+          return res.status(401).json({ error: 'Invalid or expired token' });
         }
-        res.json({ message: 'Individual plan paid' });
+        const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
+        if (!user.is_paid && trialExpired) {
+          return res.status(403).json({ error: 'Trial period expired' });
+        }
+
+        db.run(
+          `UPDATE Users SET is_paid = 1 WHERE id = ?`,
+          [user.id],
+          (err) => {
+            if (err) {
+              console.error('Error updating is_paid:', err.message);
+              return res.status(500).json({ error: err.message });
+            }
+            res.json({ message: 'Individual plan paid' });
+          }
+        );
       }
     );
   }
 });
 
-app.get('/verify-email', (req, res) => {
-  const { token } = req.query;
-  if (!token) {
-    return res.status(400).json({ error: 'Token is required' });
-  }
 
-  db.get(
-    `SELECT id, email_verified FROM Users WHERE verification_token = ?`,
-    [token],
-    (err, user) => {
-      if (err || !user) {
-        return res.status(401).json({ error: 'Invalid verification token' });
+app.post('/verify-email', (req, res) => {
+  const { username, email } = req.body;
+  db.run(
+    `UPDATE Users SET email_verified = 1 WHERE username = ? AND email = ?`,
+    [username, email],
+    function (err) {
+      if (err) {
+        console.error('Email verification error:', err.message);
+        return res.status(400).json({ error: err.message });
       }
-      if (user.email_verified) {
-        return res.status(400).json({ error: 'Email already verified' });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'User or email not found' });
       }
-
-      db.run(
-        `UPDATE Users SET email_verified = 1, verification_token = NULL WHERE id = ?`,
-        [user.id],
-        (err) => {
-          if (err) {
-            console.error('Verification update error:', err.message);
-            return res.status(500).json({ error: err.message });
-          }
-          res.json({ message: 'Email verified successfully' });
-        }
-      );
+      res.json({ message: 'Email verified successfully' });
     }
   );
 });
@@ -399,16 +470,21 @@ app.get('/get-vpn-config', (req, res) => {
   }
 
   db.get(
-    `SELECT id, vpn_key FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    `SELECT id, username, vpn_key, is_paid, trial_end_date FROM Users WHERE auth_token = ? AND token_expiry > ?`,
     [token, new Date().toISOString()],
     (err, user) => {
       if (err || !user) {
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
-      const serverAddress = '95.214.10.8:51820'; // Замени на реальный адрес сервера
+      const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
+      if (!user.is_paid && trialExpired) {
+        return res.status(403).json({ error: 'Trial period expired' });
+      }
+
+      const serverAddress = '95.214.10.8:51820'; // Замени на реальный адрес
       res.json({
-        privateKey: user.vpn_key,
-        serverAddress: serverAddress,
+        privateKey: user.vpn_key || 'Key not generated yet',
+        serverAddress: serverAddress
       });
     }
   );
