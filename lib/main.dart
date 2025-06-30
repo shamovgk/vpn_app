@@ -9,6 +9,8 @@ import 'providers/vpn_provider.dart';
 import 'providers/theme_provider.dart';
 import 'dart:io' show Platform;
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

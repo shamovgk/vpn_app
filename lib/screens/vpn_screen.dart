@@ -7,6 +7,7 @@ import 'package:vpn_app/screens/settings_screen.dart';
 import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/login_screen.dart';
+import 'package:vpn_app/screens/payment_screen.dart';
 
 final logger = Logger();
 
@@ -14,38 +15,26 @@ class VpnScreen extends StatefulWidget {
   const VpnScreen({super.key});
 
   @override
-  State<VpnScreen> createState() => _VpnScreenState();
+  State<VpnScreen> createState() => VpnScreenState();
 }
 
-class _VpnScreenState extends State<VpnScreen> {
-  void _onItemTapped(BuildContext context, int index) {
-    if (index == 1) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const SettingsScreen()),
-      );
-    }
+class VpnScreenState extends State<VpnScreen> {
+  final GlobalKey<AnimationButtonState> _animationButtonKey = GlobalKey<AnimationButtonState>();
+  static VpnScreenState? _instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _instance = this;
   }
 
-  Future<void> _logout() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    try {
-      await authProvider.logout();
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка выхода: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
+  @override
+  void dispose() {
+    _instance = null;
+    super.dispose();
   }
+
+  static GlobalKey<AnimationButtonState>? getAnimationButtonKey() => _instance?._animationButtonKey;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +47,7 @@ class _VpnScreenState extends State<VpnScreen> {
         appBar: AppBar(
           backgroundColor: Theme.of(context).primaryColor,
           title: Text(
-            'TowerVPN',
+            'UgbuganVPN',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                 ),
@@ -98,8 +87,9 @@ class _VpnScreenState extends State<VpnScreen> {
                       title: const Text('Подписаться'),
                       onTap: () {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Переход к Подписке')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const PaymentScreen()),
                         );
                       },
                     ),
@@ -108,7 +98,10 @@ class _VpnScreenState extends State<VpnScreen> {
                       title: const Text('Настройки'),
                       onTap: () {
                         Navigator.pop(context);
-                        _onItemTapped(context, 1);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                        );
                       },
                     ),
                     ListTile(
@@ -145,7 +138,11 @@ class _VpnScreenState extends State<VpnScreen> {
                       title: const Text('Выйти'),
                       onTap: () {
                         Navigator.pop(context);
-                        _logout();
+                        authProvider.logout();
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        );
                       },
                     ),
                   ],
@@ -154,9 +151,9 @@ class _VpnScreenState extends State<VpnScreen> {
             ),
           ),
         ),
-        body: const SafeArea(
+        body: SafeArea(
           child: Center(
-            child: _AnimationButton(),
+            child: AnimationButton(key: _animationButtonKey),
           ),
         ),
       ),
@@ -164,18 +161,19 @@ class _VpnScreenState extends State<VpnScreen> {
   }
 }
 
-class _AnimationButton extends StatefulWidget {
-  const _AnimationButton();
+class AnimationButton extends StatefulWidget {
+  const AnimationButton({super.key});
 
   @override
-  __AnimationButtonState createState() => __AnimationButtonState();
+  AnimationButtonState createState() => AnimationButtonState();
 }
 
-class __AnimationButtonState extends State<_AnimationButton> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+class AnimationButtonState extends State<AnimationButton> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late GifController _controller;
   bool _isAnimating = false;
   bool _currentIsConnected = false;
   bool _isInitialized = false;
+
   @override
   void initState() {
     super.initState();
@@ -185,8 +183,7 @@ class __AnimationButtonState extends State<_AnimationButton> with TickerProvider
       if (status == AnimationStatus.completed && _isAnimating && mounted) {
         setState(() {
           _isAnimating = false;
-          final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
-          _currentIsConnected = vpnProvider.isConnected;
+          _currentIsConnected = Provider.of<VpnProvider>(context, listen: false).isConnected;
         });
       }
     });
@@ -194,8 +191,7 @@ class __AnimationButtonState extends State<_AnimationButton> with TickerProvider
       if (!_isInitialized && mounted) {
         setState(() {
           _isInitialized = true;
-          final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
-          _currentIsConnected = vpnProvider.isConnected;
+          _currentIsConnected = Provider.of<VpnProvider>(context, listen: false).isConnected;
         });
       }
     });
@@ -210,7 +206,7 @@ class __AnimationButtonState extends State<_AnimationButton> with TickerProvider
   @override
   bool get wantKeepAlive => true;
 
-  Future<void> _handleTap() async {
+  Future<void> handleTap() async {
     final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
     if (vpnProvider.isConnecting || _isAnimating) return;
 
@@ -219,37 +215,31 @@ class __AnimationButtonState extends State<_AnimationButton> with TickerProvider
       _currentIsConnected = vpnProvider.isConnected; 
     });
 
-    try {
-      _controller.reset();
-      await _controller.forward(); 
-      if (_currentIsConnected) {
-        await vpnProvider.disconnect(); 
-      } else {
-        await vpnProvider.connect(); 
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+    _controller.reset();
+    await _controller.forward(); 
+    if (_currentIsConnected) {
+      await vpnProvider.disconnect();
+    } else {
+      await vpnProvider.connect();
     }
+
+    setState(() {
+      _isAnimating = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
     return GestureDetector(
-      onTap: _handleTap,
+      onTap: handleTap,
       child: SizedBox(
         width: 300,
         height: 300,
         child: Gif(
           image: _currentIsConnected
-              ? const AssetImage('assets/dark_theme_vpn_disconnect.gif') 
-              : const AssetImage('assets/dark_theme_vpn_connect.gif'),   
+              ? const AssetImage('assets/dark_theme_vpn_disconnect.gif')
+              : const AssetImage('assets/dark_theme_vpn_connect.gif'),
           controller: _controller,
           autostart: Autostart.no,
           placeholder: (context) => const SizedBox.shrink(),

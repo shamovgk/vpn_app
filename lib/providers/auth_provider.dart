@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
-import 'package:vpn_app/services/tray_manager.dart';
+import 'package:vpn_app/main.dart';
 import '../providers/vpn_provider.dart';
 
 final logger = Logger();

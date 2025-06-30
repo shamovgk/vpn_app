@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:vpn_app/main.dart';
 import 'package:wireguard_flutter/wireguard_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wireguard_flutter/wireguard_flutter_platform_interface.dart';

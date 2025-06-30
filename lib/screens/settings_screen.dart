@@ -17,7 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return PopScope(
-      canPop: false, // Блокируем возврат назад с кнопки устройства
+      canPop: false,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).primaryColor,
@@ -40,24 +40,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (authProvider.isAuthenticated)
               IconButton(
                 icon: const Icon(Icons.logout, color: Colors.white),
-                onPressed: () async {
-                  try {
-                    await authProvider.logout();
-                    if (!mounted) return;
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Ошибка выхода: $e'),
-                          backgroundColor: Theme.of(context).colorScheme.error,
-                        ),
-                      );
-                    }
-                  }
+                onPressed: () {
+                  Navigator.pop(context);
+                  authProvider.logout();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
                 },
                 tooltip: 'Выйти',
               ),
@@ -69,13 +58,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Статус авторизации: ${authProvider.isAuthenticated ? 'Авторизован' : 'Не авторизован'}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 10),
-              Text(
                 'Статус оплаты: ${authProvider.isPaid ? 'Оплачено' : 'Не оплачено'}',
                 style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
               ),
             ],
           ),
