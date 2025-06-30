@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:tray_manager/tray_manager.dart' as tray;
+import 'package:vpn_app/main.dart';
+import 'package:vpn_app/screens/vpn_screen.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -7,8 +8,6 @@ import '../providers/vpn_provider.dart';
 import 'package:logger/logger.dart';
 
 final logger = Logger();
-
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class TrayManagerHandler with tray.TrayListener {
   TrayManagerHandler() {
@@ -18,7 +17,7 @@ class TrayManagerHandler with tray.TrayListener {
   bool _isInitialized = false;
 
   Future<void> _initializeTray() async {
-     if (_isInitialized) return;
+    if (_isInitialized) return;
     _isInitialized = true;
 
     await tray.TrayManager.instance.setIcon('assets/tray_icon_disconnect.ico');
@@ -39,22 +38,22 @@ class TrayManagerHandler with tray.TrayListener {
         tray.MenuItem(
           key: 'connect',
           label: 'Connect',
-          disabled:  !authProvider.isAuthenticated || vpnProvider.isConnected || vpnProvider.isConnecting,
+          disabled: !authProvider.isAuthenticated || vpnProvider.isConnected || vpnProvider.isConnecting,
         ),
         tray.MenuItem(
           key: 'disconnect',
           label: 'Disconnect',
-          disabled:  !authProvider.isAuthenticated || !vpnProvider.isConnected
+          disabled: !authProvider.isAuthenticated || !vpnProvider.isConnected,
         ),
         tray.MenuItem.separator(),
         tray.MenuItem(key: 'exit', label: 'Exit App'),
       ],
     );
-  await tray.TrayManager.instance.setContextMenu(menu);
+    await tray.TrayManager.instance.setContextMenu(menu);
     final iconPath = vpnProvider.isConnected
         ? 'assets/tray_icon_connect.ico'
         : 'assets/tray_icon_disconnect.ico';
-  await tray.TrayManager.instance.setIcon(iconPath);
+    await tray.TrayManager.instance.setIcon(iconPath);
   }
 
   @override
@@ -75,12 +74,15 @@ class TrayManagerHandler with tray.TrayListener {
 
     final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final animationButtonKey = VpnScreenState.getAnimationButtonKey();
+    final animationButtonState = animationButtonKey?.currentState;
+
     switch (menuItem.key) {
       case 'show_window':
         windowManager.show();
         break;
       case 'connect':
-       if (!authProvider.isAuthenticated) {
+        if (!authProvider.isAuthenticated) {
           logger.w('Cannot connect: Not authenticated');
           return;
         }
@@ -88,10 +90,10 @@ class TrayManagerHandler with tray.TrayListener {
           logger.w('Cannot connect: Already connected or connecting');
           return;
         }
-        vpnProvider.connect().then((_) => logger.i('VPN connected from tray')).catchError((e) => logger.e('Connect error: $e'));
+        animationButtonState?.handleTap();
         break;
       case 'disconnect':
-        vpnProvider.disconnect().then((_) => logger.i('VPN disconnected from tray')).catchError((e) => logger.e('Disconnect error: $e'));
+        animationButtonState?.handleTap();
         break;
       case 'exit':
         vpnProvider.disconnect().then((_) => logger.i('VPN disconnected from tray')).catchError((e) => logger.e('Disconnect error: $e'));
