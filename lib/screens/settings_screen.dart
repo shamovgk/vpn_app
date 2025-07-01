@@ -14,21 +14,21 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
 
     return PopScope(
       canPop: false,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Theme.of(context).primaryColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           title: Text(
             'Настройки',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                ),
+            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
           ),
+          centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
             onPressed: () {
               Navigator.pushReplacement(
                 context,
@@ -39,7 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             if (authProvider.isAuthenticated)
               IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white),
+                icon: Icon(Icons.logout, color: theme.textTheme.bodyMedium?.color),
                 onPressed: () {
                   Navigator.pop(context);
                   authProvider.logout();
@@ -59,7 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Text(
                 'Статус оплаты: ${authProvider.isPaid ? 'Оплачено' : 'Не оплачено'}',
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
             ],

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:vpn_app/providers/vpn_provider.dart';
 import 'package:logger/logger.dart';
 import 'package:gif/gif.dart';
+import 'package:vpn_app/screens/about_screen.dart';
 import 'package:vpn_app/screens/settings_screen.dart';
 import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
@@ -38,28 +39,29 @@ class VpnScreenState extends State<VpnScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return PopScope(
       canPop: false,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Theme.of(context).primaryColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           title: Text(
             'UgbuganVPN',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                ),
+            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
           ),
+          centerTitle: true,
           leading: Builder(
             builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
+              icon: Icon(Icons.menu, color: theme.textTheme.bodyMedium?.color),
               onPressed: () => Scaffold.of(context).openDrawer(),
             ),
           ),
         ),
         drawer: Drawer(
+          backgroundColor: theme.scaffoldBackgroundColor,
           width: 200,
           shape: LinearBorder(),
           child: SizedBox(
@@ -69,22 +71,19 @@ class VpnScreenState extends State<VpnScreen> {
               children: [
                 Container(
                   width: double.infinity,
-                  color: Theme.of(context).primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 0),
+                  color: theme.scaffoldBackgroundColor,
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
                   child: Text(
                     textAlign: TextAlign.center,
                     authProvider.isAuthenticated ? authProvider.username ?? 'Пользователь' : 'Гость',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: Colors.white,
-                          fontSize: 24,
-                        ),
+                    style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
                   ),
                 ),
                 Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.payment),
-                      title: const Text('Подписаться'),
+                      leading: Icon(Icons.payment, color: theme.textTheme.bodyMedium?.color),
+                      title: Text('Подписаться', style: theme.textTheme.bodyMedium),
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
@@ -94,8 +93,8 @@ class VpnScreenState extends State<VpnScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.settings),
-                      title: const Text('Настройки'),
+                      leading: Icon(Icons.settings, color: theme.textTheme.bodyMedium?.color),
+                      title: Text('Настройки', style: theme.textTheme.bodyMedium),
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
@@ -105,12 +104,13 @@ class VpnScreenState extends State<VpnScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.help),
-                      title: const Text('Помощь'),
+                      leading: Icon(Icons.info, color: theme.textTheme.bodyMedium?.color),
+                      title: Text('О нас', style: theme.textTheme.bodyMedium),
                       onTap: () {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Переход в Помощь')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const AboutScreen()),
                         );
                       },
                     ),
@@ -119,8 +119,8 @@ class VpnScreenState extends State<VpnScreen> {
                 Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.brightness_6),
-                      title: const Text('Смена темы'),
+                      leading: Icon(Icons.brightness_6, color: theme.textTheme.bodyMedium?.color),
+                      title: Text('Смена темы', style: theme.textTheme.bodyMedium),
                       onTap: () {
                         Navigator.pop(context);
                         themeProvider.toggleTheme();
@@ -134,14 +134,15 @@ class VpnScreenState extends State<VpnScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.logout),
-                      title: const Text('Выйти'),
+                      leading: Icon(Icons.logout, color: theme.textTheme.bodyMedium?.color),
+                      title: Text('Выйти', style: theme.textTheme.bodyMedium),
                       onTap: () {
                         Navigator.pop(context);
                         authProvider.logout();
-                        Navigator.pushReplacement(
+                        Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          (Route<dynamic> route) => false,
                         );
                       },
                     ),
@@ -211,12 +212,12 @@ class AnimationButtonState extends State<AnimationButton> with TickerProviderSta
     if (vpnProvider.isConnecting || _isAnimating) return;
 
     setState(() {
-      _isAnimating = true; 
-      _currentIsConnected = vpnProvider.isConnected; 
+      _isAnimating = true;
+      _currentIsConnected = vpnProvider.isConnected;
     });
 
     _controller.reset();
-    await _controller.forward(); 
+    await _controller.forward();
     if (_currentIsConnected) {
       await vpnProvider.disconnect();
     } else {

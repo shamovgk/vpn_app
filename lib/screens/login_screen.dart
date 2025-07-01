@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/vpn_screen.dart';
-import '../providers/auth_provider.dart';
-import 'register_screen.dart';
+import 'package:vpn_app/screens/register_screen.dart';
 import 'package:logger/logger.dart';
 
 final logger = Logger();
@@ -35,9 +35,10 @@ class _LoginScreenState extends State<LoginScreen> {
       try {
         await authProvider.login(_usernameController.text, _passwordController.text);
         if (!mounted) return;
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const VpnScreen()),
+          (Route<dynamic> route) => false,
         );
       } catch (e) {
         if (!mounted) return;
@@ -76,64 +77,78 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.lock, size: 100, color: Theme.of(context).primaryColor),
-                const SizedBox(height: 40),
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: InputDecoration(
-                    labelText: 'Логин',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.person),
-                    labelStyle: Theme.of(context).textTheme.bodyMedium,
+    
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          title: Text(
+            'Вход',
+            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+          ),
+          centerTitle: true,
+          automaticallyImplyLeading: false,
+        ),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.lock, size: 50, color: theme.primaryColor),
+                  const SizedBox(height: 40),
+                  TextFormField(
+                    controller: _usernameController,
+                    decoration: InputDecoration(
+                      labelText: 'Логин',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person, color: theme.textTheme.bodyMedium?.color),
+                      labelStyle: theme.textTheme.bodyMedium,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Введите логин';
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Введите логин';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Пароль',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock),
-                    labelStyle: Theme.of(context).textTheme.bodyMedium,
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: InputDecoration(
+                      labelText: 'Пароль',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
+                      labelStyle: theme.textTheme.bodyMedium,
+                    ),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Введите пароль';
+                      return null;
+                    },
                   ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Введите пароль';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 40),
-                ElevatedButton(
-                  onPressed: _login,
-                  style: Theme.of(context).elevatedButtonTheme.style,
-                  child: const Text(
-                    'Войти',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  const SizedBox(height: 40),
+                  ElevatedButton(
+                    onPressed: _login,
+                    style: theme.elevatedButtonTheme.style,
+                    child: Text(
+                      'Войти',
+                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: _navigateToRegister,
-                  child: Text(
-                    'Зарегистрироваться',
-                    style: TextStyle(color: Theme.of(context).primaryColor),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: _navigateToRegister,
+                    child: Text(
+                      'Зарегистрироваться',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

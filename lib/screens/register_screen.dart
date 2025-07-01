@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
-import '../providers/auth_provider.dart';
-import 'login_screen.dart';
+import 'package:vpn_app/screens/login_screen.dart';
 import 'package:logger/logger.dart';
 
 final logger = Logger();
@@ -40,15 +40,13 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
           _passwordController.text,
         );
         if (!mounted) return;
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Регистрация успешна! Проверьте email для верификации.'),
-              duration: const Duration(seconds: 5),
-              backgroundColor: Theme.of(context).extension<CustomColors>()!.success,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Регистрация успешна! Проверьте email для верификации.'),
+            duration: const Duration(seconds: 5),
+            backgroundColor: Theme.of(context).extension<CustomColors>()!.success,
+          ),
+        );
         _usernameController.clear();
         _emailController.clear();
         _passwordController.clear();
@@ -59,8 +57,8 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
         );
       } catch (e) {
         if (!mounted) return;
+        logger.e('Registration error: $e');
         if (mounted) {
-          logger.e('Registration error: $e');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Ошибка: $e'),
@@ -84,8 +82,21 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        title: Text(
+          'Регистрация',
+          style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -94,15 +105,15 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.person_add, size: 100, color: Theme.of(context).primaryColor),
+                Icon(Icons.person_add, size: 50, color: theme.primaryColor),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _usernameController,
                   decoration: InputDecoration(
                     labelText: 'Логин',
                     border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.person),
-                    labelStyle: Theme.of(context).textTheme.bodyMedium,
+                    prefixIcon: Icon(Icons.person, color: theme.textTheme.bodyMedium?.color),
+                    labelStyle: theme.textTheme.bodyMedium,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Введите логин';
@@ -115,8 +126,8 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                   decoration: InputDecoration(
                     labelText: 'Email',
                     border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.email),
-                    labelStyle: Theme.of(context).textTheme.bodyMedium,
+                    prefixIcon: Icon(Icons.email, color: theme.textTheme.bodyMedium?.color),
+                    labelStyle: theme.textTheme.bodyMedium,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Введите email';
@@ -130,8 +141,8 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                   decoration: InputDecoration(
                     labelText: 'Пароль',
                     border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock),
-                    labelStyle: Theme.of(context).textTheme.bodyMedium,
+                    prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
+                    labelStyle: theme.textTheme.bodyMedium,
                   ),
                   obscureText: true,
                   validator: (value) {
@@ -143,10 +154,10 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: _register,
-                  style: Theme.of(context).elevatedButtonTheme.style,
-                  child: const Text(
+                  style: theme.elevatedButtonTheme.style,
+                  child: Text(
                     'Зарегистрироваться',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -154,7 +165,7 @@ class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObse
                   onPressed: _navigateToLogin,
                   child: Text(
                     'Уже есть аккаунт? Войти',
-                    style: TextStyle(color: Theme.of(context).primaryColor),
+                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
