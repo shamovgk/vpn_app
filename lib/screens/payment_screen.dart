@@ -23,15 +23,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        title: Text(
           'Оплата подписки',
-          style: TextStyle(color: Colors.white),
+          style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
         ),
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -41,17 +43,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              const Text(
+              Text(
                 'Введите данные карты для оплаты',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: theme.textTheme.headlineLarge?.copyWith(fontSize: 18,),
               ),
               const SizedBox(height: 20),
               TextFormField(
                 controller: _cardNumberController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Номер карты',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.credit_card),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.credit_card, color: theme.textTheme.bodyMedium?.color),
+                  labelStyle: theme.textTheme.bodyMedium,
                 ),
                 keyboardType: TextInputType.number,
                 validator: (value) {
@@ -67,10 +70,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _expiryDateController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'MM/YY',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.calendar_today),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.calendar_today, color: theme.textTheme.bodyMedium?.color),
+                        labelStyle: theme.textTheme.bodyMedium,
                       ),
                       keyboardType: TextInputType.datetime,
                       validator: (value) {
@@ -85,10 +89,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _cvvController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'CVV',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
+                        labelStyle: theme.textTheme.bodyMedium,
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
@@ -110,20 +115,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     );
                   }
                 },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: Theme.of(context).primaryColor,
+                style: theme.elevatedButtonTheme.style?.copyWith(
+                  minimumSize: WidgetStateProperty.all(const Size(double.infinity, 50)),
                 ),
-                child: const Text(
+                child: Text(
                   'Оплатить',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
                 'Сумма: 499 ₽/месяц',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).hintColor),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                  fontSize: 16,
+                ),
               ),
             ],
           ),

@@ -41,7 +41,7 @@ class ThemeProvider with ChangeNotifier {
   ThemeData get darkTheme {
     return ThemeData(
       primaryColor: HSLColor.fromAHSL(1.0, 42, 0.51, 0.60).toColor(), // --primary: hsl(42 51% 60%)
-      scaffoldBackgroundColor: HSLColor.fromAHSL(1.0, 40, 0.48, 0.04).toColor(), // --bg: hsl(40 48% 4%)
+      scaffoldBackgroundColor: HSLColor.fromAHSL(1.0, 40, 0.6, 0.07).toColor(), // --bg: hsl(40 48% 4%)
       textTheme: TextTheme(
         headlineLarge: TextStyle(
           color: HSLColor.fromAHSL(1.0, 42, 0.77, 0.92).toColor(), // --text: hsl(42 77% 92%)
@@ -55,8 +55,8 @@ class ThemeProvider with ChangeNotifier {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: HSLColor.fromAHSL(1.0, 42, 0.51, 0.60).toColor(), // --primary
-          foregroundColor: HSLColor.fromAHSL(1.0, 42, 0.77, 0.92).toColor(), // --text
+          backgroundColor: HSLColor.fromAHSL(1.0, 46, 1.0, 0.14).toColor(), // --primary
+          foregroundColor: HSLColor.fromAHSL(1.0, 36, 0.98, 0.03).toColor(), // --text
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         ),
       ),
@@ -92,8 +92,8 @@ class ThemeProvider with ChangeNotifier {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: HSLColor.fromAHSL(1.0, 46, 1.0, 0.14).toColor(), // --primary
-          foregroundColor: HSLColor.fromAHSL(1.0, 36, 0.98, 0.03).toColor(), // --text
+          backgroundColor: HSLColor.fromAHSL(1.0, 42, 0.51, 0.60).toColor(), // --primary
+          foregroundColor: HSLColor.fromAHSL(1.0, 42, 0.77, 0.92).toColor(), // --text
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         ),
       ),
