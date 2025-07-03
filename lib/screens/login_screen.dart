@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:vpn_app/providers/auth_provider.dart';
-import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/vpn_screen.dart';
 import 'package:vpn_app/screens/register_screen.dart';
 import 'package:logger/logger.dart';
@@ -28,43 +27,43 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      try {
-        await authProvider.login(_usernameController.text, _passwordController.text);
-        if (!mounted) return;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const VpnScreen()),
-          (Route<dynamic> route) => false,
-        );
-      } catch (e) {
-        if (!mounted) return;
-        if (e.toString().contains('Пожалуйста, проверьте email')) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Пожалуйста, проверьте email для верификации'),
-                duration: const Duration(seconds: 5),
-                backgroundColor: Theme.of(context).extension<CustomColors>()!.warning,
-              ),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(e.toString()),
-                backgroundColor: Theme.of(context).colorScheme.error,
-              ),
-            );
-          }
-        }
-      }
+Future<void> _login() async {
+    if (_isLoading || !_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      await authProvider.login(_usernameController.text, _passwordController.text);
       if (!mounted) return;
-      setState(() => _isLoading = false);
+
+      // Успешный логин, переходим на экран VPN
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const VpnScreen()),
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      String errorMessage = e.toString();
+      if (e.toString().contains('Пожалуйста, проверьте email')) {
+        errorMessage = 'Пожалуйста, проверьте email для верификации';
+      } else if (e.toString().contains('Неверный пароль') || e.toString().contains('Invalid password')) {
+        errorMessage = 'Неверный логин или пароль';
+      } else if (e.toString().contains('Ошибка логина')) {
+        errorMessage = 'Ошибка сервера, попробуйте позже';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false); // Сбрасываем состояние загрузки
     }
   }
 
@@ -75,11 +74,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -132,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
                   ElevatedButton(
-                    onPressed: _login,
+                    onPressed: _isLoading ? null : _login,
                     style: theme.elevatedButtonTheme.style,
                     child: Text(
                       'Войти',
@@ -144,7 +141,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _navigateToRegister,
                     child: Text(
                       'Зарегистрироваться',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
