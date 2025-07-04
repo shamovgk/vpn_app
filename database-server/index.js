@@ -57,6 +57,16 @@ function createTables() {
         FOREIGN KEY (user_id) REFERENCES Users(id)
       )
     `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS PasswordReset (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        reset_code TEXT NOT NULL,
+        expiry_date TEXT NOT NULL,
+        FOREIGN KEY (email) REFERENCES Users(email)
+      )
+    `);
   });
 }
 
@@ -170,7 +180,7 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: 'UgbuganSoft@gmail.com',
-    pass: 'скрыто',
+    pass: 'ohkr jgtg unce hjuc',
   },
 });
 
@@ -180,6 +190,17 @@ function sendVerificationEmail(email, verificationCode) {
     to: email,
     subject: 'Verify your email',
     text: `Your verification code is: ${verificationCode}. Please enter it in the app to verify your account.`,
+  };
+
+  return transporter.sendMail(mailOptions);
+}
+
+function sendResetEmail(email, resetCode) {
+  const mailOptions = {
+    from: '"UgbuganVPN" <UgbuganSoft@gmail.com>', 
+    to: email,
+    subject: 'Password Reset',
+    text: `Your password reset code is: ${resetCode}. It is valid for 24 hours. Please use it in the app to reset your password.`,
   };
 
   return transporter.sendMail(mailOptions);
@@ -404,6 +425,106 @@ app.post('/logout', (req, res) => {
         return res.status(404).json({ error: 'Token not found' });
       }
       res.json({ message: 'Logged out successfully' });
+    }
+  );
+});
+
+app.post('/forgot-password', (req, res) => {
+  const { username } = req.body; // Берем только username
+  if (!username) {
+    return res.status(400).json({ error: 'Username is required' });
+  }
+
+  db.get(`SELECT id, email FROM Users WHERE username = ?`, [username], (err, user) => {
+    if (err) {
+      console.error('Database error:', err.message);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    if (!user) {
+      return res.status(404).json({ error: 'User with this username not found' });
+    }
+
+    const resetCode = generateVerificationCode();
+    const expiryDate = getCurrentDatePlusDays(1); // Код действителен 1 день
+
+    db.run(
+      `INSERT INTO PasswordReset (email, reset_code, expiry_date) VALUES (?, ?, ?)`,
+      [user.email, resetCode, expiryDate],
+      async (err) => {
+        if (err) {
+          console.error('Error saving reset code:', err.message);
+          return res.status(500).json({ error: 'Failed to generate reset code' });
+        }
+
+        try {
+          await sendResetEmail(user.email, resetCode);
+          res.json({ message: 'Reset instructions sent to your email' });
+        } catch (emailError) {
+          console.error('Email sending error:', emailError.message);
+          db.run(`DELETE FROM PasswordReset WHERE email = ? AND reset_code = ?`, [user.email, resetCode], (deleteErr) => {
+            if (deleteErr) console.error('Cleanup error:', deleteErr.message);
+          });
+          return res.status(500).json({ error: 'Failed to send reset email' });
+        }
+      }
+    );
+  });
+});
+
+app.post('/reset-password', (req, res) => {
+  const { username, resetCode, newPassword } = req.body;
+  if (!username || !resetCode || !newPassword) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  db.get(
+    `SELECT email FROM Users WHERE username = ?`,
+    [username],
+    (err, user) => {
+      if (err) {
+        console.error('Database error:', err.message);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const email = user.email;
+
+      db.get(
+        `SELECT * FROM PasswordReset WHERE email = ? AND reset_code = ? AND expiry_date > ?`,
+        [email, resetCode, new Date().toISOString()],
+        (err, reset) => {
+          if (err) {
+            console.error('Database error:', err.message);
+            return res.status(500).json({ error: 'Internal server error' });
+          }
+          if (!reset) {
+            return res.status(400).json({ error: 'Invalid or expired reset code' });
+          }
+
+          const hashedPassword = bcrypt.hashSync(newPassword, 10);
+          db.run(
+            `UPDATE Users SET password = ? WHERE username = ?`, 
+            [hashedPassword, username],
+            (err) => {
+              if (err) {
+                console.error('Error updating password:', err.message);
+                return res.status(500).json({ error: 'Failed to update password' });
+              }
+
+              db.run(
+                `DELETE FROM PasswordReset WHERE email = ? AND reset_code = ?`,
+                [email, resetCode],
+                (deleteErr) => {
+                  if (deleteErr) console.error('Cleanup error:', deleteErr.message);
+                }
+              );
+              res.json({ message: 'Password reset successfully' });
+            }
+          );
+        }
+      );
     }
   );
 });

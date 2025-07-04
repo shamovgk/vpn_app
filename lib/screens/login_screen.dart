@@ -4,6 +4,9 @@ import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/screens/vpn_screen.dart';
 import 'package:vpn_app/screens/register_screen.dart';
 import 'package:logger/logger.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:vpn_app/screens/reset_password_screen.dart'; // Новый импорт
 
 final logger = Logger();
 
@@ -19,6 +22,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  int _failedAttempts = 0; // Счётчик неудачных попыток
+  bool _showForgotPassword = false; // Флаг для показа опции восстановления
 
   @override
   void dispose() {
@@ -27,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-Future<void> _login() async {
+  Future<void> _login() async {
     if (_isLoading || !_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -37,7 +42,12 @@ Future<void> _login() async {
       await authProvider.login(_usernameController.text, _passwordController.text);
       if (!mounted) return;
 
-      // Успешный логин, переходим на экран VPN
+      // Сбрасываем счётчик при успешном входе
+      setState(() {
+        _failedAttempts = 0;
+        _showForgotPassword = false;
+      });
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const VpnScreen()),
@@ -45,6 +55,12 @@ Future<void> _login() async {
       );
     } catch (e) {
       if (!mounted) return;
+
+      _failedAttempts++; // Увеличиваем счётчик
+      logger.i('Login error: $e'); // Логируем ошибку для отладки
+      if (_failedAttempts == 1 && (e.toString().contains('Неверный логин или пароль') || e.toString().contains('Invalid password') || e.toString().contains('401'))) {
+        setState(() => _showForgotPassword = true); // Показываем опцию после первой ошибки
+      }
 
       String errorMessage = e.toString();
       if (e.toString().contains('Пожалуйста, проверьте email')) {
@@ -67,6 +83,47 @@ Future<void> _login() async {
     }
   }
 
+  Future<void> _resetPassword() async {
+    final username = _usernameController.text.trim();
+    if (username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Введите логин для восстановления')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('${AuthProvider.baseUrl}/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username}),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Инструкции по восстановлению отправлены на ваш email')),
+        );
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ResetPasswordScreen(username: username)),
+        );
+      } else {
+        throw Exception('Ошибка отправки: ${response.body}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _navigateToRegister() {
     Navigator.push(
       context,
@@ -74,7 +131,7 @@ Future<void> _login() async {
     );
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return PopScope(
@@ -127,6 +184,17 @@ Future<void> _login() async {
                       return null;
                     },
                   ),
+                  if (_showForgotPassword)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: TextButton(
+                        onPressed: _resetPassword,
+                        child: Text(
+                          'Забыли пароль?',
+                          style: TextStyle(color: theme.colorScheme.primary),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 40),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _login,
