@@ -252,4 +252,28 @@ Future<void> logout() async {
       }
     }
   }
+
+Future<void> resetPassword(String username, String resetCode, String newPassword) async {
+  if (_isTestMode) {
+    logger.i('Test mode: Password reset for $username');
+    notifyListeners();
+  } else {
+    if (username.isEmpty || resetCode.isEmpty || newPassword.isEmpty) {
+      throw Exception('All fields (username, reset code, new password) are required');
+    }
+    logger.i('Resetting password for username: $username, resetCode: $resetCode, newPassword length: ${newPassword.length}');
+    final response = await http.post(
+      Uri.parse('${AuthProvider.baseUrl}/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'username': username, 'resetCode': resetCode, 'newPassword': newPassword}),
+    );
+
+    if (response.statusCode == 200) {
+      logger.i('Password reset successful for $username, response: ${response.body}');
+      notifyListeners();
+    } else {
+      throw Exception('Ошибка сброса пароля: ${response.statusCode} - ${response.body}');
+    }
+  }
+}
 }
