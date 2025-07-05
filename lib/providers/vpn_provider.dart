@@ -72,8 +72,12 @@ class VpnProvider with ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> _getVpnConfig(String baseUrl, String? token) async {
-    if (token == null) throw Exception('Не авторизован');
+    if (token == null) {
+      logger.e('Token is null, authentication required');
+      throw Exception('Authentication required');
+    }
 
+    logger.i('Requesting VPN config from $baseUrl/get-vpn-config with token: Bearer $token');
     final response = await http.get(
       Uri.parse('$baseUrl/get-vpn-config'),
       headers: {
@@ -82,25 +86,36 @@ class VpnProvider with ChangeNotifier {
       },
     );
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final config = jsonDecode(response.body);
+      if (config is Map<String, dynamic> && 
+          config.containsKey('clientPrivateKey') &&
+          config.containsKey('serverPublicKey') &&
+          config.containsKey('serverAddress')) {
+        logger.i('Received config: $config');
+        return config; // Проверяем все необходимые поля
+      } else {
+        logger.e('Invalid configuration: missing required fields - $config');
+        throw Exception('Invalid configuration: missing required fields');
+      }
     } else {
+      logger.e('Error fetching config: ${response.statusCode} - ${response.body}');
       throw Exception('Ошибка получения конфигурации: ${response.body}');
     }
   }
 
   Future<Map<String, dynamic>> _getTestVpnConfig() async {
-    const String serverPublicKey = 'p5fE09SR1FzW+a81zbSmZjW0h528cNx7IRKN+w0ulxo='; 
+    const String serverPublicKey = 'p5fE09SR1FzW+a81zbSmZjW0h528cNx7IRKN+w0ulxo=';
     const String serverAddress = '95.214.10.8:51820';
     return {
       'serverAddress': serverAddress,
       'serverPublicKey': serverPublicKey,
+      'clientPrivateKey': 'тестовый_приватный_ключ', // Тестовый ключ для отладки
     };
   }
 
-  final bool _isTestMode = true;
+  final bool _isTestMode = false;
 
   Future<void> connect() async {
-    String? token;
     try {
       await _initializationCompleter.future;
     } catch (e) {
@@ -109,10 +124,19 @@ class VpnProvider with ChangeNotifier {
     }
 
     final authProvider = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
-    if (!authProvider.isAuthenticated || authProvider.vpnKey == null) {
-      throw Exception('Не авторизован или отсутствует VPN-ключ');
+    if (!authProvider.isAuthenticated || authProvider.token == null) {
+      logger.e('Not authenticated or token missing: ${authProvider.token}');
+      await authProvider.checkAuthStatus();
+      if (!authProvider.isAuthenticated || authProvider.token == null) {
+        throw Exception('Не авторизован или отсутствует токен');
+      }
     }
-    token = authProvider.token;
+
+    // Проверка оплаты
+    if (!authProvider.isPaid) {
+      logger.w('Connection blocked: User has not paid for subscription');
+      throw Exception('Подключение заблокировано: требуется оплата подписки');
+    }
 
     if (wireguard == null) {
       logger.w('WireGuard instance is null, reinitializing...');
@@ -135,11 +159,11 @@ class VpnProvider with ChangeNotifier {
 
       final configData = _isTestMode
           ? await _getTestVpnConfig()
-          : await _getVpnConfig(AuthProvider.baseUrl, token);
+          : await _getVpnConfig(AuthProvider.baseUrl, authProvider.token);
 
       final config = '''
       [Interface]
-      PrivateKey = ${authProvider.vpnKey}
+      PrivateKey = ${configData['clientPrivateKey']}
       Address = 10.0.0.2/32
       DNS = 8.8.8.8, 1.1.1.1
       MTU = 1280
@@ -149,6 +173,8 @@ class VpnProvider with ChangeNotifier {
       Endpoint = ${configData['serverAddress']}
       AllowedIPs = 0.0.0.0/0
       ''';
+
+      logger.i('Generated WireGuard config:\n$config');
 
       await wireguard!.startVpn(
         serverAddress: configData['serverAddress'],
@@ -186,7 +212,7 @@ class VpnProvider with ChangeNotifier {
     } finally {
       _isConnecting = false;
       notifyListeners();
-      trayHandler.updateTrayIconAndMenu(); 
+      trayHandler.updateTrayIconAndMenu();
     }
   }
 
