@@ -49,7 +49,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
     }
   }
 
-  void _verifyEmail() async {
+  Future<void> _verifyEmail() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -57,7 +57,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
         await authProvider.verifyEmail(widget.username, widget.email, _verificationCodeController.text);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email verified! You can now log in.')),
+          const SnackBar(content: Text('Email верифицирован! Теперь вы можете войти.')),
         );
         authProvider.resetRegistrationData();
         Navigator.pushReplacement(
@@ -67,9 +67,17 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
       } catch (e) {
         if (!mounted) return;
         logger.e('Verification error: $e');
+        String errorMessage = e.toString().replaceFirst('Exception: ', '');
+        if (e.toString().contains('Срок действия кода верификации истёк')) {
+          errorMessage = 'Срок действия кода верификации истёк, запросите новый';
+        } else if (e.toString().contains('Неверный код верификации')) {
+          errorMessage = 'Введён неверный код верификации';
+        } else if (e.toString().contains('Пользователь или email не найдены')) {
+          errorMessage = 'Пользователь или email не найдены в ожидающих верификации';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ошибка верификации: $e'),
+            content: Text(errorMessage),
             backgroundColor: Theme.of(context).colorScheme.error,
             duration: const Duration(seconds: 2),
           ),

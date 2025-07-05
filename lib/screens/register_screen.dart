@@ -64,14 +64,16 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
       } catch (e) {
         if (!mounted) return;
         logger.e('Registration error: $e');
+        String errorMessage = e.toString().replaceFirst('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ошибка: $e'),
+            content: Text(errorMessage),
             backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
-        setState(() => _isLoading = false);
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -90,7 +92,6 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
     super.build(context);
     final theme = Theme.of(context);
 
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
     return PopScope(
       canPop: false,
       child: Scaffold(
