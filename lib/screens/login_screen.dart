@@ -42,7 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
       await authProvider.login(_usernameController.text, _passwordController.text);
       if (!mounted) return;
 
-      // Сбрасываем счётчик при успешном входе
       setState(() {
         _failedAttempts = 0;
         _showForgotPassword = false;
@@ -56,18 +55,20 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      _failedAttempts++; // Увеличиваем счётчик
-      logger.i('Login error: $e'); // Логируем ошибку для отладки
-      if (_failedAttempts == 1 && (e.toString().contains('Неверный логин или пароль') || e.toString().contains('Invalid password') || e.toString().contains('401'))) {
-        setState(() => _showForgotPassword = true); // Показываем опцию после первой ошибки
+      _failedAttempts++;
+      logger.i('Login error: $e');
+      if (_failedAttempts == 1 && (e.toString().contains('Неверный пароль') || e.toString().contains('Invalid password') || e.toString().contains('401'))) {
+        setState(() => _showForgotPassword = true);
       }
 
-      String errorMessage = e.toString();
+      String errorMessage = e.toString().replaceFirst('Exception: ', '');
       if (e.toString().contains('Пожалуйста, проверьте email')) {
         errorMessage = 'Пожалуйста, проверьте email для верификации';
       } else if (e.toString().contains('Неверный пароль') || e.toString().contains('Invalid password')) {
         errorMessage = 'Неверный логин или пароль';
-      } else if (e.toString().contains('Ошибка логина')) {
+      } else if (e.toString().contains('Срок действия пробного периода истёк')) {
+        errorMessage = 'Срок действия пробного периода истёк, требуется оплата';
+      } else if (e.toString().contains('Внутренняя ошибка сервера')) {
         errorMessage = 'Ошибка сервера, попробуйте позже';
       }
 
@@ -79,9 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false); // Сбрасываем состояние загрузки
+      if (mounted) setState(() => _isLoading = false);
     }
-  }
+  } 
 
   Future<void> _resetPassword() async {
     final username = _usernameController.text.trim();

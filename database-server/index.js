@@ -209,7 +209,7 @@ function sendResetEmail(email, resetCode) {
 app.post('/register', (req, res) => {
   const { username, password, email } = req.body;
   if (!username || !password || !email) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
   }
 
   // Очистка устаревших записей
@@ -225,40 +225,40 @@ app.post('/register', (req, res) => {
   db.get(`SELECT id FROM Users WHERE username = ?`, [username], (err, existingUsername) => {
     if (err) {
       console.error('Database error:', err.message);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
     if (existingUsername) {
-      return res.status(400).json({ error: 'Username already exists' });
+      return res.status(400).json({ error: 'Такой логин уже существует' });
     }
 
     // Проверка на существование email в таблице Users
     db.get(`SELECT id FROM Users WHERE email = ?`, [email], (err, existingEmail) => {
       if (err) {
         console.error('Database error:', err.message);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
       }
       if (existingEmail) {
-        return res.status(400).json({ error: 'Email already exists' });
+        return res.status(400).json({ error: 'Этот email уже используется' });
       }
 
       // Проверка на существование username в PendingUsers
       db.get(`SELECT id FROM PendingUsers WHERE username = ?`, [username], (err, pendingUsername) => {
         if (err) {
           console.error('Database error:', err.message);
-          return res.status(500).json({ error: 'Internal server error' });
+          return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
         }
         if (pendingUsername) {
-          return res.status(400).json({ error: 'Username already pending verification' });
+          return res.status(400).json({ error: 'Этот логин уже ожидает верификации' });
         }
 
         // Проверка на существование email в PendingUsers
         db.get(`SELECT id FROM PendingUsers WHERE email = ?`, [email], (err, pendingEmail) => {
           if (err) {
             console.error('Database error:', err.message);
-            return res.status(500).json({ error: 'Internal server error' });
+            return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
           }
           if (pendingEmail) {
-            return res.status(400).json({ error: 'Email already pending verification' });
+            return res.status(400).json({ error: 'Этот email уже ожидает верификации' });
           }
 
           // Если проверки прошли, создаём запись
@@ -268,7 +268,7 @@ app.post('/register', (req, res) => {
           const verificationExpiry = getCurrentDatePlusDays(1 / 24); // 1 час
 
           if (!username.trim()) {
-            return res.status(400).json({ error: 'Username cannot be empty' });
+            return res.status(400).json({ error: 'Логин не может быть пустым' });
           }
 
           console.log(`Executing: INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?) with values [${username}, ${hashedPassword}, ${email}, ${trialEndDate}, ${verificationCode}, ${verificationExpiry}]`);
@@ -278,19 +278,19 @@ app.post('/register', (req, res) => {
             async function (err) {
               if (err) {
                 console.error('Registration error:', err.message);
-                return res.status(400).json({ error: err.message });
+                return res.status(400).json({ error: 'Ошибка регистрации: ' + err.message });
               }
 
               console.log(`Inserted verification_expiry: ${verificationExpiry} for user ${username}`);
               try {
                 await sendVerificationEmail(email, verificationCode);
-                res.json({ id: this.lastID, username, email, message: 'Verification email sent' });
+                res.json({ id: this.lastID, username, email, message: 'Код верификации отправлен на ваш email' });
               } catch (emailError) {
                 console.error('Email sending error:', emailError.message);
                 db.run(`DELETE FROM PendingUsers WHERE id = ?`, [this.lastID], (deleteErr) => {
                   if (deleteErr) console.error('Cleanup error:', deleteErr.message);
                 });
-                return res.status(500).json({ error: 'Failed to send verification email' });
+                return res.status(500).json({ error: 'Не удалось отправить email с кодом верификации' });
               }
             }
           );
@@ -303,7 +303,7 @@ app.post('/register', (req, res) => {
 app.post('/verify-email', (req, res) => {
   const { username, email, verificationCode } = req.body;
   if (!username || !email || !verificationCode) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: 'Все поля (логин, email и код верификации) обязательны' });
   }
 
   db.get(
@@ -312,16 +312,16 @@ app.post('/verify-email', (req, res) => {
     (err, pendingUser) => {
       if (err) {
         console.error('Verification error:', err.message);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Внутренняя ошибка сервера при проверке верификации' });
       }
       if (!pendingUser) {
-        return res.status(404).json({ error: 'User or email not found in pending' });
+        return res.status(404).json({ error: 'Пользователь или email не найдены в ожидающих верификации' });
       }
       if (pendingUser.verification_code !== verificationCode) {
-        return res.status(400).json({ error: 'Invalid verification code' });
+        return res.status(400).json({ error: 'Неверный код верификации' });
       }
       if (new Date(pendingUser.verification_expiry) < new Date()) {
-        return res.status(400).json({ error: 'Verification code expired' });
+        return res.status(400).json({ error: 'Срок действия кода верификации истёк' });
       }
 
       // Перемещение данных в Users и удаление из PendingUsers
@@ -331,7 +331,7 @@ app.post('/verify-email', (req, res) => {
         async function (err) {
           if (err) {
             console.error('User creation error:', err.message);
-            return res.status(500).json({ error: 'Failed to create user' });
+            return res.status(500).json({ error: 'Не удалось создать аккаунт' });
           }
 
           try {
@@ -339,7 +339,7 @@ app.post('/verify-email', (req, res) => {
             db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (deleteErr) => {
               if (deleteErr) console.error('Cleanup error:', deleteErr.message);
             });
-            res.json({ message: 'Email verified successfully, account created' });
+            res.json({ message: 'Email успешно верифицирован, аккаунт создан' });
           } catch (e) {
             console.error('Key generation error:', e.message);
             db.run(`DELETE FROM Users WHERE id = ?`, [this.lastID], (deleteErr) => {
@@ -348,7 +348,7 @@ app.post('/verify-email', (req, res) => {
             db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (deleteErr) => {
               if (deleteErr) console.error('Cleanup error:', deleteErr.message);
             });
-            return res.status(500).json({ error: 'Failed to generate VPN key' });
+            return res.status(500).json({ error: 'Не удалось сгенерировать VPN-ключ' });
           }
         }
       );
@@ -359,7 +359,7 @@ app.post('/verify-email', (req, res) => {
 app.post('/cancel-registration', (req, res) => {
   const { username, email } = req.body;
   if (!username || !email) {
-    return res.status(400).json({ error: 'Username and email are required' });
+    return res.status(400).json({ error: 'Логин и email обязательны для отмены регистрации' });
   }
 
   db.run(
@@ -368,12 +368,12 @@ app.post('/cancel-registration', (req, res) => {
     (err) => {
       if (err) {
         console.error('Error canceling registration:', err.message);
-        return res.status(500).json({ error: 'Failed to cancel registration' });
+        return res.status(500).json({ error: 'Не удалось отменить регистрацию из-за ошибки сервера' });
       }
       if (this.changes === 0) {
-        return res.status(404).json({ error: 'No pending registration found' });
+        return res.status(404).json({ error: 'Регистрация с указанными данными не найдена' });
       }
-      res.json({ message: 'Registration canceled successfully' });
+      res.json({ message: 'Регистрация успешно отменена' });
     }
   );
 });
@@ -381,7 +381,7 @@ app.post('/cancel-registration', (req, res) => {
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+    return res.status(400).json({ error: 'Логин и пароль обязательны' });
   }
 
   db.get(
@@ -391,17 +391,17 @@ app.post('/login', (req, res) => {
     (err, user) => {
       if (err) {
         console.error('Login error:', err.message);
-        return res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: 'Внутренняя ошибка сервера при входе' });
       }
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return res.status(404).json({ error: 'Пользователь не найден' });
       }
       if (!bcrypt.compareSync(password, user.password)) {
-        return res.status(401).json({ error: 'Invalid password' });
+        return res.status(401).json({ error: 'Неверный пароль' });
       }
       const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
       if (!user.is_paid && trialExpired) {
-        return res.status(403).json({ error: 'Trial period expired' });
+        return res.status(403).json({ error: 'Срок действия пробного периода истёк' });
       }
 
       const token = generateToken();
@@ -412,7 +412,7 @@ app.post('/login', (req, res) => {
         (err) => {
           if (err) {
             console.error('Token update error:', err.message);
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: 'Не удалось обновить токен авторизации' });
           }
           res.json({
             id: user.id,
@@ -482,18 +482,18 @@ app.post('/logout', (req, res) => {
 });
 
 app.post('/forgot-password', (req, res) => {
-  const { username } = req.body; // Берем только username
+  const { username } = req.body;
   if (!username) {
-    return res.status(400).json({ error: 'Username is required' });
+    return res.status(400).json({ error: 'Логин обязателен для восстановления пароля' });
   }
 
   db.get(`SELECT id, email FROM Users WHERE username = ?`, [username], (err, user) => {
     if (err) {
       console.error('Database error:', err.message);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Внутренняя ошибка сервера при запросе восстановления' });
     }
     if (!user) {
-      return res.status(404).json({ error: 'User with this username not found' });
+      return res.status(404).json({ error: 'Пользователь с таким логином не найден' });
     }
 
     const resetCode = generateVerificationCode();
@@ -505,18 +505,18 @@ app.post('/forgot-password', (req, res) => {
       async (err) => {
         if (err) {
           console.error('Error saving reset code:', err.message);
-          return res.status(500).json({ error: 'Failed to generate reset code' });
+          return res.status(500).json({ error: 'Не удалось сгенерировать код восстановления' });
         }
 
         try {
           await sendResetEmail(user.email, resetCode);
-          res.json({ message: 'Reset instructions sent to your email' });
+          res.json({ message: 'Инструкции по восстановлению отправлены на ваш email' });
         } catch (emailError) {
           console.error('Email sending error:', emailError.message);
           db.run(`DELETE FROM PasswordReset WHERE email = ? AND reset_code = ?`, [user.email, resetCode], (deleteErr) => {
             if (deleteErr) console.error('Cleanup error:', deleteErr.message);
           });
-          return res.status(500).json({ error: 'Failed to send reset email' });
+          return res.status(500).json({ error: 'Не удалось отправить email с инструкциями' });
         }
       }
     );
@@ -526,7 +526,7 @@ app.post('/forgot-password', (req, res) => {
 app.post('/reset-password', (req, res) => {
   const { username, resetCode, newPassword } = req.body;
   if (!username || !resetCode || !newPassword) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: 'Все поля (логин, код восстановления и новый пароль) обязательны' });
   }
 
   db.get(
@@ -535,10 +535,10 @@ app.post('/reset-password', (req, res) => {
     (err, user) => {
       if (err) {
         console.error('Database error:', err.message);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Внутренняя ошибка сервера при сбросе пароля' });
       }
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return res.status(404).json({ error: 'Пользователь не найден' });
       }
 
       const email = user.email;
@@ -549,10 +549,10 @@ app.post('/reset-password', (req, res) => {
         (err, reset) => {
           if (err) {
             console.error('Database error:', err.message);
-            return res.status(500).json({ error: 'Internal server error' });
+            return res.status(500).json({ error: 'Внутренняя ошибка сервера при проверке кода' });
           }
           if (!reset) {
-            return res.status(400).json({ error: 'Invalid or expired reset code' });
+            return res.status(400).json({ error: 'Неверный или истёкший код восстановления' });
           }
 
           const hashedPassword = bcrypt.hashSync(newPassword, 10);
@@ -562,7 +562,7 @@ app.post('/reset-password', (req, res) => {
             (err) => {
               if (err) {
                 console.error('Error updating password:', err.message);
-                return res.status(500).json({ error: 'Failed to update password' });
+                return res.status(500).json({ error: 'Не удалось обновить пароль' });
               }
 
               db.run(
@@ -572,7 +572,7 @@ app.post('/reset-password', (req, res) => {
                   if (deleteErr) console.error('Cleanup error:', deleteErr.message);
                 }
               );
-              res.json({ message: 'Password reset successfully' });
+              res.json({ message: 'Пароль успешно сброшен' });
             }
           );
         }

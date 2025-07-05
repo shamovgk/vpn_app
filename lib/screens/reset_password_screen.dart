@@ -30,19 +30,19 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Future<void> _resetPassword() async {
     if (_isLoading || !_formKey.currentState!.validate()) return;
-
+  
     setState(() => _isLoading = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final username = widget.username.trim();
     final resetCode = _resetCodeController.text.trim();
     final newPassword = _newPasswordController.text.trim();
-
+  
     logger.i('Attempting reset: username=$username, resetCode=$resetCode, newPassword length=${newPassword.length}');
-
+  
     try {
       await authProvider.resetPassword(username, resetCode, newPassword);
       if (!mounted) return;
-
+  
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Пароль успешно изменён')),
       );
@@ -53,10 +53,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-
+  
+      String errorMessage = e.toString().replaceFirst('Exception: ', '');
+      if (e.toString().contains('Неверный или истёкший код восстановления')) {
+        errorMessage = 'Неверный или истёкший код восстановления';
+      } else if (e.toString().contains('Все поля обязательны')) {
+        errorMessage = 'Заполните все поля (логин, код и новый пароль)';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ошибка: $e'),
+          content: Text(errorMessage),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
