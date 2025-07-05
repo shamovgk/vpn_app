@@ -200,7 +200,7 @@ function sendResetEmail(email, resetCode) {
     from: '"UgbuganVPN" <UgbuganSoft@gmail.com>', 
     to: email,
     subject: 'Password Reset',
-    text: `Your password reset code is: ${resetCode}. It is valid for 24 hours. Please use it in the app to reset your password.`,
+    text: `Your password reset code is: ${resetCode}. Please use it in the app to reset your password.`,
   };
 
   return transporter.sendMail(mailOptions);
@@ -212,41 +212,91 @@ app.post('/register', (req, res) => {
     return res.status(400).json({ error: 'All fields are required' });
   }
 
-  db.get(`SELECT id FROM PendingUsers WHERE email = ?`, [email], (err, row) => {
-    if (row) return res.status(400).json({ error: 'Email already pending verification' });
+  // Очистка устаревших записей
+  db.run(
+    `DELETE FROM PendingUsers WHERE verification_expiry < ?`,
+    [new Date().toISOString()],
+    (err) => {
+      if (err) console.error('Error cleaning expired pending users:', err.message);
+    }
+  );
 
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const trialEndDate = getCurrentDatePlusDays(3);
-    const verificationCode = generateVerificationCode();
-    const verificationExpiry = getCurrentDatePlusDays(1 / 24); // 1 час
-
-    if (!username.trim()) {
-      return res.status(400).json({ error: 'Username cannot be empty' });
+  // Проверка на существование username в таблице Users
+  db.get(`SELECT id FROM Users WHERE username = ?`, [username], (err, existingUsername) => {
+    if (err) {
+      console.error('Database error:', err.message);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    if (existingUsername) {
+      return res.status(400).json({ error: 'Username already exists' });
     }
 
-    console.log(`Executing: INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?) with values [${username}, ${hashedPassword}, ${email}, ${trialEndDate}, ${verificationCode}, ${verificationExpiry}]`);
-    db.run(
-      `INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?)`,
-      [username, hashedPassword, email, trialEndDate, verificationCode, verificationExpiry],
-      async function (err) {
+    // Проверка на существование email в таблице Users
+    db.get(`SELECT id FROM Users WHERE email = ?`, [email], (err, existingEmail) => {
+      if (err) {
+        console.error('Database error:', err.message);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+      if (existingEmail) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+
+      // Проверка на существование username в PendingUsers
+      db.get(`SELECT id FROM PendingUsers WHERE username = ?`, [username], (err, pendingUsername) => {
         if (err) {
-          console.error('Registration error:', err.message);
-          return res.status(400).json({ error: err.message });
+          console.error('Database error:', err.message);
+          return res.status(500).json({ error: 'Internal server error' });
+        }
+        if (pendingUsername) {
+          return res.status(400).json({ error: 'Username already pending verification' });
         }
 
-        console.log(`Inserted verification_expiry: ${verificationExpiry} for user ${username}`);
-        try {
-          await sendVerificationEmail(email, verificationCode);
-          res.json({ id: this.lastID, username, email, message: 'Verification email sent' });
-        } catch (emailError) {
-          console.error('Email sending error:', emailError.message);
-          db.run(`DELETE FROM PendingUsers WHERE id = ?`, [this.lastID], (deleteErr) => {
-            if (deleteErr) console.error('Cleanup error:', deleteErr.message);
-          });
-          return res.status(500).json({ error: 'Failed to send verification email' });
-        }
-      }
-    );
+        // Проверка на существование email в PendingUsers
+        db.get(`SELECT id FROM PendingUsers WHERE email = ?`, [email], (err, pendingEmail) => {
+          if (err) {
+            console.error('Database error:', err.message);
+            return res.status(500).json({ error: 'Internal server error' });
+          }
+          if (pendingEmail) {
+            return res.status(400).json({ error: 'Email already pending verification' });
+          }
+
+          // Если проверки прошли, создаём запись
+          const hashedPassword = bcrypt.hashSync(password, 10);
+          const trialEndDate = getCurrentDatePlusDays(3);
+          const verificationCode = generateVerificationCode();
+          const verificationExpiry = getCurrentDatePlusDays(1 / 24); // 1 час
+
+          if (!username.trim()) {
+            return res.status(400).json({ error: 'Username cannot be empty' });
+          }
+
+          console.log(`Executing: INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?) with values [${username}, ${hashedPassword}, ${email}, ${trialEndDate}, ${verificationCode}, ${verificationExpiry}]`);
+          db.run(
+            `INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?)`,
+            [username, hashedPassword, email, trialEndDate, verificationCode, verificationExpiry],
+            async function (err) {
+              if (err) {
+                console.error('Registration error:', err.message);
+                return res.status(400).json({ error: err.message });
+              }
+
+              console.log(`Inserted verification_expiry: ${verificationExpiry} for user ${username}`);
+              try {
+                await sendVerificationEmail(email, verificationCode);
+                res.json({ id: this.lastID, username, email, message: 'Verification email sent' });
+              } catch (emailError) {
+                console.error('Email sending error:', emailError.message);
+                db.run(`DELETE FROM PendingUsers WHERE id = ?`, [this.lastID], (deleteErr) => {
+                  if (deleteErr) console.error('Cleanup error:', deleteErr.message);
+                });
+                return res.status(500).json({ error: 'Failed to send verification email' });
+              }
+            }
+          );
+        });
+      });
+    });
   });
 });
 
@@ -257,12 +307,12 @@ app.post('/verify-email', (req, res) => {
   }
 
   db.get(
-    `SELECT id, verification_code, verification_expiry FROM PendingUsers WHERE username = ? AND email = ?`,
+    `SELECT id, verification_code, verification_expiry, password, trial_end_date FROM PendingUsers WHERE username = ? AND email = ?`,
     [username, email],
     (err, pendingUser) => {
       if (err) {
         console.error('Verification error:', err.message);
-        return res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: 'Internal server error' });
       }
       if (!pendingUser) {
         return res.status(404).json({ error: 'User or email not found in pending' });
@@ -270,58 +320,60 @@ app.post('/verify-email', (req, res) => {
       if (pendingUser.verification_code !== verificationCode) {
         return res.status(400).json({ error: 'Invalid verification code' });
       }
-      const currentTime = new Date().toISOString(); // UTC
-      const expiryTime = new Date(pendingUser.verification_expiry).toISOString(); // UTC
-      console.log(`Current time (UTC): ${currentTime}, Expiry time (UTC): ${expiryTime}`);
       if (new Date(pendingUser.verification_expiry) < new Date()) {
         return res.status(400).json({ error: 'Verification code expired' });
       }
 
-      db.get(
-        `SELECT username, password, trial_end_date FROM PendingUsers WHERE id = ?`,
-        [pendingUser.id],
-        (err, fullPendingUser) => {
+      // Перемещение данных в Users и удаление из PendingUsers
+      db.run(
+        `INSERT INTO Users (username, password, email, trial_end_date) VALUES (?, ?, ?, ?)`,
+        [username, pendingUser.password, email, pendingUser.trial_end_date],
+        async function (err) {
           if (err) {
-            console.error('Error fetching full pending user:', err.message);
-            return res.status(500).json({ error: 'Internal server error' });
-          }
-          if (!fullPendingUser) {
-            console.error('No full pending user found for id:', pendingUser.id);
-            return res.status(500).json({ error: 'Invalid user data' });
-          }
-          if (!fullPendingUser.username || !fullPendingUser.password || !fullPendingUser.trial_end_date) {
-            console.error('Missing required fields in PendingUsers for id:', pendingUser.id, fullPendingUser);
-            return res.status(500).json({ error: 'Invalid user data' });
+            console.error('User creation error:', err.message);
+            return res.status(500).json({ error: 'Failed to create user' });
           }
 
-          console.log(`Executing: INSERT INTO Users (username, password, email, trial_end_date) VALUES (?, ?, ?, ?) with values [${fullPendingUser.username}, ${fullPendingUser.password}, ${email}, ${fullPendingUser.trial_end_date}]`);
-          db.run(
-            `INSERT INTO Users (username, password, email, trial_end_date) VALUES (?, ?, ?, ?)`,
-            [fullPendingUser.username, fullPendingUser.password, email, fullPendingUser.trial_end_date],
-            async function (err) {
-              if (err) {
-                console.error('User creation error:', err.message);
-                return res.status(500).json({ error: err.message });
-              }
-
-              try {
-                await generateVpnKey(this.lastID, db);
-                console.log(`Executing: DELETE FROM PendingUsers WHERE id = ? with value [${pendingUser.id}]`);
-                db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (deleteErr) => {
-                  if (deleteErr) console.error('Cleanup error:', deleteErr.message);
-                });
-                res.json({ message: 'Email verified successfully, account created' });
-              } catch (e) {
-                console.error('Key generation error:', e.message);
-                db.run(`DELETE FROM Users WHERE id = ?`, [this.lastID], (deleteErr) => {
-                  if (deleteErr) console.error('Cleanup error:', deleteErr.message);
-                });
-                return res.status(500).json({ error: 'Failed to generate VPN key' });
-              }
-            }
-          );
+          try {
+            await generateVpnKey(this.lastID, db); // Генерация VPN-ключа
+            db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (deleteErr) => {
+              if (deleteErr) console.error('Cleanup error:', deleteErr.message);
+            });
+            res.json({ message: 'Email verified successfully, account created' });
+          } catch (e) {
+            console.error('Key generation error:', e.message);
+            db.run(`DELETE FROM Users WHERE id = ?`, [this.lastID], (deleteErr) => {
+              if (deleteErr) console.error('Cleanup error:', deleteErr.message);
+            });
+            db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (deleteErr) => {
+              if (deleteErr) console.error('Cleanup error:', deleteErr.message);
+            });
+            return res.status(500).json({ error: 'Failed to generate VPN key' });
+          }
         }
       );
+    }
+  );
+});
+
+app.post('/cancel-registration', (req, res) => {
+  const { username, email } = req.body;
+  if (!username || !email) {
+    return res.status(400).json({ error: 'Username and email are required' });
+  }
+
+  db.run(
+    `DELETE FROM PendingUsers WHERE username = ? AND email = ?`,
+    [username, email],
+    (err) => {
+      if (err) {
+        console.error('Error canceling registration:', err.message);
+        return res.status(500).json({ error: 'Failed to cancel registration' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'No pending registration found' });
+      }
+      res.json({ message: 'Registration canceled successfully' });
     }
   );
 });
@@ -445,7 +497,7 @@ app.post('/forgot-password', (req, res) => {
     }
 
     const resetCode = generateVerificationCode();
-    const expiryDate = getCurrentDatePlusDays(1); // Код действителен 1 день
+    const expiryDate = getCurrentDatePlusDays(1 / 96); // Код действителен 15 минут
 
     db.run(
       `INSERT INTO PasswordReset (email, reset_code, expiry_date) VALUES (?, ?, ?)`,
