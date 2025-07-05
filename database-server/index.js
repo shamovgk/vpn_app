@@ -604,27 +604,45 @@ app.post('/add-device', (req, res) => {
 });
 
 app.get('/get-vpn-config', (req, res) => {
-  const { token } = req.headers.authorization?.split(' ')[1];
-  if (!token) {
+  console.log('Received headers:', req.headers); // Логируем все заголовки
+  const authHeader = req.headers.authorization;
+  console.log('Authorization header:', authHeader); // Логируем заголовок
+
+  if (!authHeader) {
     return res.status(400).json({ error: 'Token is required' });
   }
 
+  const token = authHeader.split(' ')[1];
+  console.log('Extracted token:', token); // Логируем извлечённый токен
+
   db.get(
-    `SELECT id, username, vpn_key, is_paid, trial_end_date FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    `SELECT id, username, vpn_key, is_paid, trial_end_date, email_verified FROM Users WHERE auth_token = ? AND token_expiry > ?`,
     [token, new Date().toISOString()],
     (err, user) => {
-      if (err || !user) {
+      if (err) {
+        console.error('Database error:', err.message);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+      if (!user) {
+        console.log('User not found for token:', token);
         return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      if (!user.email_verified) {
+        console.log('Email not verified for user:', user.username);
+        return res.status(403).json({ error: 'Email not verified' });
       }
       const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
       if (!user.is_paid && trialExpired) {
+        console.log('Trial expired for user:', user.username);
         return res.status(403).json({ error: 'Trial period expired' });
       }
 
       const serverAddress = '95.214.10.8:51820';
+      const serverPublicKey = 'p5fE09SR1FzW+a81zbSmZjW0h528cNx7IRKN+w0ulxo='; // Замени на реальный ключ
       res.json({
-        privateKey: user.vpn_key || 'Key not generated yet',
-        serverAddress: serverAddress
+        serverPublicKey: serverPublicKey,
+        serverAddress: serverAddress,
+        clientPrivateKey: user.vpn_key || 'Key not generated yet'
       });
     }
   );
