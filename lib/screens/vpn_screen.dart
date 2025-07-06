@@ -124,13 +124,14 @@ class VpnScreenState extends State<VpnScreen> {
                       onTap: () {
                         Navigator.pop(context);
                         themeProvider.toggleTheme();
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Тема изменена на ${themeProvider.themeMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}'),
-                            backgroundColor: Theme.of(context).extension<CustomColors>()!.success,
-                          ),
-                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Тема изменена на ${themeProvider.themeMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}'),
+                              backgroundColor: Theme.of(context).extension<CustomColors>()!.success,
+                            ),
+                          );
+                        }
                       },
                     ),
                     ListTile(
@@ -139,11 +140,13 @@ class VpnScreenState extends State<VpnScreen> {
                       onTap: () {
                         Navigator.pop(context);
                         authProvider.logout();
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          (Route<dynamic> route) => false,
-                        );
+                        if (mounted) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            (Route<dynamic> route) => false,
+                          );
+                        }
                       },
                     ),
                   ],
@@ -218,15 +221,47 @@ class AnimationButtonState extends State<AnimationButton> with TickerProviderSta
 
     _controller.reset();
     await _controller.forward();
-    if (_currentIsConnected) {
-      await vpnProvider.disconnect();
-    } else {
-      await vpnProvider.connect();
+    try {
+      if (_currentIsConnected) {
+        await vpnProvider.disconnect();
+        if (mounted) {
+          final customColors = Theme.of(context).extension<CustomColors>();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Отключение от VPN успешно'),
+              backgroundColor: customColors?.success ?? Colors.green,
+            ),
+          );
+        }
+      } else {
+        await vpnProvider.connect();
+        if (mounted) {
+          final customColors = Theme.of(context).extension<CustomColors>();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Подключение к VPN успешно'),
+              backgroundColor: customColors?.success ?? Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      logger.e('VPN operation error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Ошибка при изменении состояния VPN'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAnimating = false;
+        });
+      }
     }
-
-    setState(() {
-      _isAnimating = false;
-    });
   }
 
   @override

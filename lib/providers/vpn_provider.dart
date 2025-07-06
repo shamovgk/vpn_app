@@ -14,37 +14,36 @@ import 'package:http/http.dart' as http;
 final logger = Logger();
 
 class VpnProvider with ChangeNotifier {
-  WireGuardFlutterInterface? wireguard;
+  WireGuardFlutterInterface? _wireguard;
   bool _isConnecting = false;
   bool _isConnected = false;
   final Completer<void> _initializationCompleter = Completer<void>();
+  static const String _tunnelName = 'vpn_app_tunnel';
 
-  static const String tunnelName = 'vpn_app_tunnel';
-
+  // Геттеры
   bool get isConnecting => _isConnecting;
   bool get isConnected => _isConnected;
+  WireGuardFlutterInterface? get wireguard => _wireguard;
 
   VpnProvider() {
     _initializeWireGuard();
   }
 
+  // Утилитарные методы
   Future<void> _initializeWireGuard() async {
     logger.i('Starting WireGuard initialization...');
-    if (wireguard != null) {
+    if (_wireguard != null) {
       logger.i('WireGuard already initialized');
       _initializationCompleter.complete();
       return;
     }
 
     try {
-      wireguard = WireGuardFlutter.instance;
-      logger.i('Instance retrieved: $wireguard');
-
-      await wireguard!.initialize(interfaceName: tunnelName);
-      logger.i('WireGuard initialized with $tunnelName');
-
+      _wireguard = WireGuardFlutter.instance;
+      logger.i('Instance retrieved: $_wireguard');
+      await _wireguard!.initialize(interfaceName: _tunnelName);
+      logger.i('WireGuard initialized with $_tunnelName');
       await _clearTempFiles();
-
       _initializationCompleter.complete();
     } catch (e) {
       _initializationCompleter.completeError(e);
@@ -71,7 +70,7 @@ class VpnProvider with ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> _getVpnConfig(String baseUrl, String? token) async {
+  Future<Map<String, dynamic>> _fetchVpnConfig(String baseUrl, String? token) async {
     if (token == null) {
       logger.e('Token is null, authentication required');
       throw Exception('Authentication required');
@@ -80,20 +79,17 @@ class VpnProvider with ChangeNotifier {
     logger.i('Requesting VPN config from $baseUrl/get-vpn-config with token: Bearer $token');
     final response = await http.get(
       Uri.parse('$baseUrl/get-vpn-config'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
       final config = jsonDecode(response.body);
-      if (config is Map<String, dynamic> && 
+      if (config is Map<String, dynamic> &&
           config.containsKey('clientPrivateKey') &&
           config.containsKey('serverPublicKey') &&
           config.containsKey('serverAddress') &&
           config.containsKey('clientIp')) {
         logger.i('Received config: $config');
-        return config; // Добавлен clientIp
+        return config;
       } else {
         logger.e('Invalid configuration: missing required fields - $config');
         throw Exception('Invalid configuration: missing required fields');
@@ -104,90 +100,63 @@ class VpnProvider with ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> _getTestVpnConfig() async {
-    const String serverPublicKey = 'p5fE09SR1FzW+a81zbSmZjW0h528cNx7IRKN+w0ulxo=';
-    const String serverAddress = '95.214.10.8:51820';
-    return {
-      'serverAddress': serverAddress,
-      'serverPublicKey': serverPublicKey,
-      'clientPrivateKey': 'тестовый_приватный_ключ',
-      'clientIp': '10.0.0.2/32', // Тестовый IP
-    };
+  String _buildConfig(Map<String, dynamic> configData) {
+    return '''
+    [Interface]
+    PrivateKey = ${configData['clientPrivateKey']}
+    Address = ${configData['clientIp']}
+    DNS = 8.8.8.8, 1.1.1.1
+
+    [Peer]
+    PublicKey = ${configData['serverPublicKey']}
+    Endpoint = ${configData['serverAddress']}
+    AllowedIPs = 0.0.0.0/0
+    ''';
   }
 
-  final bool _isTestMode = false;
-
+  // Публичные методы
   Future<void> connect() async {
     try {
       await _initializationCompleter.future;
-    } catch (e) {
-      logger.e('Initialization failed: $e');
-      rethrow;
-    }
-
-    final authProvider = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
-    if (!authProvider.isAuthenticated || authProvider.token == null) {
-      logger.e('Not authenticated or token missing: ${authProvider.token}');
-      await authProvider.checkAuthStatus();
+      final authProvider = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
       if (!authProvider.isAuthenticated || authProvider.token == null) {
-        throw Exception('Не авторизован или отсутствует токен');
+        await authProvider.checkAuthStatus();
+        if (!authProvider.isAuthenticated || authProvider.token == null) {
+          throw Exception('Не авторизован или отсутствует токен');
+        }
       }
-    }
 
-    // Проверка оплаты
-    if (!authProvider.isPaid) {
-      logger.w('Connection blocked: User has not paid for subscription');
-      throw Exception('Подключение заблокировано: требуется оплата подписки');
-    }
+      if (!authProvider.isPaid) {
+        throw Exception('Подключение заблокировано: требуется оплата подписки');
+      }
 
-    if (wireguard == null) {
-      logger.w('WireGuard instance is null, reinitializing...');
-      await _initializeWireGuard();
-      if (wireguard == null) throw Exception('Failed to initialize WireGuard');
-    }
+      if (_wireguard == null) {
+        await _initializeWireGuard();
+        if (_wireguard == null) throw Exception('Failed to initialize WireGuard');
+      }
 
-    _isConnecting = true;
-    notifyListeners();
-    try {
-      final stage = await wireguard!.stage();
-      logger.i('Current VPN stage: $stage');
+      _isConnecting = true;
+      notifyListeners();
+
+      final stage = await _wireguard!.stage();
       if (stage == VpnStage.connected) {
-        logger.i('Stopping existing VPN service...');
-        await wireguard!.stopVpn();
+        await _wireguard!.stopVpn();
         await Future.delayed(const Duration(seconds: 2));
       }
 
       await _clearTempFiles();
+      final configData = await _fetchVpnConfig(AuthProvider.baseUrl, authProvider.token);
+      final config = _buildConfig(configData);
 
-      final configData = _isTestMode
-          ? await _getTestVpnConfig()
-          : await _getVpnConfig(AuthProvider.baseUrl, authProvider.token);
-      logger.i('Received config data: $configData');
-
-      final config = '''
-      [Interface]
-      PrivateKey = ${configData['clientPrivateKey']}
-      Address = ${configData['clientIp']}
-      DNS = 8.8.8.8, 1.1.1.1
-      MTU = 1280
-
-      [Peer]
-      PublicKey = ${configData['serverPublicKey']}
-      Endpoint = ${configData['serverAddress']}
-      AllowedIPs = 0.0.0.0/0
-      ''';
-      logger.i('Generated WireGuard config:\n$config');
-
-      await wireguard!.startVpn(
+      await _wireguard!.startVpn(
         serverAddress: configData['serverAddress'],
         wgQuickConfig: config,
         providerBundleIdentifier: 'com.shamovgk.vpn_app',
       );
       _isConnected = true;
-      logger.i('VPN connected with ${_isTestMode ? 'test' : 'real'} config');
     } catch (e) {
       _isConnected = false;
-      logger.e('Connection error details: $e, Stack trace: ${StackTrace.current}');
+      logger.e('Connection error: $e');
       rethrow;
     } finally {
       _isConnecting = false;
@@ -197,7 +166,7 @@ class VpnProvider with ChangeNotifier {
   }
 
   Future<void> disconnect() async {
-    if (wireguard == null) {
+    if (_wireguard == null) {
       logger.w('WireGuard not initialized, skipping disconnect');
       return;
     }
@@ -205,7 +174,7 @@ class VpnProvider with ChangeNotifier {
     _isConnecting = true;
     notifyListeners();
     try {
-      await wireguard!.stopVpn();
+      await _wireguard!.stopVpn();
       _isConnected = false;
       logger.i('VPN disconnected');
     } catch (e) {
@@ -220,7 +189,7 @@ class VpnProvider with ChangeNotifier {
 
   @override
   void dispose() {
-    if (isConnected) {
+    if (_isConnected) {
       disconnect().then((_) {
         logger.i('VPN disconnected on provider dispose');
       }).catchError((e) {

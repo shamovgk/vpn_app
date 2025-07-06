@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vpn_app/providers/theme_provider.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -24,6 +25,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final customColors = theme.extension<CustomColors>();
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
@@ -45,11 +48,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
             children: [
               Text(
                 'Введите данные карты для оплаты',
-                style: theme.textTheme.headlineLarge?.copyWith(fontSize: 18,),
+                style: theme.textTheme.headlineLarge?.copyWith(fontSize: 18),
               ),
               const SizedBox(height: 20),
               TextFormField(
                 controller: _cardNumberController,
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 decoration: InputDecoration(
                   labelText: 'Номер карты',
                   border: const OutlineInputBorder(),
@@ -70,6 +74,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _expiryDateController,
+                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                       decoration: InputDecoration(
                         labelText: 'MM/YY',
                         border: const OutlineInputBorder(),
@@ -89,6 +94,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _cvvController,
+                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                       decoration: InputDecoration(
                         labelText: 'CVV',
                         border: const OutlineInputBorder(),
@@ -111,7 +117,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Оплата успешно обработана (мок-данные)')),
+                      SnackBar(
+                        content: const Text('Оплата успешно обработана (мок-данные)'),
+                        backgroundColor: customColors?.success ?? Colors.green,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Проверьте введённые данные'),
+                        backgroundColor:Theme.of(context).colorScheme.error,
+                      ),
                     );
                   }
                 },
@@ -128,7 +144,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 'Сумма: 499 ₽/месяц',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                  color: theme.textTheme.bodyMedium?.color?.withAlpha(153),
                   fontSize: 16,
                 ),
               ),

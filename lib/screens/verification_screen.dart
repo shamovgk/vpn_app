@@ -1,7 +1,7 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
@@ -26,7 +26,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
   bool _isLoading = false;
 
   @override
-  bool get wantKeepAlive => true; // Сохраняем состояние
+  bool get wantKeepAlive => true;
 
   @override
   void dispose() {
@@ -56,42 +56,81 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
       try {
         await authProvider.verifyEmail(widget.username, widget.email, _verificationCodeController.text);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email верифицирован! Теперь вы можете войти.')),
-        );
+        final customColors = Theme.of(context).extension<CustomColors>();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Email верифицирован! Теперь вы можете войти.'),
+              backgroundColor: customColors?.success ?? Colors.green,
+            ),
+          );
+        }
         authProvider.resetRegistrationData();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        }
       } catch (e) {
         if (!mounted) return;
         logger.e('Verification error: $e');
-        String errorMessage = e.toString().replaceFirst('Exception: ', '');
+        String message = e.toString().replaceFirst('Exception: ', '');
+        final customColors = Theme.of(context).extension<CustomColors>();
         if (e.toString().contains('Срок действия кода верификации истёк')) {
-          errorMessage = 'Срок действия кода верификации истёк, запросите новый';
+          message = 'Срок действия кода верификации истёк, запросите новый';
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                backgroundColor: customColors?.warning ?? Colors.orange,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
         } else if (e.toString().contains('Неверный код верификации')) {
-          errorMessage = 'Введён неверный код верификации';
+          message = 'Введён неверный код верификации';
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                backgroundColor:Theme.of(context).colorScheme.error,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
         } else if (e.toString().contains('Пользователь или email не найдены')) {
-          errorMessage = 'Пользователь или email не найдены в ожидающих верификации';
+          message = 'Пользователь или email не найдены в ожидающих верификации';
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Произошла ошибка при верификации'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 2),
-          ),
-        );
         setState(() => _isLoading = false);
       }
     }
   }
 
-  void _navigateToRegister() async {
+  void _navigateToRegister() {
     setState(() => _isLoading = true);
-    await _cancelRegistration(); // Отменяем регистрацию на сервере
+    _cancelRegistration();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    authProvider.resetRegistrationData(); // Сбрасываем данные
+    authProvider.resetRegistrationData();
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
@@ -114,9 +153,8 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
           title: Text(
             'Email Verification',
             style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20)),
-
           leading: IconButton(
-            icon: Icon(Icons.arrow_back,color: theme.textTheme.bodyMedium?.color),
+            icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
             onPressed: _navigateToRegister,
           ),
         ),
@@ -138,11 +176,12 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _verificationCodeController,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                     decoration: InputDecoration(
                       labelText: 'Verification Code',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.verified),
-                      labelStyle: Theme.of(context).textTheme.bodyMedium,
+                      labelStyle: theme.textTheme.bodyMedium,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Введите код верификации';
