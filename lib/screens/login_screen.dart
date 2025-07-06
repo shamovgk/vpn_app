@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:vpn_app/providers/auth_provider.dart';
+import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/vpn_screen.dart';
 import 'package:vpn_app/screens/register_screen.dart';
 import 'package:logger/logger.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:vpn_app/screens/reset_password_screen.dart'; // Новый импорт
+import 'package:vpn_app/screens/reset_password_screen.dart';
 
 final logger = Logger();
 
@@ -22,8 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  int _failedAttempts = 0; // Счётчик неудачных попыток
-  bool _showForgotPassword = false; // Флаг для показа опции восстановления
+  int _failedAttempts = 0;
+  bool _showForgotPassword = false;
 
   @override
   void dispose() {
@@ -61,24 +62,64 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _showForgotPassword = true);
       }
 
-      String errorMessage = e.toString().replaceFirst('Exception: ', '');
+      String message = e.toString().replaceFirst('Exception: ', '');
       if (e.toString().contains('Пожалуйста, проверьте email')) {
-        errorMessage = 'Пожалуйста, проверьте email для верификации';
+        message = 'Пожалуйста, проверьте email для верификации';
+        if (mounted) {
+          final customColors = Theme.of(context).extension<CustomColors>();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: customColors?.info ?? Colors.blue,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       } else if (e.toString().contains('Неверный пароль') || e.toString().contains('Invalid password')) {
-        errorMessage = 'Неверный логин или пароль';
+        message = 'Неверный логин или пароль';
+        if (mounted) { 
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       } else if (e.toString().contains('Срок действия пробного периода истёк')) {
-        errorMessage = 'Срок действия пробного периода истёк, требуется оплата';
+        message = 'Срок действия пробного периода истёк, требуется оплата';
+        if (mounted) {
+          final customColors = Theme.of(context).extension<CustomColors>();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: customColors?.warning ?? Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       } else if (e.toString().contains('Внутренняя ошибка сервера')) {
-        errorMessage = 'Ошибка сервера, попробуйте позже';
+        message = 'Ошибка сервера, попробуйте позже';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Произошла неизвестная ошибка'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          duration: const Duration(seconds: 3),
-        ),
-      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -87,8 +128,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _resetPassword() async {
     final username = _usernameController.text.trim();
     if (username.isEmpty) {
+      final customColors = Theme.of(context).extension<CustomColors>();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Введите логин для восстановления')),
+        SnackBar(
+          content: const Text('Введите логин для восстановления'),
+          backgroundColor: customColors?.warning,
+        ),
       );
       return;
     }
@@ -100,11 +145,16 @@ class _LoginScreenState extends State<LoginScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'username': username}),
       );
-
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Инструкции по восстановлению отправлены на ваш email')),
-        );
+        if (mounted) {
+          final customColors = Theme.of(context).extension<CustomColors>();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Инструкции по восстановлению отправлены на ваш email'),
+              backgroundColor: customColors?.info ?? Colors.blue,
+            ),
+          );
+        }
         if (!mounted) return;
         Navigator.push(
           context,
@@ -114,12 +164,14 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('Ошибка отправки: ${response.body}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -159,6 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _usernameController,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                     decoration: InputDecoration(
                       labelText: 'Логин',
                       border: const OutlineInputBorder(),
@@ -173,6 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _passwordController,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                     decoration: InputDecoration(
                       labelText: 'Пароль',
                       border: const OutlineInputBorder(),

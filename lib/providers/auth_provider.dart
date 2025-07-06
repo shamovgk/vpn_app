@@ -20,6 +20,7 @@ class AuthProvider with ChangeNotifier {
   String? _vpnKey;
   String? _token;
 
+  // Геттеры
   bool get isAuthenticated => _isAuthenticated;
   bool get isPaid => _isPaid;
   bool get emailVerified => _emailVerified;
@@ -29,11 +30,54 @@ class AuthProvider with ChangeNotifier {
   String? get vpnKey => _vpnKey;
   String? get token => _token;
 
+  // Константы
   static const String _baseUrl = 'http://95.214.10.8:3000';
   static String get baseUrl => _baseUrl;
-  
-  final bool _isTestMode = false;
+  static const Map<String, String> _headers = {'Content-Type': 'application/json'};
 
+  // Утилитарные методы
+  Future<Map<String, dynamic>> _makeApiRequest(String endpoint, {Map<String, dynamic>? body, String? token}) async {
+    final headers = {..._headers};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final response = await http.post(
+      Uri.parse('$_baseUrl/$endpoint'),
+      headers: headers,
+      body: body != null ? jsonEncode(body) : null,
+    );
+    logger.i('API request to $endpoint: ${response.statusCode} - ${response.body}');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('API error: ${response.body}');
+    }
+  }
+
+  Future<void> _updateAuthState(Map<String, dynamic> userData, String? token) async {
+    await _storage.write(key: 'auth_token', value: token ?? '');
+    _isAuthenticated = true;
+    _isPaid = (userData['is_paid'] as int) == 1;
+    _emailVerified = (userData['email_verified'] as int) == 1;
+    _username = userData['username'];
+    _vpnKey = userData['vpn_key'];
+    _token = token;
+    notifyListeners();
+  }
+
+  Future<void> _clearAuthState() async {
+    await _storage.delete(key: 'auth_token');
+    _isAuthenticated = false;
+    _isPaid = false;
+    _emailVerified = false;
+    _username = null;
+    _email = null;
+    _vpnKey = null;
+    _token = null;
+    notifyListeners();
+  }
+
+  // Публичные методы
   void setRegistrationData(String username, String email) {
     _username = username;
     _email = email;
@@ -48,160 +92,79 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> checkAuthStatus() async {
-    if (_isTestMode) {
-      _isAuthenticated = true;
-      _isPaid = true;
-      _emailVerified = true;
-      _username = 'test_user';
-      _vpnKey = 'QO4kryQQIaEXvCo2akiLmia25Y/q2L0kRFrbD1kATmo=';
-      _token = 'test_token_abc123';
-      logger.i('Test mode: Authenticated as $username with VPN key: $_vpnKey');
-    } else {
-      final token = await _storage.read(key: 'auth_token');
-      if (token != null) {
+    final token = await _storage.read(key: 'auth_token');
+    if (token != null) {
+      try {
         final response = await http.get(
           Uri.parse('$_baseUrl/validate-token?token=$token'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers,
         );
         if (response.statusCode == 200) {
-          final userData = jsonDecode(response.body);
-          _isAuthenticated = true;
-          _isPaid = (userData['is_paid'] as int) == 1;
-          _emailVerified = (userData['email_verified'] as int) == 1;
-          _username = userData['username'];
-          _vpnKey = userData['vpn_key'];
-          _token = token;
-          notifyListeners();
+          final userData = jsonDecode(response.body) as Map<String, dynamic>;
+          await _updateAuthState(userData, token);
         } else {
-          await _storage.delete(key: 'auth_token');
-          _isAuthenticated = false;
-          _isPaid = false;
-          _emailVerified = false;
-          _username = null;
-          _vpnKey = null;
-          _token = null;
-          notifyListeners();
+          await _clearAuthState();
         }
-      } else {
-        _isAuthenticated = false;
-        _isPaid = false;
-        _emailVerified = false;
-        _username = null;
-        _vpnKey = null;
-        _token = null;
-        notifyListeners();
+      } catch (e) {
+        logger.e('Error checking auth status: $e');
+        await _clearAuthState();
       }
+    } else {
+      await _clearAuthState();
     }
-    notifyListeners();
   }
 
   Future<void> login(String username, String password) async {
-    if (_isTestMode) {
-      if (username == 'test' && password == 'test') {
-        _isAuthenticated = true;
-        _isPaid = true;
-        _emailVerified = true;
-        _username = 'test_user';
-        _vpnKey = 'QO4kryQQIaEXvCo2akiLmia25Y/q2L0kRFrbD1kATmo=';
-        _token = 'test_token_abc123';
-        logger.i('Test mode: Login successful for $username');
-        notifyListeners();
+    try {
+      final response = await _makeApiRequest('login', body: {'username': username, 'password': password});
+      if (response['id'] != null) {
+        await _updateAuthState(response, response['auth_token']);
       } else {
-        throw Exception('Неверный тестовый логин или пароль (используй "test"/"test")');
+        throw Exception('Неверный пароль или пользователь');
       }
-    } else {
-      logger.i('Attempting login for username: $username');
-      final response = await http.post(
-        Uri.parse('$_baseUrl/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username, 'password': password}),
-      );
-      logger.i('Login response: ${response.statusCode} - ${response.body}');
-
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(response.body);
-        if (userData['id'] != null) {
-          logger.i('Setting auth token and state');
-          await _storage.write(key: 'auth_token', value: userData['auth_token']);
-          _isAuthenticated = true;
-          _isPaid = (userData['is_paid'] as int) == 1;
-          _emailVerified = (userData['email_verified'] as int) == 1;
-          _username = userData['username'];
-          _vpnKey = userData['vpn_key'];
-          _token = userData['auth_token'];
-          logger.i('Authenticated: $_isAuthenticated, Paid: $_isPaid, Email Verified: $_emailVerified');
-          notifyListeners();
-        } else {
-          throw Exception('Неверный пароль или пользователь');
-        }
-      } else if (response.statusCode == 403 && response.body.contains('Email not verified')) {
+    } on Exception catch (e) {
+      if (e.toString().contains('Email not verified')) {
         throw Exception('Пожалуйста, проверьте email для верификации');
-      } else {
-        throw Exception('Ошибка логина: ${response.body}');
       }
+      rethrow;
     }
-    notifyListeners();
   }
 
   Future<void> register(String username, String email, String password) async {
-    if (_isTestMode) {
+    try {
+      final response = await _makeApiRequest('register', body: {
+        'username': username,
+        'password': password,
+        'email': email,
+      });
       _isAuthenticated = false;
       _isPaid = false;
       _emailVerified = false;
-      _username = username;
+      _username = response['username'];
       _email = email;
-      _vpnKey = 'QO4kryQQIaEXvCo2akiLmia25Y/q2L0kRFrbD1kATmo=';
+      _vpnKey = response['vpn_key'];
       _showVerification = true;
-      logger.i('Test mode: Registered as $username');
       notifyListeners();
-    } else {
-      logger.i('Attempting registration for username: $username, email: $email');
-      final response = await http.post(
-        Uri.parse('$_baseUrl/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username, 'password': password, 'email': email}),
-      );
-      logger.i('Register response: ${response.statusCode} - ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _isAuthenticated = false;
-        _isPaid = false;
-        _emailVerified = false;
-        _username = data['username'];
-        _email = email;
-        _vpnKey = data['vpn_key'];
-        _showVerification = true;
-        notifyListeners();
-      } else if (response.statusCode == 400) {
-        final error = jsonDecode(response.body)['error'];
+    } catch (e) {
+      if (e.toString().contains('400')) {
+        final error = jsonDecode((e.toString().split(': ')[1]))['error'];
         throw Exception('Ошибка регистрации: $error');
-      } else {
-        throw Exception('Ошибка регистрации: ${response.body}');
       }
+      throw Exception('Ошибка регистрации: $e');
     }
   }
 
   Future<void> verifyEmail(String username, String email, String verificationCode) async {
-    if (_isTestMode) {
+    try {
+      await _makeApiRequest('verify-email', body: {
+        'username': username,
+        'email': email,
+        'verificationCode': verificationCode,
+      });
       _emailVerified = true;
-      logger.i('Test mode: Email verified for $username');
       notifyListeners();
-    } else {
-      logger.i('Attempting email verification for username: $username');
-      final response = await http.post(
-        Uri.parse('$_baseUrl/verify-email'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username, 'email': email, 'verificationCode': verificationCode}),
-      );
-      logger.i('Verify email response: ${response.statusCode} - ${response.body}');
-
-      if (response.statusCode == 200) {
-        _emailVerified = true;
-        notifyListeners();
-      } else {
-        throw Exception('Ошибка верификации email: ${response.body}');
-      }
+    } catch (e) {
+      throw Exception('Ошибка верификации email: $e');
     }
   }
 
@@ -210,60 +173,26 @@ class AuthProvider with ChangeNotifier {
     if (vpnProvider.isConnected) {
       await vpnProvider.disconnect();
     }
-
-    if (_isTestMode) {
-      _isAuthenticated = false;
-      _isPaid = false;
-      _emailVerified = false;
-      _username = null;
-      _vpnKey = null;
-      _token = null;
-      logger.i('Test mode: Logout successful');
-    } else {
+    try {
       if (_token != null) {
-        final response = await http.post(
+        await http.post(
           Uri.parse('$_baseUrl/logout'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $_token',
-          },
+          headers: {..._headers, 'Authorization': 'Bearer $_token'},
         );
-        if (response.statusCode == 200) {
-          await _storage.delete(key: 'auth_token');
-          _isAuthenticated = false;
-          _isPaid = false;
-          _emailVerified = false;
-          _username = null;
-          _vpnKey = null;
-          _token = null;
-          notifyListeners();
-        } else {
-          throw Exception('Ошибка выхода: ${response.body}');
-        }
-      } else {
-        await _storage.delete(key: 'auth_token');
-        _isAuthenticated = false;
-        _isPaid = false;
-        _emailVerified = false;
-        _username = null;
-        _vpnKey = null;
-        _token = null;
-        notifyListeners();
       }
+      await _clearAuthState();
+    } catch (e) {
+      logger.e('Error during logout: $e');
+      await _clearAuthState();
     }
-    notifyListeners();
   }
 
   Future<void> verifyPayment() async {
-    if (_isTestMode) {
-      _isPaid = true;
-      logger.i('Test mode: Payment verified');
-      notifyListeners();
-    } else {
-      if (_token == null) throw Exception('Не авторизован');
+    if (_token == null) throw Exception('Не авторизован');
+    try {
       final response = await http.put(
         Uri.parse('$_baseUrl/pay'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $_token'},
+        headers: {..._headers, 'Authorization': 'Bearer $_token'},
         body: jsonEncode({'is_family': false}),
       );
       if (response.statusCode == 200) {
@@ -272,30 +201,24 @@ class AuthProvider with ChangeNotifier {
       } else {
         throw Exception('Ошибка подтверждения оплаты: ${response.body}');
       }
+    } catch (e) {
+      rethrow;
     }
   }
 
   Future<void> resetPassword(String username, String resetCode, String newPassword) async {
-    if (_isTestMode) {
-      logger.i('Test mode: Password reset for $username');
+    if (username.isEmpty || resetCode.isEmpty || newPassword.isEmpty) {
+      throw Exception('All fields (username, reset code, new password) are required');
+    }
+    try {
+      await _makeApiRequest('reset-password', body: {
+        'username': username,
+        'resetCode': resetCode,
+        'newPassword': newPassword,
+      });
       notifyListeners();
-    } else {
-      if (username.isEmpty || resetCode.isEmpty || newPassword.isEmpty) {
-        throw Exception('All fields (username, reset code, new password) are required');
-      }
-      logger.i('Resetting password for username: $username, resetCode: $resetCode, newPassword length: ${newPassword.length}');
-      final response = await http.post(
-        Uri.parse('${AuthProvider.baseUrl}/reset-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username, 'resetCode': resetCode, 'newPassword': newPassword}),
-      );
-
-      if (response.statusCode == 200) {
-        logger.i('Password reset successful for $username, response: ${response.body}');
-        notifyListeners();
-      } else {
-        throw Exception('Ошибка сброса пароля: ${response.statusCode} - ${response.body}');
-      }
+    } catch (e) {
+      throw Exception('Ошибка сброса пароля: $e');
     }
   }
 

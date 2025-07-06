@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'verification_screen.dart';
@@ -52,6 +53,14 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
         );
         authProvider.setRegistrationData(_usernameController.text, _emailController.text);
         if (!mounted) return;
+        final customColors = Theme.of(context).extension<CustomColors>();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Регистрация прошла успешно, проверьте email для верификации'),
+            backgroundColor: customColors?.success ?? Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -64,14 +73,35 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
       } catch (e) {
         if (!mounted) return;
         logger.e('Registration error: $e');
-        String errorMessage = e.toString().replaceFirst('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        String message = e.toString().replaceFirst('Exception: ', '');
+        final customColors = Theme.of(context).extension<CustomColors>();
+        if (e.toString().contains('Пользователь с таким email уже существует') || e.toString().contains('duplicate email')) {
+          message = 'Пользователь с таким email уже существует, выберите другой';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: customColors?.warning ?? Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (e.toString().contains('Внутренняя ошибка сервера') || e.toString().contains('500')) {
+          message = 'Ошибка сервера, попробуйте позже';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Произошла ошибка при регистрации'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -91,7 +121,6 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
-
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -116,11 +145,12 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _usernameController,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                     decoration: InputDecoration(
                       labelText: 'Логин',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.person),
-                      labelStyle: Theme.of(context).textTheme.bodyMedium,
+                      labelStyle: theme.textTheme.bodyMedium,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Введите логин';
@@ -134,11 +164,12 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _emailController,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                     decoration: InputDecoration(
                       labelText: 'Email',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.email),
-                      labelStyle: Theme.of(context).textTheme.bodyMedium,
+                      labelStyle: theme.textTheme.bodyMedium,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Введите email';
@@ -153,11 +184,12 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _passwordController,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                     decoration: InputDecoration(
                       labelText: 'Пароль',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock),
-                      labelStyle: Theme.of(context).textTheme.bodyMedium,
+                      labelStyle: theme.textTheme.bodyMedium,
                     ),
                     obscureText: true,
                     validator: (value) {

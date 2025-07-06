@@ -68,14 +68,6 @@ function createTables() {
         FOREIGN KEY (email) REFERENCES Users(email)
       )
     `);
-
-    // Добавление колонки client_ip, если её нет
-    db.run(`ALTER TABLE Users ADD COLUMN client_ip TEXT`, (err) => {
-      if (err) {
-        // Игнорируем ошибку, если колонка уже существует
-        console.log('Column client_ip already exists or error:', err?.message);
-      }
-    });
   });
 }
 
@@ -98,99 +90,61 @@ function generateVerificationCode() {
 
 async function generateVpnKey(userId, db) {
   const scriptPath = '/root/vpn-server/generate_vpn_key.sh';
-  console.log('Executing script at:', scriptPath);
+  const configScriptPath = '/root/vpn-server/add_to_wg_conf.sh';
 
-  const { spawn } = require('child_process');
-  const child = spawn('bash', [scriptPath], {
-    maxBuffer: 1024 * 1024,
-    encoding: 'utf8',
-  });
+  try {
+    const { privateKey } = await executeScript(scriptPath);
+    console.log(`Generated VPN private key for user ID ${userId}`);
 
-  let stdout = '';
-  let stderr = '';
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE Users SET vpn_key = ? WHERE id = ?`,
+        [privateKey, userId],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
 
-  child.stdout.on('data', (data) => {
-    stdout += data;
-    console.log('Spawn stdout chunk:', data);
-  });
+    const { clientIp } = await executeScript(configScriptPath, [privateKey, userId.toString()]);
+    console.log(`Assigned client IP ${clientIp} to user ID ${userId}`);
 
-  child.stderr.on('data', (data) => {
-    stderr += data;
-    console.error('Spawn stderr chunk:', data);
-  });
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE Users SET client_ip = ? WHERE id = ?`,
+        [clientIp, userId],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
 
-  child.on('error', (error) => {
-    throw new Error(`Spawn error: ${error.message}`);
-  });
-
-  const exitCode = await new Promise((resolve) => {
-    child.on('close', (code) => resolve(code));
-  });
-
-  if (exitCode !== 0 || stderr) {
-    throw new Error(`Script execution failed: exit code ${exitCode}, stderr=${stderr}`);
+    return { privateKey, clientIp };
+  } catch (error) {
+    console.error(`VPN key generation failed for user ID ${userId}: ${error.message}`);
+    throw new Error(`Failed to generate VPN key: ${error.message}`);
   }
+}
 
-  console.log('Spawn stdout:', stdout);
-  const result = JSON.parse(stdout);
-  const privateKey = result.privateKey;
-
+function executeScript(scriptPath, args = []) {
   return new Promise((resolve, reject) => {
-    db.run(
-      `UPDATE Users SET vpn_key = ?, client_ip = NULL WHERE id = ?`,
-      [privateKey, userId],
-      async (err) => {
-        if (err) {
-          console.error('Error updating vpn_key:', err.message);
-          reject(new Error('Failed to update vpn_key'));
-        } else {
-          const configScriptPath = '/root/vpn-server/add_to_wg_conf.sh';
-          const childConfig = spawn('bash', [configScriptPath, privateKey, userId], {
-            maxBuffer: 1024 * 1024,
-            encoding: 'utf8',
-          });
+    const { spawn } = require('child_process');
+    const child = spawn('bash', [scriptPath, ...args], { maxBuffer: 1024 * 1024, encoding: 'utf8' });
 
-          let configStdout = '';
-          let configStderr = '';
+    let stdout = '';
+    let stderr = '';
 
-          childConfig.stdout.on('data', (data) => {
-            configStdout += data;
-            console.log('Config stdout chunk:', data);
-          });
+    child.stdout.on('data', (data) => (stdout += data));
+    child.stderr.on('data', (data) => (stderr += data));
 
-          childConfig.stderr.on('data', (data) => {
-            configStderr += data;
-            console.error('Config stderr chunk:', data);
-          });
-
-          childConfig.on('error', (error) => {
-            console.error('Config script error:', error.message);
-          });
-
-          const configExitCode = await new Promise((resolve) => {
-            childConfig.on('close', (code) => resolve(code));
-          });
-
-          if (configExitCode !== 0 || configStderr) {
-            console.error('Config generation failed:', `exit code ${configExitCode}, stderr=${configStderr}`);
-          } else {
-            console.log('Config updated:', configStdout);
-            const configResult = JSON.parse(configStdout);
-            const clientIp = configResult.clientIp; // Извлекаем clientIp из вывода скрипта
-            db.run(
-              `UPDATE Users SET client_ip = ? WHERE id = ?`,
-              [clientIp, userId],
-              (err) => {
-                if (err) {
-                  console.error('Error updating client_ip:', err.message);
-                }
-              }
-            );
-          }
-          resolve();
+    child.on('error', (error) => reject(new Error(`Script execution error: ${error.message}`)));
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Script failed: exit code ${code}, stderr=${stderr}`));
+      } else {
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (e) {
+          reject(new Error(`Invalid JSON output: ${stdout}, stderr=${stderr}`));
         }
       }
-    );
+    });
   });
 }
 
@@ -323,13 +277,9 @@ app.post('/verify-email', (req, res) => {
   db.get(
     `SELECT id, verification_code, verification_expiry, password, trial_end_date FROM PendingUsers WHERE username = ? AND email = ?`,
     [username, email],
-    (err, pendingUser) => {
-      if (err) {
-        console.error('Verification error:', err.message);
+    async (err, pendingUser) => {
+      if (err || !pendingUser) {
         return res.status(500).json({ error: 'Внутренняя ошибка сервера при проверке верификации' });
-      }
-      if (!pendingUser) {
-        return res.status(404).json({ error: 'Пользователь или email не найдены в ожидающих верификации' });
       }
       if (pendingUser.verification_code !== verificationCode) {
         return res.status(400).json({ error: 'Неверный код верификации' });
@@ -338,33 +288,26 @@ app.post('/verify-email', (req, res) => {
         return res.status(400).json({ error: 'Срок действия кода верификации истёк' });
       }
 
-      db.run(
-        `INSERT INTO Users (username, password, email, trial_end_date) VALUES (?, ?, ?, ?)`,
-        [username, pendingUser.password, email, pendingUser.trial_end_date],
-        async function (err) {
-          if (err) {
-            console.error('User creation error:', err.message);
-            return res.status(500).json({ error: 'Не удалось создать аккаунт' });
-          }
-
-          try {
-            await generateVpnKey(this.lastID, db); // Генерация VPN-ключа
-            db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (deleteErr) => {
-              if (deleteErr) console.error('Cleanup error:', deleteErr.message);
-            });
-            res.json({ message: 'Email успешно верифицирован, аккаунт создан' });
-          } catch (e) {
-            console.error('Key generation error:', e.message);
-            db.run(`DELETE FROM Users WHERE id = ?`, [this.lastID], (deleteErr) => {
-              if (deleteErr) console.error('Cleanup error:', deleteErr.message);
-            });
-            db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (deleteErr) => {
-              if (deleteErr) console.error('Cleanup error:', deleteErr.message);
-            });
-            return res.status(500).json({ error: 'Не удалось сгенерировать VPN-ключ' });
-          }
-        }
-      );
+      try {
+        const { privateKey, clientIp } = await generateVpnKey(pendingUser.id, db);
+        await new Promise((resolve, reject) =>
+          db.run(
+            `INSERT INTO Users (username, password, email, trial_end_date, vpn_key, client_ip) VALUES (?, ?, ?, ?, ?, ?)`,
+            [username, pendingUser.password, email, pendingUser.trial_end_date, privateKey, clientIp],
+            (err) => (err ? reject(err) : resolve())
+          )
+        );
+        db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (err) => {
+          if (err) console.error('Cleanup error:', err.message);
+        });
+        res.json({ message: 'Email успешно верифицирован, аккаунт создан' });
+      } catch (e) {
+        console.error('Verification setup failed:', e.message);
+        db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (err) => {
+          if (err) console.error('Cleanup error:', err.message);
+        });
+        res.status(500).json({ error: 'Не удалось завершить верификацию: ' + e.message });
+      }
     }
   );
 });
@@ -669,47 +612,37 @@ app.post('/add-device', (req, res) => {
 });
 
 app.get('/get-vpn-config', (req, res) => {
-  console.log('Received headers:', req.headers); // Логируем все заголовки
   const authHeader = req.headers.authorization;
-  console.log('Authorization header:', authHeader); // Логируем заголовок
-
-  if (!authHeader) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(400).json({ error: 'Token is required' });
   }
 
   const token = authHeader.split(' ')[1];
-  console.log('Extracted token:', token); // Логируем извлечённый токен
-
   db.get(
-    `SELECT id, username, vpn_key, is_paid, trial_end_date, email_verified, client_ip FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    `SELECT id, username, vpn_key, client_ip, is_paid, trial_end_date, email_verified FROM Users WHERE auth_token = ? AND token_expiry > ?`,
     [token, new Date().toISOString()],
     (err, user) => {
       if (err) {
-        console.error('Database error:', err.message);
         return res.status(500).json({ error: 'Internal server error' });
       }
       if (!user) {
-        console.log('User not found for token:', token);
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
       if (!user.email_verified) {
-        console.log('Email not verified for user:', user.username);
         return res.status(403).json({ error: 'Email not verified' });
       }
       const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
       if (!user.is_paid && trialExpired) {
-        console.log('Trial expired for user:', user.username);
         return res.status(403).json({ error: 'Trial period expired' });
       }
 
-      const serverAddress = '95.214.10.8:51820';
-      const serverPublicKey = 'GL0G6KPneTW0FBGvIGA3Cr+wCNos9SPVtws953J5NH8='; // Реальный ключ из wg0.conf
-      res.json({
-        serverPublicKey: serverPublicKey,
-        serverAddress: serverAddress,
-        clientPrivateKey: user.vpn_key || 'Key not generated yet',
-        clientIp: user.client_ip || '10.0.0.2/32' // Значение по умолчанию, если client_ip отсутствует
-      });
+      const config = {
+        serverPublicKey: 'yrDYPAHQ3+2sdvCzQ+WHErdh0dNt+5fgJbukEMw6Fg0=',
+        serverAddress: '95.214.10.8:51820',
+        clientPrivateKey: user.vpn_key,
+        clientIp: user.client_ip,
+      };
+      res.json(config);
     }
   );
 });
