@@ -33,7 +33,8 @@ function createTables() {
         trial_end_date TEXT,
         device_count INTEGER DEFAULT 0,
         auth_token TEXT,
-        token_expiry TEXT
+        token_expiry TEXT,
+        client_ip TEXT
       )
     `);
 
@@ -67,6 +68,14 @@ function createTables() {
         FOREIGN KEY (email) REFERENCES Users(email)
       )
     `);
+
+    // Добавление колонки client_ip, если её нет
+    db.run(`ALTER TABLE Users ADD COLUMN client_ip TEXT`, (err) => {
+      if (err) {
+        // Игнорируем ошибку, если колонка уже существует
+        console.log('Column client_ip already exists or error:', err?.message);
+      }
+    });
   });
 }
 
@@ -128,7 +137,7 @@ async function generateVpnKey(userId, db) {
 
   return new Promise((resolve, reject) => {
     db.run(
-      `UPDATE Users SET vpn_key = ? WHERE id = ?`,
+      `UPDATE Users SET vpn_key = ?, client_ip = NULL WHERE id = ?`,
       [privateKey, userId],
       async (err) => {
         if (err) {
@@ -166,6 +175,17 @@ async function generateVpnKey(userId, db) {
             console.error('Config generation failed:', `exit code ${configExitCode}, stderr=${configStderr}`);
           } else {
             console.log('Config updated:', configStdout);
+            const configResult = JSON.parse(configStdout);
+            const clientIp = configResult.clientIp; // Извлекаем clientIp из вывода скрипта
+            db.run(
+              `UPDATE Users SET client_ip = ? WHERE id = ?`,
+              [clientIp, userId],
+              (err) => {
+                if (err) {
+                  console.error('Error updating client_ip:', err.message);
+                }
+              }
+            );
           }
           resolve();
         }
@@ -212,7 +232,6 @@ app.post('/register', (req, res) => {
     return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
   }
 
-  // Очистка устаревших записей
   db.run(
     `DELETE FROM PendingUsers WHERE verification_expiry < ?`,
     [new Date().toISOString()],
@@ -221,7 +240,6 @@ app.post('/register', (req, res) => {
     }
   );
 
-  // Проверка на существование username в таблице Users
   db.get(`SELECT id FROM Users WHERE username = ?`, [username], (err, existingUsername) => {
     if (err) {
       console.error('Database error:', err.message);
@@ -231,7 +249,6 @@ app.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Такой логин уже существует' });
     }
 
-    // Проверка на существование email в таблице Users
     db.get(`SELECT id FROM Users WHERE email = ?`, [email], (err, existingEmail) => {
       if (err) {
         console.error('Database error:', err.message);
@@ -241,7 +258,6 @@ app.post('/register', (req, res) => {
         return res.status(400).json({ error: 'Этот email уже используется' });
       }
 
-      // Проверка на существование username в PendingUsers
       db.get(`SELECT id FROM PendingUsers WHERE username = ?`, [username], (err, pendingUsername) => {
         if (err) {
           console.error('Database error:', err.message);
@@ -251,7 +267,6 @@ app.post('/register', (req, res) => {
           return res.status(400).json({ error: 'Этот логин уже ожидает верификации' });
         }
 
-        // Проверка на существование email в PendingUsers
         db.get(`SELECT id FROM PendingUsers WHERE email = ?`, [email], (err, pendingEmail) => {
           if (err) {
             console.error('Database error:', err.message);
@@ -261,7 +276,6 @@ app.post('/register', (req, res) => {
             return res.status(400).json({ error: 'Этот email уже ожидает верификации' });
           }
 
-          // Если проверки прошли, создаём запись
           const hashedPassword = bcrypt.hashSync(password, 10);
           const trialEndDate = getCurrentDatePlusDays(3);
           const verificationCode = generateVerificationCode();
@@ -324,7 +338,6 @@ app.post('/verify-email', (req, res) => {
         return res.status(400).json({ error: 'Срок действия кода верификации истёк' });
       }
 
-      // Перемещение данных в Users и удаление из PendingUsers
       db.run(
         `INSERT INTO Users (username, password, email, trial_end_date) VALUES (?, ?, ?, ?)`,
         [username, pendingUser.password, email, pendingUser.trial_end_date],
@@ -668,7 +681,7 @@ app.get('/get-vpn-config', (req, res) => {
   console.log('Extracted token:', token); // Логируем извлечённый токен
 
   db.get(
-    `SELECT id, username, vpn_key, is_paid, trial_end_date, email_verified FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    `SELECT id, username, vpn_key, is_paid, trial_end_date, email_verified, client_ip FROM Users WHERE auth_token = ? AND token_expiry > ?`,
     [token, new Date().toISOString()],
     (err, user) => {
       if (err) {
@@ -690,11 +703,12 @@ app.get('/get-vpn-config', (req, res) => {
       }
 
       const serverAddress = '95.214.10.8:51820';
-      const serverPublicKey = 'p5fE09SR1FzW+a81zbSmZjW0h528cNx7IRKN+w0ulxo='; // Замени на реальный ключ
+      const serverPublicKey = 'GL0G6KPneTW0FBGvIGA3Cr+wCNos9SPVtws953J5NH8='; // Реальный ключ из wg0.conf
       res.json({
         serverPublicKey: serverPublicKey,
         serverAddress: serverAddress,
-        clientPrivateKey: user.vpn_key || 'Key not generated yet'
+        clientPrivateKey: user.vpn_key || 'Key not generated yet',
+        clientIp: user.client_ip || '10.0.0.2/32' // Значение по умолчанию, если client_ip отсутствует
       });
     }
   );
