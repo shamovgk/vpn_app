@@ -90,9 +90,10 @@ class VpnProvider with ChangeNotifier {
       if (config is Map<String, dynamic> && 
           config.containsKey('clientPrivateKey') &&
           config.containsKey('serverPublicKey') &&
-          config.containsKey('serverAddress')) {
+          config.containsKey('serverAddress') &&
+          config.containsKey('clientIp')) {
         logger.i('Received config: $config');
-        return config; // Проверяем все необходимые поля
+        return config; // Добавлен clientIp
       } else {
         logger.e('Invalid configuration: missing required fields - $config');
         throw Exception('Invalid configuration: missing required fields');
@@ -109,7 +110,8 @@ class VpnProvider with ChangeNotifier {
     return {
       'serverAddress': serverAddress,
       'serverPublicKey': serverPublicKey,
-      'clientPrivateKey': 'тестовый_приватный_ключ', // Тестовый ключ для отладки
+      'clientPrivateKey': 'тестовый_приватный_ключ',
+      'clientIp': '10.0.0.2/32', // Тестовый IP
     };
   }
 
@@ -160,11 +162,12 @@ class VpnProvider with ChangeNotifier {
       final configData = _isTestMode
           ? await _getTestVpnConfig()
           : await _getVpnConfig(AuthProvider.baseUrl, authProvider.token);
+      logger.i('Received config data: $configData');
 
       final config = '''
       [Interface]
       PrivateKey = ${configData['clientPrivateKey']}
-      Address = 10.0.0.2/32
+      Address = ${configData['clientIp']}
       DNS = 8.8.8.8, 1.1.1.1
       MTU = 1280
 
@@ -173,7 +176,6 @@ class VpnProvider with ChangeNotifier {
       Endpoint = ${configData['serverAddress']}
       AllowedIPs = 0.0.0.0/0
       ''';
-
       logger.i('Generated WireGuard config:\n$config');
 
       await wireguard!.startVpn(
@@ -185,7 +187,7 @@ class VpnProvider with ChangeNotifier {
       logger.i('VPN connected with ${_isTestMode ? 'test' : 'real'} config');
     } catch (e) {
       _isConnected = false;
-      logger.e('Connection error: $e');
+      logger.e('Connection error details: $e, Stack trace: ${StackTrace.current}');
       rethrow;
     } finally {
       _isConnecting = false;
