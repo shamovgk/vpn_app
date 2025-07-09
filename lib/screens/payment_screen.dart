@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -13,6 +19,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   final _cardNumberController = TextEditingController();
   final _expiryDateController = TextEditingController();
   final _cvvController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,11 +29,80 @@ class _PaymentScreenState extends State<PaymentScreen> {
     super.dispose();
   }
 
+  Future<void> _pay() async {
+    if (_isLoading || !_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final token = authProvider.token;
+
+    try {
+      final response = await http.put(
+        Uri.parse('${AuthProvider.baseUrl}/pay'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        if (mounted) {
+          final customColors = Theme.of(context).extension<CustomColors>()!;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Individual plan paid'),
+              backgroundColor: customColors.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Payment failed: ${response.body}');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final customColors = Theme.of(context).extension<CustomColors>()!;
+      if (e.toString().contains('Token is required')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Требуется токен авторизации'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (e.toString().contains('Invalid or expired token')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Недействительный или истёкший токен'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (e.toString().contains('Trial period expired')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Срок действия пробного периода истёк'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Ошибка оплаты, попробуйте позже'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      logger.e('Payment error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final customColors = theme.extension<CustomColors>();
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
@@ -114,23 +190,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Оплата успешно обработана (мок-данные)'),
-                        backgroundColor: customColors?.success ?? Colors.green,
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Проверьте введённые данные'),
-                        backgroundColor:Theme.of(context).colorScheme.error,
-                      ),
-                    );
-                  }
-                },
+                onPressed: _isLoading ? null : _pay,
                 style: theme.elevatedButtonTheme.style?.copyWith(
                   minimumSize: WidgetStateProperty.all(const Size(double.infinity, 50)),
                 ),

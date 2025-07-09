@@ -43,12 +43,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     try {
       await authProvider.resetPassword(username, resetCode, newPassword);
       if (!mounted) return;
-  
-      final customColors = Theme.of(context).extension<CustomColors>();
+      final customColors = Theme.of(context).extension<CustomColors>()!;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Пароль успешно изменён'),
-          backgroundColor: customColors?.success ?? Colors.green,
+          content: const Text('Пароль успешно сброшен'),
+          backgroundColor: customColors.success,
+          duration: const Duration(seconds: 3),
         ),
       );
       Navigator.pushAndRemoveUntil(
@@ -58,23 +58,37 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-  
-      String message = e.toString().replaceFirst('Exception: ', '');
-      final customColors = Theme.of(context).extension<CustomColors>();
+      final customColors = Theme.of(context).extension<CustomColors>()!;
       if (e.toString().contains('Неверный или истёкший код восстановления')) {
-        message = 'Неверный или истёкший код восстановления';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(message),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            content: const Text('Неверный или истёкший код восстановления'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
           ),
         );
       } else if (e.toString().contains('Все поля обязательны')) {
-        message = 'Заполните все поля (логин, код и новый пароль)';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(message),
-            backgroundColor: customColors?.warning ?? Colors.orange,
+            content: const Text('Заполните все поля (логин, код и новый пароль)'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (e.toString().contains('Пользователь не найден')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Пользователь не найден'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (e.toString().contains('Не удалось обновить пароль')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Не удалось обновить пароль'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
           ),
         );
       } else {
@@ -82,9 +96,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           SnackBar(
             content: const Text('Произошла ошибка при сбросе пароля'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
+      logger.e('Reset password error: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
