@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   
+  
   provider: ^6.1.5 # Для управления состоянием
   flutter_secure_storage: ^9.2.4 # Для хранения токенов/данных
   intl: ^0.20.2 # Для локализации
@@ -26,7 +27,8 @@ dependencies:
   gif: ^2.3.0
   font_awesome_flutter: ^10.6.0
   url_launcher: ^6.2.5
-
+  yookassa_payments_flutter: ^1.9.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

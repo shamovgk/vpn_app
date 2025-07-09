@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
+import 'package:yookassa_payments_flutter/yookassa_payments_flutter.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -20,6 +21,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
     _expiryDateController.dispose();
     _cvvController.dispose();
     super.dispose();
+  }
+
+  Future<void> _startYooKassaPayment() async {
+    final inputData = TokenizationModuleInputData(
+      clientApplicationKey: "test_MTEyMjQ0MSqrqcX4g-vCoVYtikMGgUH7KW4erq05DU0", // из личного кабинета YooKassa
+      shopId: "1122441", // из личного кабинета YooKassa
+      title: "VPN Premium",
+      subtitle: "Доступ на месяц",
+      amount: Amount(value: "200.00", currency: Currency.rub), // сумма и валюта
+      savePaymentMethod: SavePaymentMethod.userSelects,
+      tokenizationSettings: TokenizationSettings(
+        PaymentMethodTypes([
+          PaymentMethod.bankCard,
+          PaymentMethod.sberbank,
+          PaymentMethod.sbp,
+        ]),
+      ),
+    );
+
+    try {
+      final result = await YookassaPaymentsFlutter.tokenization(inputData);
+
+      if (result is SuccessTokenizationResult) {
+        // Успех — отправь result.token на свой сервер для создания платежа через API YooKassa
+        print('TOKEN: ${result.token}');
+        // Покажи пользователю успех
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Оплата прошла, токен получен!')),
+        );
+      } else {
+        // отмена или ошибка
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Оплата отменена')),
+        );
+      }
+    } catch (e) {
+      // Ошибка SDK
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка оплаты: $e')),
+      );
+    }
   }
 
   @override
@@ -147,6 +189,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   color: theme.textTheme.bodyMedium?.color?.withAlpha(153),
                   fontSize: 16,
                 ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _startYooKassaPayment,
+                child: Text('Оплатить через ЮKassa'),
               ),
             ],
           ),
