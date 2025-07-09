@@ -65,7 +65,7 @@ class AuthProvider with ChangeNotifier {
     _vpnKey = userData['vpn_key'];
     _token = token;
     _trialEndDate = userData['trial_end_date'];
-    await _storage.write(key: 'trial_end_date', value: _trialEndDate); // Сохраняем trial_end_date
+    await _storage.write(key: 'trial_end_date', value: _trialEndDate);
     notifyListeners();
   }
 
@@ -110,7 +110,7 @@ class AuthProvider with ChangeNotifier {
           final userData = jsonDecode(response.body) as Map<String, dynamic>;
           await _updateAuthState(userData, token);
           if (savedTrialEndDate != null && userData['trial_end_date'] == null) {
-            _trialEndDate = savedTrialEndDate; // Восстанавливаем сохраненную дату, если сервер не вернул
+            _trialEndDate = savedTrialEndDate;
             notifyListeners();
           }
         } else {
@@ -127,11 +127,10 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> checkAuthAndTrialStatus() async {
-    await checkAuthStatus(); // Выполняем проверку авторизации
-    // Дополнительная логика для пробного периода, если нужно
+    await checkAuthStatus();
     final savedTrialEndDate = await _storage.read(key: 'trial_end_date');
     if (_trialEndDate == null && savedTrialEndDate != null) {
-      _trialEndDate = savedTrialEndDate; // Убеждаемся, что пробный период восстановлен
+      _trialEndDate = savedTrialEndDate; 
       notifyListeners();
     }
   }

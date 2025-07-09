@@ -22,13 +22,12 @@ class VpnScreen extends StatefulWidget {
 class VpnScreenState extends State<VpnScreen> {
   final GlobalKey<AnimationButtonState> _animationButtonKey = GlobalKey<AnimationButtonState>();
   static VpnScreenState? _instance;
-  bool _hasShownTrialNotification = false; // Флаг для однократного показа уведомления
+  bool _hasShownTrialNotification = false;
 
   @override
   void initState() {
     super.initState();
     _instance = this;
-    // Инициализация состояния теперь происходит в main.dart
   }
 
   @override
@@ -57,7 +56,7 @@ class VpnScreenState extends State<VpnScreen> {
                 duration: const Duration(seconds: 3),
               ),
             );
-            _hasShownTrialNotification = true; // Устанавливаем флаг после показа
+            _hasShownTrialNotification = true;
           }
         });
       } else if (!authProvider.isPaid && trialEnd.isBefore(DateTime.now())) {
@@ -77,13 +76,13 @@ class VpnScreenState extends State<VpnScreen> {
                       context,
                       MaterialPageRoute(builder: (context) => const PaymentScreen()),
                     ).then((_) {
-                      setState(() {}); // Перезагружаем состояние после оплаты
+                      setState(() {});
                     });
                   },
                 ),
               ),
             );
-            _hasShownTrialNotification = true; // Устанавливаем флаг после показа
+            _hasShownTrialNotification = true;
           }
         });
       }
@@ -143,7 +142,7 @@ class VpnScreenState extends State<VpnScreen> {
                           context,
                           MaterialPageRoute(builder: (context) => const PaymentScreen()),
                         ).then((_) {
-                          setState(() {}); // Перезагружаем состояние после оплаты
+                          setState(() {});
                         });
                       },
                     ),
