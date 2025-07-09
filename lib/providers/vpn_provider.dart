@@ -10,6 +10,7 @@ import '../services/tray_manager.dart';
 import '../providers/auth_provider.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:io' show Platform;
 
 final logger = Logger();
 
@@ -126,7 +127,6 @@ class VpnProvider with ChangeNotifier {
         }
       }
 
-      // Проверка пробного периода
       if (authProvider.trialEndDate != null) {
         final trialEnd = DateTime.parse(authProvider.trialEndDate!);
         if (!authProvider.isPaid && trialEnd.isBefore(DateTime.now())) {
@@ -167,7 +167,9 @@ class VpnProvider with ChangeNotifier {
     } finally {
       _isConnecting = false;
       notifyListeners();
-      trayHandler.updateTrayIconAndMenu();
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        trayHandler.updateTrayIconAndMenu();
+      }
     }
   }
 
@@ -188,11 +190,12 @@ class VpnProvider with ChangeNotifier {
     } finally {
       _isConnecting = false;
       notifyListeners();
-      trayHandler.updateTrayIconAndMenu();
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        trayHandler.updateTrayIconAndMenu();
+      }
     }
   }
 
-  // Новый метод для проверки состояния
   bool isConnectionAllowed() {
     final authProvider = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
     if (authProvider.trialEndDate != null) {
