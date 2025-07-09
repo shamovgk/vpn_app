@@ -186,6 +186,8 @@ app.post('/register', (req, res) => {
     return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
   }
 
+  const normalizedEmail = email.toLowerCase();
+
   db.run(
     `DELETE FROM PendingUsers WHERE verification_expiry < ?`,
     [new Date().toISOString()],
@@ -203,7 +205,7 @@ app.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Такой логин уже существует' });
     }
 
-    db.get(`SELECT id FROM Users WHERE email = ?`, [email], (err, existingEmail) => {
+    db.get(`SELECT id FROM Users WHERE email = ?`, [normalizedEmail], (err, existingEmail) => {
       if (err) {
         console.error('Database error:', err.message);
         return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
@@ -221,7 +223,7 @@ app.post('/register', (req, res) => {
           return res.status(400).json({ error: 'Этот логин уже ожидает верификации' });
         }
 
-        db.get(`SELECT id FROM PendingUsers WHERE email = ?`, [email], (err, pendingEmail) => {
+        db.get(`SELECT id FROM PendingUsers WHERE email = ?`, [normalizedEmail], (err, pendingEmail) => {
           if (err) {
             console.error('Database error:', err.message);
             return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
@@ -233,16 +235,16 @@ app.post('/register', (req, res) => {
           const hashedPassword = bcrypt.hashSync(password, 10);
           const trialEndDate = getCurrentDatePlusDays(3);
           const verificationCode = generateVerificationCode();
-          const verificationExpiry = getCurrentDatePlusDays(1 / 24); // 1 час
+          const verificationExpiry = getCurrentDatePlusDays(1 / 96); // 15 минут
 
           if (!username.trim()) {
             return res.status(400).json({ error: 'Логин не может быть пустым' });
           }
 
-          console.log(`Executing: INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?) with values [${username}, ${hashedPassword}, ${email}, ${trialEndDate}, ${verificationCode}, ${verificationExpiry}]`);
+          console.log(`Executing: INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?) with values [${username}, ${hashedPassword}, ${normalizedEmail}, ${trialEndDate}, ${verificationCode}, ${verificationExpiry}]`);
           db.run(
             `INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?)`,
-            [username, hashedPassword, email, trialEndDate, verificationCode, verificationExpiry],
+            [username, hashedPassword, normalizedEmail, trialEndDate, verificationCode, verificationExpiry],
             async function (err) {
               if (err) {
                 console.error('Registration error:', err.message);
@@ -251,8 +253,8 @@ app.post('/register', (req, res) => {
 
               console.log(`Inserted verification_expiry: ${verificationExpiry} for user ${username}`);
               try {
-                await sendVerificationEmail(email, verificationCode);
-                res.json({ id: this.lastID, username, email, message: 'Код верификации отправлен на ваш email' });
+                await sendVerificationEmail(normalizedEmail, verificationCode);
+                res.json({ id: this.lastID, username, email: normalizedEmail, message: 'Код верификации отправлен на ваш email' });
               } catch (emailError) {
                 console.error('Email sending error:', emailError.message);
                 db.run(`DELETE FROM PendingUsers WHERE id = ?`, [this.lastID], (deleteErr) => {
@@ -376,6 +378,7 @@ app.post('/login', (req, res) => {
             email_verified: user.email_verified,
             is_paid: user.is_paid,
             vpn_key: user.vpn_key || null,
+            trial_end_date: user.trial_end_date,
             device_count: user.device_count,
             auth_token: token
           });

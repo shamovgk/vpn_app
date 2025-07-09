@@ -34,7 +34,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
     super.dispose();
   }
 
-  Future<void> _cancelRegistration() async {
+Future<void> _cancelRegistration() async {
     try {
       final response = await http.post(
         Uri.parse('${AuthProvider.baseUrl}/cancel-registration'),
@@ -43,6 +43,17 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
       );
       if (response.statusCode != 200) {
         logger.e('Failed to cancel registration: ${response.body}');
+      } else {
+        if (mounted) {
+          final customColors = Theme.of(context).extension<CustomColors>()!;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Регистрация успешно отменена'),
+              backgroundColor: customColors.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       logger.e('Error canceling registration: $e');
@@ -56,15 +67,14 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
       try {
         await authProvider.verifyEmail(widget.username, widget.email, _verificationCodeController.text);
         if (!mounted) return;
-        final customColors = Theme.of(context).extension<CustomColors>();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Email верифицирован! Теперь вы можете войти.'),
-              backgroundColor: customColors?.success ?? Colors.green,
-            ),
-          );
-        }
+        final customColors = Theme.of(context).extension<CustomColors>()!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Email верифицирован! Теперь вы можете войти.'),
+            backgroundColor: customColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
         authProvider.resetRegistrationData();
         if (mounted) {
           Navigator.pushReplacement(
@@ -75,51 +85,47 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
       } catch (e) {
         if (!mounted) return;
         logger.e('Verification error: $e');
-        String message = e.toString().replaceFirst('Exception: ', '');
-        final customColors = Theme.of(context).extension<CustomColors>();
+        final customColors = Theme.of(context).extension<CustomColors>()!;
         if (e.toString().contains('Срок действия кода верификации истёк')) {
-          message = 'Срок действия кода верификации истёк, запросите новый';
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                backgroundColor: customColors?.warning ?? Colors.orange,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Срок действия кода верификации истёк, запросите новый'),
+              backgroundColor: customColors.warning,
+              duration: const Duration(seconds: 3),
+            ),
+          );
         } else if (e.toString().contains('Неверный код верификации')) {
-          message = 'Введён неверный код верификации';
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                backgroundColor:Theme.of(context).colorScheme.error,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Введён неверный код верификации'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
         } else if (e.toString().contains('Пользователь или email не найдены')) {
-          message = 'Пользователь или email не найдены в ожидающих верификации';
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Пользователь или email не найдены в ожидающих верификации'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (e.toString().contains('Не удалось завершить верификацию')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Не удалось завершить верификацию'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
         } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Произошла ошибка при верификации'),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Произошла ошибка при верификации'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
         }
         setState(() => _isLoading = false);
       }

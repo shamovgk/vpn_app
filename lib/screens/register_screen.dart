@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _isPasswordVisible = false; // Состояние видимости пароля
 
   @override
   bool get wantKeepAlive => true;
@@ -30,7 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
     super.initState();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     _usernameController.text = authProvider.username ?? '';
-    _emailController.text = authProvider.email ?? '';
+    _emailController.text = authProvider.email?.toLowerCase() ?? '';
   }
 
   @override
@@ -45,19 +46,20 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final normalizedEmail = _emailController.text.toLowerCase();
       try {
         await authProvider.register(
           _usernameController.text,
-          _emailController.text,
+          normalizedEmail,
           _passwordController.text,
         );
-        authProvider.setRegistrationData(_usernameController.text, _emailController.text);
+        authProvider.setRegistrationData(_usernameController.text, normalizedEmail);
         if (!mounted) return;
-        final customColors = Theme.of(context).extension<CustomColors>();
+        final customColors = Theme.of(context).extension<CustomColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Регистрация прошла успешно, проверьте email для верификации'),
-            backgroundColor: customColors?.success ?? Colors.green,
+            backgroundColor: customColors.success,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -66,29 +68,74 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
           MaterialPageRoute(
             builder: (context) => VerificationScreen(
               username: _usernameController.text,
-              email: _emailController.text,
+              email: normalizedEmail,
             ),
           ),
         );
       } catch (e) {
         if (!mounted) return;
         logger.e('Registration error: $e');
-        String message = e.toString().replaceFirst('Exception: ', '');
-        final customColors = Theme.of(context).extension<CustomColors>();
+        final customColors = Theme.of(context).extension<CustomColors>()!;
         if (e.toString().contains('Пользователь с таким email уже существует') || e.toString().contains('duplicate email')) {
-          message = 'Пользователь с таким email уже существует, выберите другой';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(message),
-              backgroundColor: customColors?.warning ?? Colors.orange,
+              content: const Text('Пользователь с таким email уже существует, выберите другой'),
+              backgroundColor: customColors.warning,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (e.toString().contains('Такой логин уже существует')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Такой логин уже существует'),
+              backgroundColor: customColors.warning,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (e.toString().contains('Этот email уже используется')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Этот email уже используется'),
+              backgroundColor: customColors.warning,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (e.toString().contains('Этот логин уже ожидает верификации')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Этот логин уже ожидает верификации'),
+              backgroundColor: customColors.warning,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (e.toString().contains('Этот email уже ожидает верификации')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Этот email уже ожидает верификации'),
+              backgroundColor: customColors.warning,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (e.toString().contains('Логин не может быть пустым')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Логин не может быть пустым'),
+              backgroundColor: customColors.warning,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (e.toString().contains('Не удалось отправить email с кодом верификации')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Не удалось отправить email с кодом верификации'),
+              backgroundColor: Theme.of(context).colorScheme.error,
               duration: const Duration(seconds: 3),
             ),
           );
         } else if (e.toString().contains('Внутренняя ошибка сервера') || e.toString().contains('500')) {
-          message = 'Ошибка сервера, попробуйте позже';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(message),
+              content: const Text('Ошибка сервера, попробуйте позже'),
               backgroundColor: Theme.of(context).colorScheme.error,
               duration: const Duration(seconds: 3),
             ),
@@ -96,7 +143,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Произошла ошибка при регистрации'),
+              content: const Text('Произошла ошибка при регистрации'),
               backgroundColor: Theme.of(context).colorScheme.error,
               duration: const Duration(seconds: 3),
             ),
@@ -110,7 +157,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
 
   void _navigateToLogin() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    authProvider.setRegistrationData(_usernameController.text, _emailController.text);
+    authProvider.setRegistrationData(_usernameController.text, _emailController.text.toLowerCase());
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -158,7 +205,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
                     },
                     onChanged: (value) {
                       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                      authProvider.setRegistrationData(value, _emailController.text);
+                      authProvider.setRegistrationData(value, _emailController.text.toLowerCase());
                     },
                   ),
                   const SizedBox(height: 20),
@@ -177,8 +224,12 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
                       return null;
                     },
                     onChanged: (value) {
+                      _emailController.value = _emailController.value.copyWith(
+                        text: value.toLowerCase(),
+                        selection: TextSelection.collapsed(offset: value.length),
+                      );
                       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                      authProvider.setRegistrationData(_usernameController.text, value);
+                      authProvider.setRegistrationData(_usernameController.text, value.toLowerCase());
                     },
                   ),
                   const SizedBox(height: 20),
@@ -189,9 +240,20 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
                       labelText: 'Пароль',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
                       labelStyle: theme.textTheme.bodyMedium,
                     ),
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible, // Переключение видимости
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Введите пароль';
                       if (value.length < 6) return 'Пароль должен содержать минимум 6 символов';

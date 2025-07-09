@@ -34,7 +34,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuthStatus()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuthAndTrialStatus()),
         ChangeNotifierProvider(create: (_) => VpnProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
