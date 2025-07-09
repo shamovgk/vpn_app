@@ -26,3 +26,8 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+dependencies:
+  flutter:
+    sdk: flutter
+  yookassa_payments_flutter: ^последняя_версия
