@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:yookassa_payments_flutter/yookassa_payments_flutter.dart';
-=======
+
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 
@@ -69,7 +69,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ошибка оплаты: $e')),
       );
-
+    }
+  }
   Future<void> _pay() async {
     if (_isLoading || !_formKey.currentState!.validate()) return;
 
