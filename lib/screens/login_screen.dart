@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   int _failedAttempts = 0;
   bool _showForgotPassword = false;
+  bool _isPasswordVisible = false; // Состояние видимости пароля
 
   @override
   void dispose() {
@@ -62,63 +63,63 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _showForgotPassword = true);
       }
 
-      String message = e.toString().replaceFirst('Exception: ', '');
-      if (e.toString().contains('Пожалуйста, проверьте email')) {
-        message = 'Пожалуйста, проверьте email для верификации';
-        if (mounted) {
-          final customColors = Theme.of(context).extension<CustomColors>();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: customColors?.info ?? Colors.blue,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+      final customColors = Theme.of(context).extension<CustomColors>()!;
+      if (e.toString().contains('Логин и пароль обязательны')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Логин и пароль обязательны'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (e.toString().contains('Пользователь не найден')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Пользователь не найден'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       } else if (e.toString().contains('Неверный пароль') || e.toString().contains('Invalid password')) {
-        message = 'Неверный логин или пароль';
-        if (mounted) { 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Неверный логин или пароль'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       } else if (e.toString().contains('Срок действия пробного периода истёк')) {
-        message = 'Срок действия пробного периода истёк, требуется оплата';
-        if (mounted) {
-          final customColors = Theme.of(context).extension<CustomColors>();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: customColors?.warning ?? Colors.orange,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Срок действия пробного периода истёк, требуется оплата'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (e.toString().contains('Не удалось обновить токен авторизации')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Не удалось обновить токен авторизации'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       } else if (e.toString().contains('Внутренняя ошибка сервера')) {
-        message = 'Ошибка сервера, попробуйте позже';
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Ошибка сервера, попробуйте позже'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Произошла неизвестная ошибка'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Произошла неизвестная ошибка'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -133,6 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: const Text('Введите логин для восстановления'),
           backgroundColor: customColors?.warning,
+          duration: const Duration(seconds: 3),
         ),
       );
       return;
@@ -151,7 +153,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Инструкции по восстановлению отправлены на ваш email'),
-              backgroundColor: customColors?.info ?? Colors.blue,
+              backgroundColor: customColors?.info,
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -164,14 +167,42 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('Ошибка отправки: ${response.body}');
       }
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      final customColors = Theme.of(context).extension<CustomColors>()!;
+      if (e.toString().contains('Пользователь с таким логином не найден')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ошибка: $e'),
+            content: const Text('Пользователь с таким логином не найден'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (e.toString().contains('Не удалось сгенерировать код восстановления')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Не удалось сгенерировать код восстановления'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (e.toString().contains('Не удалось отправить email с инструкциями')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Не удалось отправить email с инструкциями'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Произошла ошибка при запросе восстановления'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
+      logger.e('Reset password error: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -231,9 +262,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       labelText: 'Пароль',
                       border: const OutlineInputBorder(),
                       prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
                       labelStyle: theme.textTheme.bodyMedium,
                     ),
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible, // Переключение видимости
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Введите пароль';
                       return null;

@@ -126,7 +126,13 @@ class VpnProvider with ChangeNotifier {
         }
       }
 
-      if (!authProvider.isPaid) {
+      // Проверка пробного периода
+      if (authProvider.trialEndDate != null) {
+        final trialEnd = DateTime.parse(authProvider.trialEndDate!);
+        if (!authProvider.isPaid && trialEnd.isBefore(DateTime.now())) {
+          throw Exception('Срок действия пробного периода истёк');
+        }
+      } else if (!authProvider.isPaid) {
         throw Exception('Подключение заблокировано: требуется оплата подписки');
       }
 
@@ -176,7 +182,6 @@ class VpnProvider with ChangeNotifier {
     try {
       await _wireguard!.stopVpn();
       _isConnected = false;
-      logger.i('VPN disconnected');
     } catch (e) {
       logger.e('Disconnect error: $e');
       rethrow;
@@ -185,6 +190,16 @@ class VpnProvider with ChangeNotifier {
       notifyListeners();
       trayHandler.updateTrayIconAndMenu();
     }
+  }
+
+  // Новый метод для проверки состояния
+  bool isConnectionAllowed() {
+    final authProvider = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
+    if (authProvider.trialEndDate != null) {
+      final trialEnd = DateTime.parse(authProvider.trialEndDate!);
+      return authProvider.isPaid || (!authProvider.isPaid && trialEnd.isAfter(DateTime.now()));
+    }
+    return authProvider.isPaid;
   }
 
   @override

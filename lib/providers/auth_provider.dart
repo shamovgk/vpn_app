@@ -19,6 +19,7 @@ class AuthProvider with ChangeNotifier {
   String? _email;
   String? _vpnKey;
   String? _token;
+  String? _trialEndDate;
 
   // Геттеры
   bool get isAuthenticated => _isAuthenticated;
@@ -29,6 +30,7 @@ class AuthProvider with ChangeNotifier {
   String? get email => _email;
   String? get vpnKey => _vpnKey;
   String? get token => _token;
+  String? get trialEndDate => _trialEndDate;
 
   // Константы
   static const String _baseUrl = 'http://95.214.10.8:3000';
@@ -62,11 +64,14 @@ class AuthProvider with ChangeNotifier {
     _username = userData['username'];
     _vpnKey = userData['vpn_key'];
     _token = token;
+    _trialEndDate = userData['trial_end_date'];
+    await _storage.write(key: 'trial_end_date', value: _trialEndDate); // Сохраняем trial_end_date
     notifyListeners();
   }
 
   Future<void> _clearAuthState() async {
     await _storage.delete(key: 'auth_token');
+    await _storage.delete(key: 'trial_end_date');
     _isAuthenticated = false;
     _isPaid = false;
     _emailVerified = false;
@@ -74,6 +79,7 @@ class AuthProvider with ChangeNotifier {
     _email = null;
     _vpnKey = null;
     _token = null;
+    _trialEndDate = null;
     notifyListeners();
   }
 
@@ -93,6 +99,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> checkAuthStatus() async {
     final token = await _storage.read(key: 'auth_token');
+    final savedTrialEndDate = await _storage.read(key: 'trial_end_date');
     if (token != null) {
       try {
         final response = await http.get(
@@ -102,15 +109,30 @@ class AuthProvider with ChangeNotifier {
         if (response.statusCode == 200) {
           final userData = jsonDecode(response.body) as Map<String, dynamic>;
           await _updateAuthState(userData, token);
+          if (savedTrialEndDate != null && userData['trial_end_date'] == null) {
+            _trialEndDate = savedTrialEndDate; // Восстанавливаем сохраненную дату, если сервер не вернул
+            notifyListeners();
+          }
         } else {
           await _clearAuthState();
         }
       } catch (e) {
         logger.e('Error checking auth status: $e');
         await _clearAuthState();
+        throw Exception('Error checking auth status: $e');
       }
     } else {
       await _clearAuthState();
+    }
+  }
+
+  Future<void> checkAuthAndTrialStatus() async {
+    await checkAuthStatus(); // Выполняем проверку авторизации
+    // Дополнительная логика для пробного периода, если нужно
+    final savedTrialEndDate = await _storage.read(key: 'trial_end_date');
+    if (_trialEndDate == null && savedTrialEndDate != null) {
+      _trialEndDate = savedTrialEndDate; // Убеждаемся, что пробный период восстановлен
+      notifyListeners();
     }
   }
 
@@ -125,6 +147,8 @@ class AuthProvider with ChangeNotifier {
     } on Exception catch (e) {
       if (e.toString().contains('Email not verified')) {
         throw Exception('Пожалуйста, проверьте email для верификации');
+      } else if (e.toString().contains('Срок действия пробного периода истёк')) {
+        throw Exception('Срок действия пробного периода истёк');
       }
       rethrow;
     }
@@ -148,7 +172,19 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       if (e.toString().contains('400')) {
         final error = jsonDecode((e.toString().split(': ')[1]))['error'];
-        throw Exception('Ошибка регистрации: $error');
+        if (error.contains('duplicate username')) {
+          throw Exception('Такой логин уже существует');
+        } else if (error.contains('duplicate email')) {
+          throw Exception('Этот email уже используется');
+        } else if (error.contains('pending verification username')) {
+          throw Exception('Этот логин уже ожидает верификации');
+        } else if (error.contains('pending verification email')) {
+          throw Exception('Этот email уже ожидает верификации');
+        } else if (error.contains('empty username')) {
+          throw Exception('Логин не может быть пустым');
+        } else if (error.contains('email send failed')) {
+          throw Exception('Не удалось отправить email с кодом верификации');
+        }
       }
       throw Exception('Ошибка регистрации: $e');
     }
@@ -164,6 +200,15 @@ class AuthProvider with ChangeNotifier {
       _emailVerified = true;
       notifyListeners();
     } catch (e) {
+      if (e.toString().contains('invalid code')) {
+        throw Exception('Неверный код верификации');
+      } else if (e.toString().contains('expired code')) {
+        throw Exception('Срок действия кода верификации истёк');
+      } else if (e.toString().contains('not found')) {
+        throw Exception('Пользователь или email не найдены в ожидающих верификации');
+      } else if (e.toString().contains('verification failed')) {
+        throw Exception('Не удалось завершить верификацию');
+      }
       throw Exception('Ошибка верификации email: $e');
     }
   }
@@ -184,6 +229,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       logger.e('Error during logout: $e');
       await _clearAuthState();
+      throw Exception('Token not found');
     }
   }
 
@@ -202,6 +248,13 @@ class AuthProvider with ChangeNotifier {
         throw Exception('Ошибка подтверждения оплаты: ${response.body}');
       }
     } catch (e) {
+      if (e.toString().contains('401')) {
+        throw Exception('Token is required');
+      } else if (e.toString().contains('expired token')) {
+        throw Exception('Invalid or expired token');
+      } else if (e.toString().contains('trial expired')) {
+        throw Exception('Trial period expired');
+      }
       rethrow;
     }
   }
@@ -218,6 +271,13 @@ class AuthProvider with ChangeNotifier {
       });
       notifyListeners();
     } catch (e) {
+      if (e.toString().contains('invalid code')) {
+        throw Exception('Неверный или истёкший код восстановления');
+      } else if (e.toString().contains('not found')) {
+        throw Exception('Пользователь не найден');
+      } else if (e.toString().contains('update failed')) {
+        throw Exception('Не удалось обновить пароль');
+      }
       throw Exception('Ошибка сброса пароля: $e');
     }
   }
