@@ -25,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   int _failedAttempts = 0;
   bool _showForgotPassword = false;
-  bool _isPasswordVisible = false; // Состояние видимости пароля
+  bool _isPasswordVisible = false;
 
   @override
   void dispose() {
@@ -124,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  } 
+  }
 
   Future<void> _resetPassword() async {
     final username = _usernameController.text.trim();
@@ -218,102 +218,113 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          title: Text(
-            'Вход',
-            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
-          ),
-          centerTitle: true,
-          automaticallyImplyLeading: false,
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/background.png'),
+          fit: BoxFit.fitWidth,
+          opacity: 0.7,
         ),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.lock, size: 50, color: theme.primaryColor),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _usernameController,
-                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                    decoration: InputDecoration(
-                      labelText: 'Логин',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person, color: theme.textTheme.bodyMedium?.color),
-                      labelStyle: theme.textTheme.bodyMedium,
+      ),
+      child: PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              'Вход',
+              style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+            ),
+            centerTitle: true,
+            automaticallyImplyLeading: false,
+          ),
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.lock, size: 50, color: theme.primaryColor),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _usernameController,
+                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      decoration: InputDecoration(
+                        labelText: 'Логин',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person, color: theme.textTheme.bodyMedium?.color),
+                        labelStyle: theme.textTheme.bodyMedium,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Введите логин';
+                        return null;
+                      },
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Введите логин';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _passwordController,
-                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                    decoration: InputDecoration(
-                      labelText: 'Пароль',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                          color: theme.textTheme.bodyMedium?.color,
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _passwordController,
+                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      decoration: InputDecoration(
+                        labelText: 'Пароль',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
-                        },
+                        labelStyle: theme.textTheme.bodyMedium,
                       ),
-                      labelStyle: theme.textTheme.bodyMedium,
+                      obscureText: !_isPasswordVisible,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Введите пароль';
+                        return null;
+                      },
                     ),
-                    obscureText: !_isPasswordVisible, // Переключение видимости
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Введите пароль';
-                      return null;
-                    },
-                  ),
-                  if (_showForgotPassword)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: TextButton(
-                        onPressed: _resetPassword,
-                        child: Text(
-                          'Забыли пароль?',
-                          style: TextStyle(color: theme.colorScheme.primary),
+                    if (_showForgotPassword)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: TextButton(
+                          onPressed: _resetPassword,
+                          child: Text(
+                            'Забыли пароль?',
+                            style: TextStyle(color: theme.colorScheme.primary),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 40),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _login,
+                      style: theme.elevatedButtonTheme.style,
+                      child: Text(
+                        'Войти',
+                        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: _navigateToRegister,
+                      child: Text(
+                        'Зарегистрироваться',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: theme.elevatedButtonTheme.style,
-                    child: Text(
-                      'Войти',
-                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: _navigateToRegister,
-                    child: Text(
-                      'Зарегистрироваться',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

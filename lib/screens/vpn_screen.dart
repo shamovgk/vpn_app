@@ -95,131 +95,142 @@ class VpnScreenState extends State<VpnScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
 
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          title: Text(
-            'UgbuganVPN',
-            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
-          ),
-          centerTitle: true,
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: Icon(Icons.menu, color: theme.textTheme.bodyMedium?.color),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        image: const DecorationImage(
+          image: AssetImage('assets/background.png'),
+          fit: BoxFit.fitWidth,
+        ),
+      ),
+      child: PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent, 
+            elevation: 0, 
+            title: Text(
+              'UgbuganVPN',
+              style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+            ),
+            centerTitle: true,
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: Icon(Icons.menu, color: theme.textTheme.headlineLarge?.color),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
             ),
           ),
-        ),
-        drawer: Drawer(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          width: 200,
-          shape: LinearBorder(),
-          child: SizedBox(
-            height: double.infinity,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: double.infinity,
-                  color: theme.scaffoldBackgroundColor,
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
-                  child: Text(
-                    textAlign: TextAlign.center,
-                    authProvider.isAuthenticated ? authProvider.username ?? 'Пользователь' : 'Гость',
-                    style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+          drawer: Drawer(
+            backgroundColor: theme.scaffoldBackgroundColor,
+            width: 200,
+            shape: LinearBorder(),
+            child: SizedBox(
+              height: double.infinity,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    color: theme.scaffoldBackgroundColor,
+                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+                    child: Text(
+                      textAlign: TextAlign.center,
+                      authProvider.isAuthenticated ? authProvider.username ?? 'Пользователь' : 'Гость',
+                      style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+                    ),
                   ),
-                ),
-                Column(
-                  children: [
-                    ListTile(
-                      leading: Icon(Icons.payment, color: theme.textTheme.bodyMedium?.color),
-                      title: Text('Подписаться', style: theme.textTheme.bodyMedium),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const PaymentScreen()),
-                        ).then((_) {
-                          setState(() {});
-                        });
-                      },
-                    ),
-                    ListTile(
-                      leading: Icon(Icons.settings, color: theme.textTheme.bodyMedium?.color),
-                      title: Text('Настройки', style: theme.textTheme.bodyMedium),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: Icon(Icons.info, color: theme.textTheme.bodyMedium?.color),
-                      title: Text('О нас', style: theme.textTheme.bodyMedium),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const AboutScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                Column(
-                  children: [
-                    ListTile(
-                      leading: Icon(Icons.brightness_6, color: theme.textTheme.bodyMedium?.color),
-                      title: Text('Смена темы', style: theme.textTheme.bodyMedium),
-                      onTap: () {
-                        Navigator.pop(context);
-                        themeProvider.toggleTheme();
-                        final customColors = Theme.of(context).extension<CustomColors>()!;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Тема изменена на ${themeProvider.themeMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}'),
-                            backgroundColor: customColors.success,
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: Icon(Icons.logout, color: theme.textTheme.bodyMedium?.color),
-                      title: Text('Выйти', style: theme.textTheme.bodyMedium),
-                      onTap: () {
-                        Navigator.pop(context);
-                        authProvider.logout();
-                        final customColors = Theme.of(context).extension<CustomColors>()!;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Logged out successfully'),
-                            backgroundColor: customColors.success,
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                        if (mounted) {
-                          Navigator.pushAndRemoveUntil(
+                  Column(
+                    children: [
+                      ListTile(
+                        leading: Icon(Icons.payment, color: theme.textTheme.bodyMedium?.color),
+                        title: Text('Подписаться', style: theme.textTheme.bodyMedium),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
-                            (Route<dynamic> route) => false,
+                            MaterialPageRoute(builder: (context) => const PaymentScreen()),
+                          ).then((_) {
+                            setState(() {});
+                          });
+                        },
+                      ),
+                      ListTile(
+                        leading: Icon(Icons.settings, color: theme.textTheme.bodyMedium?.color),
+                        title: Text('Настройки', style: theme.textTheme.bodyMedium),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SettingsScreen()),
                           );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                        },
+                      ),
+                      ListTile(
+                        leading: Icon(Icons.info, color: theme.textTheme.bodyMedium?.color),
+                        title: Text('О нас', style: theme.textTheme.bodyMedium),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AboutScreen()),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      ListTile(
+                        leading: Icon(Icons.brightness_6, color: theme.textTheme.bodyMedium?.color),
+                        title: Text('Смена темы', style: theme.textTheme.bodyMedium),
+                        onTap: () {
+                          Navigator.pop(context);
+                          themeProvider.toggleTheme();
+                          final customColors = Theme.of(context).extension<CustomColors>()!;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Тема изменена на ${themeProvider.themeMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}'),
+                              backgroundColor: customColors.success,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: Icon(Icons.logout, color: theme.textTheme.bodyMedium?.color),
+                        title: Text('Выйти', style: theme.textTheme.bodyMedium),
+                        onTap: () {
+                          Navigator.pop(context);
+                          authProvider.logout();
+                          final customColors = Theme.of(context).extension<CustomColors>()!;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Logged out successfully'),
+                              backgroundColor: customColors.success,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                          if (mounted) {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginScreen()),
+                              (Route<dynamic> route) => false,
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        body: SafeArea(
-          child: Center(
-            child: AnimationButton(key: _animationButtonKey),
+          body: SafeArea(
+            child: Center(
+              child: AnimationButton(key: _animationButtonKey),
+            ),
           ),
         ),
       ),
