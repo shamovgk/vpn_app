@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
-import '../providers/auth_provider.dart';
-import 'login_screen.dart';
+import '../screens/login_screen.dart';
 import 'verification_screen.dart';
 import 'package:logger/logger.dart';
 
@@ -21,7 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  bool _isPasswordVisible = false; // Состояние видимости пароля
+  bool _isPasswordVisible = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -168,120 +168,131 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          title: Text(
-            'Регистрация',
-            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
-          ),
-          centerTitle: true,
-          automaticallyImplyLeading: false,
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/background.png'),
+          fit: BoxFit.fitWidth,
+          opacity: 0.7,
         ),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.person_add, size: 50, color: Theme.of(context).primaryColor),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _usernameController,
-                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                    decoration: InputDecoration(
-                      labelText: 'Логин',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.person),
-                      labelStyle: theme.textTheme.bodyMedium,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Введите логин';
-                      return null;
-                    },
-                    onChanged: (value) {
-                      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                      authProvider.setRegistrationData(value, _emailController.text.toLowerCase());
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _emailController,
-                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.email),
-                      labelStyle: theme.textTheme.bodyMedium,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Введите email';
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) return 'Неверный формат email';
-                      return null;
-                    },
-                    onChanged: (value) {
-                      _emailController.value = _emailController.value.copyWith(
-                        text: value.toLowerCase(),
-                        selection: TextSelection.collapsed(offset: value.length),
-                      );
-                      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                      authProvider.setRegistrationData(_usernameController.text, value.toLowerCase());
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _passwordController,
-                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                    decoration: InputDecoration(
-                      labelText: 'Пароль',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                          color: theme.textTheme.bodyMedium?.color,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
-                        },
+      ),
+      child: PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              'Регистрация',
+              style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+            ),
+            centerTitle: true,
+            automaticallyImplyLeading: false,
+          ),
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.person_add, size: 50, color: Theme.of(context).primaryColor),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _usernameController,
+                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      decoration: InputDecoration(
+                        labelText: 'Логин',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.person),
+                        labelStyle: theme.textTheme.bodyMedium,
                       ),
-                      labelStyle: theme.textTheme.bodyMedium,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Введите логин';
+                        return null;
+                      },
+                      onChanged: (value) {
+                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                        authProvider.setRegistrationData(value, _emailController.text.toLowerCase());
+                      },
                     ),
-                    obscureText: !_isPasswordVisible, // Переключение видимости
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Введите пароль';
-                      if (value.length < 6) return 'Пароль должен содержать минимум 6 символов';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.scaffoldBackgroundColor,
-                      foregroundColor: theme.scaffoldBackgroundColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _emailController,
+                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.email),
+                        labelStyle: theme.textTheme.bodyMedium,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Введите email';
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) return 'Неверный формат email';
+                        return null;
+                      },
+                      onChanged: (value) {
+                        _emailController.value = _emailController.value.copyWith(
+                          text: value.toLowerCase(),
+                          selection: TextSelection.collapsed(offset: value.length),
+                        );
+                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                        authProvider.setRegistrationData(_usernameController.text, value.toLowerCase());
+                      },
                     ),
-                    child: Text(
-                      'Зарегистрироваться',
-                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _passwordController,
+                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      decoration: InputDecoration(
+                        labelText: 'Пароль',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
+                        ),
+                        labelStyle: theme.textTheme.bodyMedium,
+                      ),
+                      obscureText: !_isPasswordVisible,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Введите пароль';
+                        if (value.length < 6) return 'Пароль должен содержать минимум 6 символов';
+                        return null;
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: _navigateToLogin,
-                    child: Text(
-                      'Уже есть аккаунт? Войти',
-                      style: TextStyle(color: Theme.of(context).primaryColor),
+                    const SizedBox(height: 40),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _register,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.scaffoldBackgroundColor,
+                        foregroundColor: theme.scaffoldBackgroundColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      ),
+                      child: Text(
+                        'Зарегистрироваться',
+                        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: _navigateToLogin,
+                      child: Text(
+                        'Уже есть аккаунт? Войти',
+                        style: TextStyle(color: Theme.of(context).primaryColor),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

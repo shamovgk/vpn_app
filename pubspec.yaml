@@ -46,5 +46,7 @@ flutter:
     - assets/dark_theme_vpn_disconnect.gif
     - assets/light_theme_vpn_connect.gif
     - assets/light_theme_vpn_disconnect.gif
+    - assets/background.png
+    - assets/background_vpn.png
   uses-material-design: true
   

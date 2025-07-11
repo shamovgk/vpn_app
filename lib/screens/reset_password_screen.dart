@@ -31,15 +31,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Future<void> _resetPassword() async {
     if (_isLoading || !_formKey.currentState!.validate()) return;
-  
+
     setState(() => _isLoading = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final username = widget.username.trim();
     final resetCode = _resetCodeController.text.trim();
     final newPassword = _newPasswordController.text.trim();
-  
+
     logger.i('Attempting reset: username=$username, resetCode=$resetCode, newPassword length=${newPassword.length}');
-  
+
     try {
       await authProvider.resetPassword(username, resetCode, newPassword);
       if (!mounted) return;
@@ -109,67 +109,78 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        title: Text(
-          'Сброс пароля',
-          style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/background.png'),
+          fit: BoxFit.fitWidth,
+          opacity: 0.7,
         ),
-        centerTitle: true,
-        automaticallyImplyLeading: true,
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.lock_reset, size: 50, color: theme.primaryColor),
-                const SizedBox(height: 40),
-                TextFormField(
-                  controller: _resetCodeController,
-                  style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                  decoration: InputDecoration(
-                    labelText: 'Код восстановления',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.verified, color: theme.textTheme.bodyMedium?.color),
-                    labelStyle: theme.textTheme.bodyMedium,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text(
+            'Сброс пароля',
+            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+          ),
+          centerTitle: true,
+          automaticallyImplyLeading: true,
+        ),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.lock_reset, size: 50, color: theme.primaryColor),
+                  const SizedBox(height: 40),
+                  TextFormField(
+                    controller: _resetCodeController,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                    decoration: InputDecoration(
+                      labelText: 'Код восстановления',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.verified, color: theme.textTheme.bodyMedium?.color),
+                      labelStyle: theme.textTheme.bodyMedium,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Введите код восстановления';
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Введите код восстановления';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _newPasswordController,
-                  style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                  decoration: InputDecoration(
-                    labelText: 'Новый пароль',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
-                    labelStyle: theme.textTheme.bodyMedium,
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _newPasswordController,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                    decoration: InputDecoration(
+                      labelText: 'Новый пароль',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
+                      labelStyle: theme.textTheme.bodyMedium,
+                    ),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Введите новый пароль';
+                      if (value.length < 6) return 'Пароль должен содержать минимум 6 символов';
+                      return null;
+                    },
                   ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Введите новый пароль';
-                    if (value.length < 6) return 'Пароль должен содержать минимум 6 символов';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 40),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _resetPassword,
-                  style: theme.elevatedButtonTheme.style,
-                  child: Text(
-                    'Сбросить пароль',
-                    style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                  const SizedBox(height: 40),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _resetPassword,
+                    style: theme.elevatedButtonTheme.style,
+                    child: Text(
+                      'Сбросить пароль',
+                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
