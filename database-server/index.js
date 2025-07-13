@@ -5,9 +5,24 @@ const crypto = require('crypto');
 const path = require('path');
 const { exec } = require('child_process');
 const nodemailer = require('nodemailer');
+const session = require('express-session');
+const YooKassa = require('yookassa');
+
+const yooKassa = new YooKassa({
+  shopId: '1122441',
+  secretKey: 'test_F74pib2GSiKTfXymHkFmazWj9pLyS8-Sd2pzg-p9H2c'
+});
 
 const app = express();
+app.set('view engine', 'ejs');
+app.set('views', __dirname); 
 app.use(express.json());
+app.use(session({
+  secret: 'your_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }
+}));
 
 const dbPath = path.join(__dirname, 'vpn.db');
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -34,7 +49,8 @@ function createTables() {
         device_count INTEGER DEFAULT 0,
         auth_token TEXT,
         token_expiry TEXT,
-        client_ip TEXT
+        client_ip TEXT,
+        is_admin INTEGER DEFAULT 0
       )
     `);
 
@@ -66,6 +82,22 @@ function createTables() {
         reset_code TEXT NOT NULL,
         expiry_date TEXT NOT NULL,
         FOREIGN KEY (email) REFERENCES Users(email)
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS UserStats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        login_count INTEGER DEFAULT 0,
+        last_login TEXT,
+        device_count INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        total_traffic INTEGER DEFAULT 0,
+        active_duration INTEGER DEFAULT 0,
+        payment_count INTEGER DEFAULT 0,
+        last_payment_date TEXT,
+        FOREIGN KEY (user_id) REFERENCES Users(id)
       )
     `);
   });
@@ -160,7 +192,7 @@ const transporter = nodemailer.createTransport({
 
 function sendVerificationEmail(email, verificationCode) {
   const mailOptions = {
-    from: 'UgbuganVPN" <UgbuganSoft@gmail.com>',
+    from: 'UgbuganVPN <UgbuganSoft@gmail.com>',
     to: email,
     subject: 'Verify your email',
     text: `Your verification code is: ${verificationCode}. Please enter it in the app to verify your account.`,
@@ -171,7 +203,7 @@ function sendVerificationEmail(email, verificationCode) {
 
 function sendResetEmail(email, resetCode) {
   const mailOptions = {
-    from: '"UgbuganVPN" <UgbuganSoft@gmail.com>', 
+    from: 'UgbuganVPN <UgbuganSoft@gmail.com>',
     to: email,
     subject: 'Password Reset',
     text: `Your password reset code is: ${resetCode}. Please use it in the app to reset your password.`,
@@ -241,7 +273,6 @@ app.post('/register', (req, res) => {
             return res.status(400).json({ error: 'Логин не может быть пустым' });
           }
 
-          console.log(`Executing: INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?) with values [${username}, ${hashedPassword}, ${normalizedEmail}, ${trialEndDate}, ${verificationCode}, ${verificationExpiry}]`);
           db.run(
             `INSERT INTO PendingUsers (username, password, email, trial_end_date, verification_code, verification_expiry) VALUES (?, ?, ?, ?, ?, ?)`,
             [username, hashedPassword, normalizedEmail, trialEndDate, verificationCode, verificationExpiry],
@@ -251,7 +282,6 @@ app.post('/register', (req, res) => {
                 return res.status(400).json({ error: 'Ошибка регистрации: ' + err.message });
               }
 
-              console.log(`Inserted verification_expiry: ${verificationExpiry} for user ${username}`);
               try {
                 await sendVerificationEmail(normalizedEmail, verificationCode);
                 res.json({ id: this.lastID, username, email: normalizedEmail, message: 'Код верификации отправлен на ваш email' });
@@ -363,7 +393,7 @@ app.post('/login', (req, res) => {
       }
 
       const token = generateToken();
-      const tokenExpiry = getCurrentDatePlusDays(30); 
+      const tokenExpiry = getCurrentDatePlusDays(30);
       db.run(
         `UPDATE Users SET auth_token = ?, token_expiry = ? WHERE id = ?`,
         [token, tokenExpiry, user.id],
@@ -372,6 +402,14 @@ app.post('/login', (req, res) => {
             console.error('Token update error:', err.message);
             return res.status(500).json({ error: 'Не удалось обновить токен авторизации' });
           }
+          db.run(
+            `INSERT OR REPLACE INTO UserStats (user_id, login_count, last_login, device_count)
+             VALUES (?, COALESCE((SELECT login_count + 1 FROM UserStats WHERE user_id = ?), 1), ?, (SELECT device_count FROM Users WHERE id = ?))`,
+            [user.id, user.id, new Date().toISOString(), user.id],
+            (err) => {
+              if (err) console.error('Stats update error:', err.message);
+            }
+          );
           res.json({
             id: user.id,
             username: user.username,
@@ -516,7 +554,7 @@ app.post('/reset-password', (req, res) => {
 
           const hashedPassword = bcrypt.hashSync(newPassword, 10);
           db.run(
-            `UPDATE Users SET password = ? WHERE username = ?`, 
+            `UPDATE Users SET password = ? WHERE username = ?`,
             [hashedPassword, username],
             (err) => {
               if (err) {
@@ -547,34 +585,33 @@ app.put('/pay', (req, res) => {
     return res.status(400).json({ error: 'Token is required' });
   }
   const token = authHeader.split(' ')[1];
-  
-    db.get(
-      `SELECT id, username, vpn_key, is_paid, trial_end_date FROM Users WHERE auth_token = ? AND token_expiry > ?`,
-      [token, new Date().toISOString()],
-      (err, user) => {
-        if (err || !user) {
-          return res.status(401).json({ error: 'Invalid or expired token' });
-        }
-        const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
-        if (!user.is_paid && trialExpired) {
-          return res.status(403).json({ error: 'Trial period expired' });
-        }
 
-        db.run(
-          `UPDATE Users SET is_paid = 1 WHERE id = ?`,
-          [user.id],
-          (err) => {
-            if (err) {
-              console.error('Error updating is_paid:', err.message);
-              return res.status(500).json({ error: err.message });
-            }
-            res.json({ message: 'Individual plan paid' });
-          }
-        );
+  db.get(
+    `SELECT id, username, vpn_key, is_paid, trial_end_date FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    [token, new Date().toISOString()],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
       }
-    );
-  }
-);
+      const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
+      if (!user.is_paid && trialExpired) {
+        return res.status(403).json({ error: 'Trial period expired' });
+      }
+
+      db.run(
+        `UPDATE Users SET is_paid = 1 WHERE id = ?`,
+        [user.id],
+        (err) => {
+          if (err) {
+            console.error('Error updating is_paid:', err.message);
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ message: 'Individual plan paid' });
+        }
+      );
+    }
+  );
+});
 
 app.post('/add-device', (req, res) => {
   const { user_id, device_token } = req.body;
@@ -650,7 +687,148 @@ app.get('/get-vpn-config', (req, res) => {
   );
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.post('/pay-yookassa', async (req, res) => {
+  const { token, amount, method } = req.body;
+  console.log('Получен запрос на /pay-yookassa:', req.body);
+  console.log('Перед вызовом createPayment');
+  try {
+    const payment = await yooKassa.createPayment({
+      amount: { value: amount, currency: 'RUB' },
+      payment_method_data: {
+        type: method || 'bank_card',
+        payment_token: token,
+      },
+      confirmation: { type: 'redirect', return_url: 'https://your-app.com/success' },
+      capture: true,
+      description: 'Оплата VPN',
+    });
+    console.log('Ответ от YooKassa:', payment);
+    if (payment.status === 'succeeded') {
+      db.run(
+        `UPDATE Users SET is_paid = 1 WHERE id = ?`,
+        [userId],
+        (err) => {
+          if (err) console.error('Error updating is_paid:', err.message);
+        }
+      );
+      db.run(
+        `INSERT OR REPLACE INTO UserStats (user_id, payment_count, last_payment_date)
+         VALUES (?, COALESCE((SELECT payment_count + 1 FROM UserStats WHERE user_id = ?), 1), ?)`,
+        [userId, userId, new Date().toISOString()],
+        (err) => {
+          if (err) console.error('Stats payment update error:', err.message);
+        }
+      );
+    }
+    res.json({
+      status: payment.status,
+      paymentId: payment.id,
+      confirmationUrl: payment.confirmation && payment.confirmation.confirmation_url
+    });
+  } catch (e) {
+    console.error('Ошибка при создании платежа:', e.message, e);
+    res.status(500).json({ error: e.message });
+  }
 });
+
+// Админская часть
+
+function adminAuth(req, res, next) {
+  if (!req.session.admin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+}
+
+app.post('/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  db.get(
+    `SELECT id, username, password, is_admin FROM Users WHERE username = ?`,
+    [username],
+    (err, user) => {
+      if (err || !user || user.is_admin !== 1 || !bcrypt.compareSync(password, user.password)) {
+        return res.status(401).json({ error: 'Invalid credentials or not an admin' });
+      }
+      req.session.admin = true;
+      req.session.userId = user.id;
+      res.json({ message: 'Admin login successful' });
+    }
+  );
+});
+
+app.post('/admin/logout', (req, res) => {
+  req.session.destroy((err) => err ? res.status(500).json({ error: 'Failed to logout' }) : res.json({ message: 'Logged out' }));
+});
+
+app.get('/admin/login', (req, res) => {
+  if (req.session.admin) return res.redirect('/admin');
+  res.render('login', { title: 'Admin Login' });
+});
+
+app.get('/admin', adminAuth, (req, res) => {
+  db.all(`SELECT id, username, email, email_verified, is_paid, trial_end_date, device_count FROM Users WHERE is_admin = 0`, [], (err, users) => {
+    if (err) {
+      console.error('Admin page error:', err.message);
+      return res.status(500).render('admin', { title: 'Admin Panel', users: [], error: 'Failed to load users' });
+    }
+    res.render('admin', { title: 'Admin Panel', users: users || [] });
+  });
+});
+
+app.put('/admin/users/:id', adminAuth, (req, res) => {
+  const { id } = req.params;
+  const { is_paid, trial_end_date } = req.body;
+  db.run(
+    `UPDATE Users SET is_paid = ?, trial_end_date = ? WHERE id = ?`,
+    [is_paid ? 1 : 0, trial_end_date, id],
+    (err) => {
+      if (err) {
+        console.error('User update error:', err.message);
+        return res.status(500).json({ error: 'Update failed' });
+      }
+      res.json({ message: 'User updated' });
+    }
+  );
+});
+
+app.get('/admin/users/search', adminAuth, (req, res) => {
+  const { username } = req.query;
+  if (!username) return res.status(400).json({ error: 'Username is required' });
+  db.all(
+    `SELECT id, username, email, email_verified, is_paid, trial_end_date, device_count FROM Users WHERE username LIKE ? AND is_admin = 0`,
+    [`%${username}%`],
+    (err, users) => {
+      if (err) {
+        console.error('Search error:', err.message);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(users || []);
+    }
+  );
+});
+
+app.get('/admin/stats', adminAuth, (req, res) => {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  db.all(`
+    SELECT 
+      u.username,
+      COUNT(CASE WHEN s.last_login >= ? THEN 1 END) as active_users,
+      SUM(CASE WHEN u.is_paid = 1 THEN 1 ELSE 0 END) as paid_users,
+      SUM(CASE WHEN u.trial_end_date > ? AND u.is_paid = 0 THEN 1 ELSE 0 END) as trial_users,
+      COUNT(CASE WHEN u.created_at >= ? THEN 1 END) as registrations,
+      ROUND((SUM(CASE WHEN u.email_verified = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as email_verified_pct
+    FROM Users u
+    LEFT JOIN UserStats s ON u.id = s.user_id
+    WHERE u.is_admin = 0
+    GROUP BY u.username
+  `, [thirtyDaysAgo, new Date().toISOString(), thirtyDaysAgo], (err, userActivity) => {
+    if (err) {
+      console.error('Stats error:', err.message);
+      return res.status(500).render('stats', { title: 'Admin Statistics', userActivity: [], error: 'Failed to load stats' });
+    }
+    res.render('stats', { title: 'Admin Statistics', userActivity: userActivity || [] });
+  });
+});
+
+const PORT = 3000;
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

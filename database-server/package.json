@@ -1,0 +1,22 @@
+{
+  "name": "database",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+ "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^5.1.0",
+    "sqlite3": "^5.1.7",
+    "nodemailer": "^7.0.5",
+    "express-session": "^1.18.1",
+    "yookassa": "^0.1.1",
+    "ejs": "^3.1.10"
+  }
+}

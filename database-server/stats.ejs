@@ -1,0 +1,31 @@
+<h1>Admin Statistics</h1>
+<% if (userActivity && userActivity.length > 0) { %>
+  <table id="statsTable">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Active Users (Last 30 Days)</th>
+        <th>Paid Users</th>
+        <th>Trial Users</th>
+        <th>Registrations (Last 30 Days)</th>
+        <th>Email Verified %</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% userActivity.forEach(stat => { %>
+        <tr>
+          <td><%= stat.username %></td>
+          <td><%= stat.active_users || 0 %></td>
+          <td><%= stat.paid_users || 0 %></td>
+          <td><%= stat.trial_users || 0 %></td>
+          <td><%= stat.registrations || 0 %></td>
+          <td><%= stat.email_verified_pct || 0 %>%</td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } else { %>
+  <p>No statistics available.</p>
+<% } %>
+<a href="/admin">Back to Admin Panel</a>
+<button onclick="logout()">Logout</button>
