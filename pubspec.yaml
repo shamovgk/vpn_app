@@ -10,7 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+  webview_flutter: ^4.2.2
+  webview_windows: ^0.2.2
+
   
   provider: ^6.1.5 # Для управления состоянием
   flutter_secure_storage: ^9.2.4 # Для хранения токенов/данных
@@ -29,6 +31,7 @@ dependencies:
   url_launcher: ^6.2.5
   yookassa_payments_flutter: ^1.9.0
   
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -46,5 +49,7 @@ flutter:
     - assets/dark_theme_vpn_disconnect.gif
     - assets/light_theme_vpn_connect.gif
     - assets/light_theme_vpn_disconnect.gif
+    - assets/background.png
+    - assets/background_vpn.png
   uses-material-design: true
   

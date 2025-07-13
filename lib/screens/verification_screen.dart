@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
+import 'package:vpn_app/screens/login_screen.dart';
+import 'package:vpn_app/screens/register_screen.dart';
 import '../providers/auth_provider.dart';
-import 'login_screen.dart';
-import 'register_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 
@@ -34,7 +34,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
     super.dispose();
   }
 
-Future<void> _cancelRegistration() async {
+  Future<void> _cancelRegistration() async {
     try {
       final response = await http.post(
         Uri.parse('${AuthProvider.baseUrl}/cancel-registration'),
@@ -147,67 +147,79 @@ Future<void> _cancelRegistration() async {
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); 
+    super.build(context);
     final theme = Theme.of(context);
 
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    return PopScope(
-      canPop: false, 
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          title: Text(
-            'Email Verification',
-            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20)),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
-            onPressed: _navigateToRegister,
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/background.png'),
+          fit: BoxFit.fitWidth,
+          opacity: 0.7,
         ),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.verified_user, size: 100, color: Theme.of(context).primaryColor),
-                  const SizedBox(height: 40),
-                  Text(
-                    'Enter the verification code sent to ${widget.email}',
-                    style: theme.textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _verificationCodeController,
-                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                    decoration: InputDecoration(
-                      labelText: 'Verification Code',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.verified),
-                      labelStyle: theme.textTheme.bodyMedium,
+      ),
+      child: PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              'Email Verification',
+              style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
+              onPressed: _navigateToRegister,
+            ),
+          ),
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.verified_user, size: 100, color: Theme.of(context).primaryColor),
+                    const SizedBox(height: 40),
+                    Text(
+                      'Enter the verification code sent to ${widget.email}',
+                      style: theme.textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Введите код верификации';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _verifyEmail,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.scaffoldBackgroundColor,
-                      foregroundColor: theme.scaffoldBackgroundColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _verificationCodeController,
+                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      decoration: InputDecoration(
+                        labelText: 'Verification Code',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.verified),
+                        labelStyle: theme.textTheme.bodyMedium,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Введите код верификации';
+                        return null;
+                      },
                     ),
-                    child: Text(
-                      'Verify Email',
-                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                    const SizedBox(height: 40),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _verifyEmail,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.scaffoldBackgroundColor,
+                        foregroundColor: theme.scaffoldBackgroundColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      ),
+                      child: Text(
+                        'Verify Email',
+                        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
