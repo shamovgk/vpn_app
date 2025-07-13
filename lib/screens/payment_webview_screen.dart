@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dart:io' show Platform;
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class PaymentWebViewScreen extends StatefulWidget {
   const PaymentWebViewScreen({super.key});
@@ -16,32 +14,17 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   String? _paymentUrl;
   bool _loading = false;
   String? _error;
-  late final webview_windows.WebviewController _windowsController;
-  bool _windowsWebViewReady = false;
   WebViewController? _mobileWebViewController;
-  String? _selectedMethod;
 
   @override
   void initState() {
     super.initState();
-    if (Platform.isWindows) {
-      _windowsController = webview_windows.WebviewController();
-      _windowsController.initialize().then((_) {
-        setState(() {
-          _windowsWebViewReady = true;
-        });
-        if (_paymentUrl != null) {
-          _windowsController.loadUrl(_paymentUrl!);
-        }
-      });
-    }
   }
 
   Future<void> _fetchPaymentUrl(String method) async {
     setState(() {
       _loading = true;
       _error = null;
-      _selectedMethod = method;
     });
     try {
       final response = await http.post(
@@ -57,9 +40,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
             _paymentUrl = confirmationUrl;
             _loading = false;
           });
-          if (Platform.isWindows && _windowsWebViewReady) {
-            _windowsController.loadUrl(_paymentUrl!);
-          } else if (!Platform.isWindows && _paymentUrl != null) {
+          if ( _paymentUrl != null) {
             _mobileWebViewController = WebViewController()
               ..setJavaScriptMode(JavaScriptMode.unrestricted)
               ..loadRequest(Uri.parse(_paymentUrl!));
@@ -112,17 +93,10 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     if (_paymentUrl == null) {
       return const Center(child: Text('Нет ссылки на оплату'));
     }
-    if (Platform.isWindows) {
-      if (!_windowsWebViewReady) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      return webview_windows.Webview(_windowsController);
-    } else {
       if (_mobileWebViewController == null) {
         return const Center(child: CircularProgressIndicator());
       }
       return WebViewWidget(controller: _mobileWebViewController!);
-    }
   }
 
   @override
@@ -130,7 +104,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     return Container(
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/background_new.png'),
+          image: AssetImage('assets/background.png'),
           fit: BoxFit.fitWidth,
           opacity: 0.7,
         ),
@@ -156,9 +130,6 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
   @override
   void dispose() {
-    if (Platform.isWindows) {
-      _windowsController.dispose();
-    }
     super.dispose();
   }
 } 

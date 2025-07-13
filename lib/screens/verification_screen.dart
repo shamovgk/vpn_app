@@ -154,7 +154,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
     return Container(
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/background_new.png'),
+          image: AssetImage('assets/background.png'),
           fit: BoxFit.fitWidth,
           opacity: 0.7,
         ),
