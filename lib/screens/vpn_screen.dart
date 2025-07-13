@@ -9,6 +9,7 @@ import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/login_screen.dart';
 import 'package:vpn_app/screens/payment_screen.dart';
+import 'package:vpn_app/screens/payment_webview_screen.dart';
 
 final logger = Logger();
 
@@ -99,7 +100,7 @@ class VpnScreenState extends State<VpnScreen> {
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         image: const DecorationImage(
-          image: AssetImage('assets/background.png'),
+          image: AssetImage('assets/background_vpn_new.png'),
           fit: BoxFit.fitWidth,
         ),
       ),
@@ -143,7 +144,11 @@ class VpnScreenState extends State<VpnScreen> {
                   ),
                   Column(
                     children: [
+
+                      /*ListTile(
+
                       ListTile(
+
                         leading: Icon(Icons.payment, color: theme.textTheme.bodyMedium?.color),
                         title: Text('Подписаться', style: theme.textTheme.bodyMedium),
                         onTap: () {
@@ -151,6 +156,20 @@ class VpnScreenState extends State<VpnScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const PaymentScreen()),
+                          ).then((_) {
+                            setState(() {});
+                          });
+                        },
+
+                      ),*/
+                      ListTile(
+                        leading: Icon(Icons.web, color: theme.textTheme.bodyMedium?.color),
+                        title: Text('Оплата', style: theme.textTheme.bodyMedium),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const PaymentWebViewScreen()),
                           ).then((_) {
                             setState(() {});
                           });

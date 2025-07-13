@@ -578,41 +578,6 @@ app.post('/reset-password', (req, res) => {
   );
 });
 
-app.put('/pay', (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.error('Invalid or missing Authorization header:', req.headers.authorization);
-    return res.status(400).json({ error: 'Token is required' });
-  }
-  const token = authHeader.split(' ')[1];
-
-  db.get(
-    `SELECT id, username, vpn_key, is_paid, trial_end_date FROM Users WHERE auth_token = ? AND token_expiry > ?`,
-    [token, new Date().toISOString()],
-    (err, user) => {
-      if (err || !user) {
-        return res.status(401).json({ error: 'Invalid or expired token' });
-      }
-      const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
-      if (!user.is_paid && trialExpired) {
-        return res.status(403).json({ error: 'Trial period expired' });
-      }
-
-      db.run(
-        `UPDATE Users SET is_paid = 1 WHERE id = ?`,
-        [user.id],
-        (err) => {
-          if (err) {
-            console.error('Error updating is_paid:', err.message);
-            return res.status(500).json({ error: err.message });
-          }
-          res.json({ message: 'Individual plan paid' });
-        }
-      );
-    }
-  );
-});
-
 app.post('/add-device', (req, res) => {
   const { user_id, device_token } = req.body;
   db.get(
@@ -698,7 +663,7 @@ app.post('/pay-yookassa', async (req, res) => {
         type: method || 'bank_card',
         payment_token: token,
       },
-      confirmation: { type: 'redirect', return_url: 'https://your-app.com/success' },
+      confirmation: { type: 'redirect', return_url: 'myvpn://payment-success' },
       capture: true,
       description: 'Оплата VPN',
     });
