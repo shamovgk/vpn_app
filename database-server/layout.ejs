@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .form-group, .search-box { margin-bottom: 15px; }
+    .edit-btn { padding: 2px 5px; cursor: pointer; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <% if (error) { %>
+    <p class="error"><%= error %></p>
+  <% } %>
+  <%- body %>
+  <script>
+    function logout() {
+      fetch('/admin/logout', { method: 'POST' })
+        .then(() => window.location.href = '/admin/login');
+    }
+  </script>
+</body>
+</html>
