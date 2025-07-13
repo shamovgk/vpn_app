@@ -144,7 +144,11 @@ class VpnScreenState extends State<VpnScreen> {
                   ),
                   Column(
                     children: [
+
                       /*ListTile(
+
+                      ListTile(
+
                         leading: Icon(Icons.payment, color: theme.textTheme.bodyMedium?.color),
                         title: Text('Подписаться', style: theme.textTheme.bodyMedium),
                         onTap: () {
@@ -156,6 +160,7 @@ class VpnScreenState extends State<VpnScreen> {
                             setState(() {});
                           });
                         },
+
                       ),*/
                       ListTile(
                         leading: Icon(Icons.web, color: theme.textTheme.bodyMedium?.color),

@@ -732,8 +732,11 @@ app.get('/admin/login', (req, res) => {
 
 app.get('/admin', adminAuth, (req, res) => {
   db.all(`SELECT id, username, email, email_verified, is_paid, trial_end_date, device_count FROM Users WHERE is_admin = 0`, [], (err, users) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.render('admin', { title: 'Admin Panel', users });
+    if (err) {
+      console.error('Admin page error:', err.message);
+      return res.status(500).render('admin', { title: 'Admin Panel', users: [], error: 'Failed to load users' });
+    }
+    res.render('admin', { title: 'Admin Panel', users: users || [] });
   });
 });
 
@@ -743,7 +746,13 @@ app.put('/admin/users/:id', adminAuth, (req, res) => {
   db.run(
     `UPDATE Users SET is_paid = ?, trial_end_date = ? WHERE id = ?`,
     [is_paid ? 1 : 0, trial_end_date, id],
-    (err) => err ? res.status(500).json({ error: 'Update failed' }) : res.json({ message: 'User updated' })
+    (err) => {
+      if (err) {
+        console.error('User update error:', err.message);
+        return res.status(500).json({ error: 'Update failed' });
+      }
+      res.json({ message: 'User updated' });
+    }
   );
 });
 
@@ -753,7 +762,13 @@ app.get('/admin/users/search', adminAuth, (req, res) => {
   db.all(
     `SELECT id, username, email, email_verified, is_paid, trial_end_date, device_count FROM Users WHERE username LIKE ? AND is_admin = 0`,
     [`%${username}%`],
-    (err, users) => err ? res.status(500).json({ error: 'Database error' }) : res.json(users)
+    (err, users) => {
+      if (err) {
+        console.error('Search error:', err.message);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(users || []);
+    }
   );
 });
 
@@ -772,8 +787,11 @@ app.get('/admin/stats', adminAuth, (req, res) => {
     WHERE u.is_admin = 0
     GROUP BY u.username
   `, [thirtyDaysAgo, new Date().toISOString(), thirtyDaysAgo], (err, userActivity) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.render('stats', { title: 'Admin Statistics', userActivity });
+    if (err) {
+      console.error('Stats error:', err.message);
+      return res.status(500).render('stats', { title: 'Admin Statistics', userActivity: [], error: 'Failed to load stats' });
+    }
+    res.render('stats', { title: 'Admin Statistics', userActivity: userActivity || [] });
   });
 });
 

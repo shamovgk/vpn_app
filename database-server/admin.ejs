@@ -1,0 +1,88 @@
+<h1>Admin Panel</h1>
+<div class="search-box">
+  <input type="text" id="searchUsername" placeholder="Enter username" style="padding: 5px;" onkeyup="searchUsers()">
+  <button onclick="searchUsers()">Search</button>
+</div>
+<% if (users && users.length > 0) { %>
+  <table id="usersTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Email Verified</th>
+        <th>Is Paid</th>
+        <th>Trial End Date</th>
+        <th>Device Count</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% users.forEach(user => { %>
+        <tr>
+          <td><%= user.id %></td>
+          <td><%= user.username %></td>
+          <td><%= user.email %></td>
+          <td><%= user.email_verified ? 'Yes' : 'No' %></td>
+          <td>
+            <input type="checkbox" onchange="updateUser('<%= user.id %>', 'is_paid', this.checked)" <%= user.is_paid ? 'checked' : '' %>>
+          </td>
+          <td>
+            <input type="date" onchange="updateUser('<%= user.id %>', 'trial_end_date', this.value)" value="<%= user.trial_end_date || '' %>">
+          </td>
+          <td><%= user.device_count %></td>
+          <td><button class="edit-btn" onclick="editUser('<%= user.id %>')">Edit</button></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } else { %>
+  <p>No users found.</p>
+<% } %>
+<a href="/admin/stats">View Statistics</a>
+<button onclick="logout()">Logout</button>
+<script>
+  function searchUsers() {
+    const username = document.getElementById('searchUsername').value;
+    fetch(`/admin/users/search?username=${username}`)
+      .then(res => res.json())
+      .then(users => {
+        const tbody = document.querySelector('#usersTable tbody');
+        tbody.innerHTML = '';
+        if (users && users.length > 0) {
+          users.forEach(user => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${user.id}</td>
+              <td>${user.username}</td>
+              <td>${user.email}</td>
+              <td>${user.email_verified ? 'Yes' : 'No'}</td>
+              <td><input type="checkbox" onchange="updateUser('${user.id}', 'is_paid', this.checked)" ${user.is_paid ? 'checked' : ''}></td>
+              <td><input type="date" onchange="updateUser('${user.id}', 'trial_end_date', this.value)" value="${user.trial_end_date || ''}"></td>
+              <td>${user.device_count}</td>
+              <td><button class="edit-btn" onclick="editUser('${user.id}')">Edit</button></td>
+            `;
+            tbody.appendChild(row);
+          });
+        } else {
+          tbody.innerHTML = '<tr><td colspan="8">No matching users.</td></tr>';
+        }
+      })
+      .catch(err => console.error('Search fetch error:', err));
+  }
+
+  function updateUser(id, field, value) {
+    fetch(`/admin/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: field === 'is_paid' ? (value ? 1 : 0) : value })
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message))
+    .catch(err => console.error('Update error:', err));
+  }
+
+  function editUser(id) {
+    alert(`Editing user with ID: ${id}`);
+  }
+</script>
