@@ -100,7 +100,7 @@ class VpnScreenState extends State<VpnScreen> {
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         image: const DecorationImage(
-          image: AssetImage('assets/background.png'),
+          image: AssetImage('assets/background_vpn_new.png'),
           fit: BoxFit.fitWidth,
         ),
       ),
