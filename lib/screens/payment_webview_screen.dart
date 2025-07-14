@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:io' show Platform;
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class PaymentWebViewScreen extends StatefulWidget {
   const PaymentWebViewScreen({super.key});
@@ -14,11 +16,24 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   String? _paymentUrl;
   bool _loading = false;
   String? _error;
+  late final webview_windows.WebviewController _windowsController;
+  bool _windowsWebViewReady = false;
   WebViewController? _mobileWebViewController;
 
   @override
   void initState() {
     super.initState();
+    if (Platform.isWindows) {
+      _windowsController = webview_windows.WebviewController();
+      _windowsController.initialize().then((_) {
+        setState(() {
+          _windowsWebViewReady = true;
+        });
+        if (_paymentUrl != null) {
+          _windowsController.loadUrl(_paymentUrl!);
+        }
+      });
+    }
   }
 
   Future<void> _fetchPaymentUrl(String method) async {
@@ -30,7 +45,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       final response = await http.post(
         Uri.parse('http://95.214.10.8:3000/pay-yookassa'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'amount': 200.00, 'method': method}),
+        body: jsonEncode({'amount': 1.00, 'method': method}),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -40,7 +55,9 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
             _paymentUrl = confirmationUrl;
             _loading = false;
           });
-          if ( _paymentUrl != null) {
+          if (Platform.isWindows && _windowsWebViewReady) {
+            _windowsController.loadUrl(_paymentUrl!);
+          } else if (!Platform.isWindows && _paymentUrl != null) {
             _mobileWebViewController = WebViewController()
               ..setJavaScriptMode(JavaScriptMode.unrestricted)
               ..loadRequest(Uri.parse(_paymentUrl!));
@@ -93,20 +110,29 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     if (_paymentUrl == null) {
       return const Center(child: Text('Нет ссылки на оплату'));
     }
+    if (Platform.isWindows) {
+      if (!_windowsWebViewReady) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return webview_windows.Webview(_windowsController);
+    } else {
       if (_mobileWebViewController == null) {
         return const Center(child: CircularProgressIndicator());
       }
       return WebViewWidget(controller: _mobileWebViewController!);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
+        color: Colors.black,
         image: DecorationImage(
           image: AssetImage('assets/background.png'),
           fit: BoxFit.fitWidth,
           opacity: 0.7,
+          alignment: Alignment(0, -0.9),
         ),
       ),
       child: Scaffold(
@@ -130,6 +156,9 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
   @override
   void dispose() {
+    if (Platform.isWindows) {
+      _windowsController.dispose();
+    }
     super.dispose();
   }
 } 
