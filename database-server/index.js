@@ -9,13 +9,13 @@ const session = require('express-session');
 const YooKassa = require('yookassa');
 
 const yooKassa = new YooKassa({
-  shopId: '1122441',
-  secretKey: 'test_F74pib2GSiKTfXymHkFmazWj9pLyS8-Sd2pzg-p9H2c'
+  shopId: '1112970',
+  secretKey: 'live_peDuBmrDSrIdUKBg3ImAfOqkT0YoJrPUux5-HpeGjSo'
 });
 
 const app = express();
 app.set('view engine', 'ejs');
-app.set('views', __dirname); 
+app.set('views', __dirname);
 app.use(express.json());
 app.use(session({
   secret: 'your_secret_key',
@@ -44,6 +44,7 @@ function createTables() {
         email TEXT NOT NULL UNIQUE,
         email_verified INTEGER DEFAULT 1,
         is_paid INTEGER DEFAULT 0,
+        subscription_level INTEGER DEFAULT 0,
         vpn_key TEXT,
         trial_end_date TEXT,
         device_count INTEGER DEFAULT 0,
@@ -71,6 +72,9 @@ function createTables() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         device_token TEXT NOT NULL UNIQUE,
+        device_model TEXT,
+        device_os TEXT,
+        last_seen TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES Users(id)
       )
     `);
@@ -335,8 +339,8 @@ app.post('/verify-email', (req, res) => {
         res.json({ message: 'Email успешно верифицирован, аккаунт создан' });
       } catch (e) {
         console.error('Verification setup failed:', e.message);
-        db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (err) => {
-          if (err) console.error('Cleanup error:', err.message);
+        db.run(`DELETE FROM PendingUsers WHERE id = ?`, [pendingUser.id], (deleteErr) => {
+          if (deleteErr) console.error('Cleanup error:', deleteErr.message);
         });
         res.status(500).json({ error: 'Не удалось завершить верификацию: ' + e.message });
       }
@@ -367,13 +371,13 @@ app.post('/cancel-registration', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, device_token, device_model, device_os } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Логин и пароль обязательны' });
   }
 
   db.get(
-    `SELECT id, username, password, email_verified, is_paid, vpn_key, trial_end_date, device_count
+    `SELECT id, username, password, email_verified, is_paid, subscription_level, vpn_key, trial_end_date, device_count
      FROM Users WHERE username = ?`,
     [username],
     (err, user) => {
@@ -392,36 +396,112 @@ app.post('/login', (req, res) => {
         return res.status(403).json({ error: 'Срок действия пробного периода истёк' });
       }
 
-      const token = generateToken();
-      const tokenExpiry = getCurrentDatePlusDays(30);
-      db.run(
-        `UPDATE Users SET auth_token = ?, token_expiry = ? WHERE id = ?`,
-        [token, tokenExpiry, user.id],
-        (err) => {
-          if (err) {
-            console.error('Token update error:', err.message);
-            return res.status(500).json({ error: 'Не удалось обновить токен авторизации' });
-          }
-          db.run(
-            `INSERT OR REPLACE INTO UserStats (user_id, login_count, last_login, device_count)
-             VALUES (?, COALESCE((SELECT login_count + 1 FROM UserStats WHERE user_id = ?), 1), ?, (SELECT device_count FROM Users WHERE id = ?))`,
-            [user.id, user.id, new Date().toISOString(), user.id],
-            (err) => {
-              if (err) console.error('Stats update error:', err.message);
+      const maxDevices = user.subscription_level === 1 ? 6 : 3;
+      db.get(`SELECT COUNT(*) as device_count FROM Devices WHERE user_id = ?`, [user.id], (err, result) => {
+        if (err) {
+          console.error('Device count error:', err.message);
+          return res.status(500).json({ error: 'Ошибка при подсчёте устройств' });
+        }
+        let currentDeviceCount = result.device_count;
+
+        if (device_token) {
+          db.get(
+            `SELECT id FROM Devices WHERE user_id = ? AND device_token = ?`,
+            [user.id, device_token],
+            (err, existingDevice) => {
+              if (err) {
+                console.error('Device check error:', err.message);
+                return res.status(500).json({ error: 'Ошибка проверки устройства' });
+              }
+              if (!existingDevice) {
+                if (currentDeviceCount >= maxDevices) {
+                  return res.status(403).json({ error: `Достигнут лимит устройств (${maxDevices}). Удалите одно устройство или обновите подписку.` });
+                }
+                db.run(
+                  `INSERT INTO Devices (user_id, device_token, device_model, device_os, last_seen) VALUES (?, ?, ?, ?, ?)`,
+                  [user.id, device_token, device_model || 'Unknown Model', device_os || 'Unknown OS', new Date().toISOString()],
+                  (err) => {
+                    if (err) console.error('Device registration error:', err.message);
+                    currentDeviceCount++;
+                  }
+                );
+              } else {
+                db.run(
+                  `UPDATE Devices SET last_seen = ? WHERE user_id = ? AND device_token = ?`,
+                  [new Date().toISOString(), user.id, device_token],
+                  (err) => {
+                    if (err) console.error('Device update error:', err.message);
+                  }
+                );
+              }
+
+              const token = generateToken();
+              const tokenExpiry = getCurrentDatePlusDays(30);
+              db.run(
+                `UPDATE Users SET auth_token = ?, token_expiry = ?, device_count = ? WHERE id = ?`,
+                [token, tokenExpiry, currentDeviceCount, user.id],
+                (err) => {
+                  if (err) {
+                    console.error('Token update error:', err.message);
+                    return res.status(500).json({ error: 'Не удалось обновить токен авторизации' });
+                  }
+                  db.run(
+                    `INSERT OR REPLACE INTO UserStats (user_id, login_count, last_login, device_count)
+                     VALUES (?, COALESCE((SELECT login_count + 1 FROM UserStats WHERE user_id = ?), 1), ?, ?)`,
+                    [user.id, user.id, new Date().toISOString(), currentDeviceCount],
+                    (err) => {
+                      if (err) console.error('Stats update error:', err.message);
+                    }
+                  );
+                  res.json({
+                    id: user.id,
+                    username: user.username,
+                    email_verified: user.email_verified,
+                    is_paid: user.is_paid,
+                    subscription_level: user.subscription_level,
+                    vpn_key: user.vpn_key || null,
+                    trial_end_date: user.trial_end_date,
+                    device_count: currentDeviceCount,
+                    auth_token: token
+                  });
+                }
+              );
             }
           );
-          res.json({
-            id: user.id,
-            username: user.username,
-            email_verified: user.email_verified,
-            is_paid: user.is_paid,
-            vpn_key: user.vpn_key || null,
-            trial_end_date: user.trial_end_date,
-            device_count: user.device_count,
-            auth_token: token
-          });
+        } else {
+          const token = generateToken();
+          const tokenExpiry = getCurrentDatePlusDays(30);
+          db.run(
+            `UPDATE Users SET auth_token = ?, token_expiry = ? WHERE id = ?`,
+            [token, tokenExpiry, user.id],
+            (err) => {
+              if (err) {
+                console.error('Token update error:', err.message);
+                return res.status(500).json({ error: 'Не удалось обновить токен авторизации' });
+              }
+              db.run(
+                `INSERT OR REPLACE INTO UserStats (user_id, login_count, last_login, device_count)
+                 VALUES (?, COALESCE((SELECT login_count + 1 FROM UserStats WHERE user_id = ?), 1), ?, ?)`,
+                [user.id, user.id, new Date().toISOString(), currentDeviceCount],
+                (err) => {
+                  if (err) console.error('Stats update error:', err.message);
+                }
+              );
+              res.json({
+                id: user.id,
+                username: user.username,
+                email_verified: user.email_verified,
+                is_paid: user.is_paid,
+                subscription_level: user.subscription_level,
+                vpn_key: user.vpn_key || null,
+                trial_end_date: user.trial_end_date,
+                device_count: currentDeviceCount,
+                auth_token: token
+              });
+            }
+          );
         }
-      );
+      });
     }
   );
 });
@@ -433,7 +513,7 @@ app.get('/validate-token', (req, res) => {
   }
 
   db.get(
-    `SELECT id, username, email_verified, is_paid, vpn_key, trial_end_date, device_count
+    `SELECT id, username, email_verified, is_paid, subscription_level, vpn_key, trial_end_date, device_count
      FROM Users WHERE auth_token = ? AND token_expiry > ?`,
     [token, new Date().toISOString()],
     (err, user) => {
@@ -449,6 +529,7 @@ app.get('/validate-token', (req, res) => {
         username: user.username,
         email_verified: user.email_verified,
         is_paid: user.is_paid,
+        subscription_level: user.subscription_level,
         vpn_key: user.vpn_key || null,
         device_count: user.device_count,
       });
@@ -578,22 +659,58 @@ app.post('/reset-password', (req, res) => {
   );
 });
 
-app.post('/add-device', (req, res) => {
-  const { user_id, device_token } = req.body;
+app.put('/pay', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.error('Invalid or missing Authorization header:', req.headers.authorization);
+    return res.status(400).json({ error: 'Token is required' });
+  }
+  const token = authHeader.split(' ')[1];
+
   db.get(
-    `SELECT device_count FROM Users WHERE id = ?`,
+    `SELECT id, username, vpn_key, is_paid, subscription_level, trial_end_date FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    [token, new Date().toISOString()],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
+      if (!user.is_paid && trialExpired) {
+        return res.status(403).json({ error: 'Trial period expired' });
+      }
+
+      db.run(
+        `UPDATE Users SET is_paid = 1 WHERE id = ?`,
+        [user.id],
+        (err) => {
+          if (err) {
+            console.error('Error updating is_paid:', err.message);
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ message: 'Individual plan paid' });
+        }
+      );
+    }
+  );
+});
+
+app.post('/add-device', (req, res) => {
+  const { user_id, device_token, device_model, device_os } = req.body;
+  db.get(
+    `SELECT device_count, subscription_level FROM Users WHERE id = ?`,
     [user_id],
     (err, user) => {
       if (err || !user) {
         return res.status(404).json({ error: 'User not found' });
       }
-      if (user.device_count >= 3) {
-        return res.status(400).json({ error: 'Maximum device limit (3) reached' });
+      const maxDevices = user.subscription_level === 1 ? 6 : 3;
+      if (user.device_count >= maxDevices) {
+        return res.status(400).json({ error: `Maximum device limit (${maxDevices}) reached` });
       }
 
       db.run(
-        `INSERT INTO Devices (user_id, device_token) VALUES (?, ?)`,
-        [user_id, device_token],
+        `INSERT INTO Devices (user_id, device_token, device_model, device_os, last_seen) VALUES (?, ?, ?, ?, ?)`,
+        [user_id, device_token, device_model || 'Unknown Model', device_os || 'Unknown OS', new Date().toISOString()],
         (err) => {
           if (err) {
             console.error('Device add error:', err.message);
@@ -624,7 +741,7 @@ app.get('/get-vpn-config', (req, res) => {
 
   const token = authHeader.split(' ')[1];
   db.get(
-    `SELECT id, username, vpn_key, client_ip, is_paid, trial_end_date, email_verified FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    `SELECT id, username, vpn_key, client_ip, is_paid, subscription_level, trial_end_date, email_verified FROM Users WHERE auth_token = ? AND token_expiry > ?`,
     [token, new Date().toISOString()],
     (err, user) => {
       if (err) {
@@ -663,27 +780,34 @@ app.post('/pay-yookassa', async (req, res) => {
         type: method || 'bank_card',
         payment_token: token,
       },
-      confirmation: { type: 'redirect', return_url: 'myvpn://payment-success' },
+      confirmation: { type: 'redirect', return_url: 'https://your-app.com/success' },
       capture: true,
       description: 'Оплата VPN',
     });
     console.log('Ответ от YooKassa:', payment);
     if (payment.status === 'succeeded') {
-      db.run(
-        `UPDATE Users SET is_paid = 1 WHERE id = ?`,
-        [userId],
-        (err) => {
-          if (err) console.error('Error updating is_paid:', err.message);
+      db.get(`SELECT id FROM Users WHERE auth_token = ? AND token_expiry > ?`, [req.headers.authorization?.split(' ')[1], new Date().toISOString()], (err, user) => {
+        if (err || !user) {
+          console.error('User not found for payment:', err?.message);
+          return;
         }
-      );
-      db.run(
-        `INSERT OR REPLACE INTO UserStats (user_id, payment_count, last_payment_date)
-         VALUES (?, COALESCE((SELECT payment_count + 1 FROM UserStats WHERE user_id = ?), 1), ?)`,
-        [userId, userId, new Date().toISOString()],
-        (err) => {
-          if (err) console.error('Stats payment update error:', err.message);
-        }
-      );
+        const userId = user.id;
+        db.run(
+          `UPDATE Users SET is_paid = 1, subscription_level = ? WHERE id = ?`,
+          [amount >= 500 ? 1 : 0, userId],
+          (err) => {
+            if (err) console.error('Error updating is_paid:', err.message);
+          }
+        );
+        db.run(
+          `INSERT OR REPLACE INTO UserStats (user_id, payment_count, last_payment_date)
+           VALUES (?, COALESCE((SELECT payment_count + 1 FROM UserStats WHERE user_id = ?), 1), ?)`,
+          [userId, userId, new Date().toISOString()],
+          (err) => {
+            if (err) console.error('Stats payment update error:', err.message);
+          }
+        );
+      });
     }
     res.json({
       status: payment.status,
@@ -697,7 +821,6 @@ app.post('/pay-yookassa', async (req, res) => {
 });
 
 // Админская часть
-
 function adminAuth(req, res, next) {
   if (!req.session.admin) {
     return res.status(403).json({ error: 'Admin access required' });
@@ -731,7 +854,7 @@ app.get('/admin/login', (req, res) => {
 });
 
 app.get('/admin', adminAuth, (req, res) => {
-  db.all(`SELECT id, username, email, email_verified, is_paid, trial_end_date, device_count FROM Users WHERE is_admin = 0`, [], (err, users) => {
+  db.all(`SELECT id, username, email, email_verified, is_paid, subscription_level, trial_end_date, device_count FROM Users WHERE is_admin = 0`, [], (err, users) => {
     if (err) {
       console.error('Admin page error:', err.message);
       return res.status(500).render('admin', { title: 'Admin Panel', users: [], error: 'Failed to load users' });
@@ -742,10 +865,10 @@ app.get('/admin', adminAuth, (req, res) => {
 
 app.put('/admin/users/:id', adminAuth, (req, res) => {
   const { id } = req.params;
-  const { is_paid, trial_end_date } = req.body;
+  const { is_paid, trial_end_date, subscription_level } = req.body;
   db.run(
-    `UPDATE Users SET is_paid = ?, trial_end_date = ? WHERE id = ?`,
-    [is_paid ? 1 : 0, trial_end_date, id],
+    `UPDATE Users SET is_paid = ?, trial_end_date = ?, subscription_level = ? WHERE id = ?`,
+    [is_paid ? 1 : 0, trial_end_date, subscription_level || 0, id],
     (err) => {
       if (err) {
         console.error('User update error:', err.message);
@@ -760,7 +883,7 @@ app.get('/admin/users/search', adminAuth, (req, res) => {
   const { username } = req.query;
   if (!username) return res.status(400).json({ error: 'Username is required' });
   db.all(
-    `SELECT id, username, email, email_verified, is_paid, trial_end_date, device_count FROM Users WHERE username LIKE ? AND is_admin = 0`,
+    `SELECT id, username, email, email_verified, is_paid, subscription_level, trial_end_date, device_count FROM Users WHERE username LIKE ? AND is_admin = 0`,
     [`%${username}%`],
     (err, users) => {
       if (err) {
@@ -793,6 +916,78 @@ app.get('/admin/stats', adminAuth, (req, res) => {
     }
     res.render('stats', { title: 'Admin Statistics', userActivity: userActivity || [] });
   });
+});
+
+app.post('/remove-device', (req, res) => {
+  const { user_id, device_token } = req.body;
+  if (!user_id || !device_token) {
+    return res.status(400).json({ error: 'user_id and device_token are required' });
+  }
+
+  db.get(
+    `SELECT device_count, subscription_level FROM Users WHERE id = ?`,
+    [user_id],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      db.run(
+        `DELETE FROM Devices WHERE user_id = ? AND device_token = ?`,
+        [user_id, device_token],
+        (err) => {
+          if (err) {
+            console.error('Device removal error:', err.message);
+            return res.status(400).json({ error: err.message });
+          }
+          if (this.changes === 0) {
+            return res.status(404).json({ error: 'Device not found' });
+          }
+          db.run(
+            `UPDATE Users SET device_count = device_count - 1 WHERE id = ?`,
+            [user_id],
+            (err) => {
+              if (err) {
+                console.error('Device count update error:', err.message);
+                return res.status(500).json({ error: err.message });
+              }
+              res.json({ message: 'Device removed successfully' });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+app.get('/get-devices', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  db.get(
+    `SELECT id FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+    [token, new Date().toISOString()],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+
+      db.all(
+        `SELECT id, device_token, device_model, device_os, last_seen FROM Devices WHERE user_id = ?`,
+        [user.id],
+        (err, devices) => {
+          if (err) {
+            console.error('Error fetching devices:', err.message);
+            return res.status(500).json({ error: 'Internal server error' });
+          }
+          res.json(devices);
+        }
+      );
+    }
+  );
 });
 
 const PORT = 3000;

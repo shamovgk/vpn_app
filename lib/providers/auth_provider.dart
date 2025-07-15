@@ -1,10 +1,11 @@
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:vpn_app/main.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../providers/vpn_provider.dart';
 
 final logger = Logger();
@@ -20,6 +21,11 @@ class AuthProvider with ChangeNotifier {
   String? _vpnKey;
   String? _token;
   String? _trialEndDate;
+  int _deviceCount = 0;
+  int _subscriptionLevel = 0;
+  String? _deviceToken;
+  String? _deviceModel;
+  String? _deviceOS;
 
   // Геттеры
   bool get isAuthenticated => _isAuthenticated;
@@ -31,6 +37,11 @@ class AuthProvider with ChangeNotifier {
   String? get vpnKey => _vpnKey;
   String? get token => _token;
   String? get trialEndDate => _trialEndDate;
+  int get deviceCount => _deviceCount;
+  int get subscriptionLevel => _subscriptionLevel;
+  String? get deviceToken => _deviceToken;
+  String? get deviceModel => _deviceModel;
+  String? get deviceOS => _deviceOS;
 
   // Константы
   static const String _baseUrl = 'http://95.214.10.8:3000';
@@ -65,6 +76,11 @@ class AuthProvider with ChangeNotifier {
     _vpnKey = userData['vpn_key'];
     _token = token;
     _trialEndDate = userData['trial_end_date'];
+    _deviceCount = userData['device_count'] ?? 0;
+    _subscriptionLevel = userData['subscription_level'] ?? 0;
+    _deviceToken = await _getDeviceToken();
+    _deviceModel = await _getDeviceModel();
+    _deviceOS = await _getDeviceOS();
     await _storage.write(key: 'trial_end_date', value: _trialEndDate);
     notifyListeners();
   }
@@ -80,7 +96,57 @@ class AuthProvider with ChangeNotifier {
     _vpnKey = null;
     _token = null;
     _trialEndDate = null;
+    _deviceCount = 0;
+    _subscriptionLevel = 0;
+    _deviceToken = null;
+    _deviceModel = null;
+    _deviceOS = null;
     notifyListeners();
+  }
+
+  Future<String> _getDeviceToken() async {
+    final deviceInfo = DeviceInfoPlugin();
+    if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.windows) {
+      final windowsInfo = await deviceInfo.windowsInfo;
+      return windowsInfo.deviceId;
+    } else if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.android) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id;
+    } else if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.iOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? 'ios_default_id';
+    }
+    return 'default_device_id';
+  }
+
+  Future<String?> _getDeviceModel() async {
+    final deviceInfo = DeviceInfoPlugin();
+    if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.windows) {
+      final windowsInfo = await deviceInfo.windowsInfo;
+      return windowsInfo.computerName;
+    } else if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.android) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.model;
+    } else if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.iOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.model;
+    }
+    return 'Unknown Model';
+  }
+
+  Future<String?> _getDeviceOS() async {
+    final deviceInfo = DeviceInfoPlugin();
+    if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.windows) {
+      final windowsInfo = await deviceInfo.windowsInfo;
+      return 'Windows ${windowsInfo.displayVersion}';
+    } else if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.android) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return 'Android ${androidInfo.version.release}';
+    } else if (Theme.of(navigatorKey.currentContext!).platform == TargetPlatform.iOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return 'iOS ${iosInfo.systemVersion}';
+    }
+    return 'Unknown OS';
   }
 
   // Публичные методы
@@ -130,14 +196,23 @@ class AuthProvider with ChangeNotifier {
     await checkAuthStatus();
     final savedTrialEndDate = await _storage.read(key: 'trial_end_date');
     if (_trialEndDate == null && savedTrialEndDate != null) {
-      _trialEndDate = savedTrialEndDate; 
+      _trialEndDate = savedTrialEndDate;
       notifyListeners();
     }
   }
 
   Future<void> login(String username, String password) async {
     try {
-      final response = await _makeApiRequest('login', body: {'username': username, 'password': password});
+      _deviceToken = await _getDeviceToken();
+      _deviceModel = await _getDeviceModel();
+      _deviceOS = await _getDeviceOS();
+      final response = await _makeApiRequest('login', body: {
+        'username': username,
+        'password': password,
+        'device_token': _deviceToken,
+        'device_model': _deviceModel,
+        'device_os': _deviceOS,
+      });
       if (response['id'] != null) {
         await _updateAuthState(response, response['auth_token']);
       } else {
@@ -148,6 +223,8 @@ class AuthProvider with ChangeNotifier {
         throw Exception('Пожалуйста, проверьте email для верификации');
       } else if (e.toString().contains('Срок действия пробного периода истёк')) {
         throw Exception('Срок действия пробного периода истёк');
+      } else if (e.toString().contains('Достигнут лимит устройств')) {
+        throw Exception('Достигнут лимит устройств, удалите устройство или обновите подписку');
       }
       rethrow;
     }
@@ -278,6 +355,26 @@ class AuthProvider with ChangeNotifier {
         throw Exception('Не удалось обновить пароль');
       }
       throw Exception('Ошибка сброса пароля: $e');
+    }
+  }
+
+  Future<void> removeDevice(String deviceToken) async {
+    if (_token == null) throw Exception('Не авторизован');
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/remove-device'),
+        headers: {..._headers, 'Authorization': 'Bearer $_token'},
+        body: jsonEncode({'user_id': _username, 'device_token': deviceToken}),
+      );
+      if (response.statusCode == 200) {
+        _deviceCount--; // Уменьшаем локальный счётчик
+        notifyListeners();
+      } else {
+        throw Exception('Ошибка удаления устройства: ${response.body}');
+      }
+    } catch (e) {
+      logger.e('Error removing device: $e');
+      rethrow;
     }
   }
 
