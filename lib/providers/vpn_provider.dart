@@ -202,7 +202,7 @@ class VpnProvider with ChangeNotifier {
       final trialEnd = DateTime.parse(authProvider.trialEndDate!);
       return authProvider.isPaid || (!authProvider.isPaid && trialEnd.isAfter(DateTime.now()));
     }
-    return authProvider.isPaid;
+    return authProvider.isPaid && authProvider.deviceCount < (authProvider.subscriptionLevel == 1 ? 6 : 3); // Проверка лимита устройств
   }
 
   @override

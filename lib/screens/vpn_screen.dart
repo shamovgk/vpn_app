@@ -293,9 +293,10 @@ class AnimationButtonState extends State<AnimationButton> with TickerProviderSta
     });
 
     _controller.reset();
-    await _controller.forward();
+    _controller.forward();
     try {
       if (_currentIsConnected) {
+        await Future.delayed(const Duration(seconds: 4));
         await vpnProvider.disconnect();
       } else {
         await vpnProvider.connect();

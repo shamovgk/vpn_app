@@ -96,6 +96,14 @@ class _LoginScreenState extends State<LoginScreen> {
             duration: const Duration(seconds: 3),
           ),
         );
+      } else if (e.toString().contains('Достигнут лимит устройств')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Достигнут лимит устройств, удалите устройство или обновите подписку'),
+            backgroundColor: customColors.warning,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       } else if (e.toString().contains('Не удалось обновить токен авторизации')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -218,6 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authProvider = Provider.of<AuthProvider>(context);
     return Container(
       decoration: const BoxDecoration(
         image: DecorationImage(
@@ -302,7 +311,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Устройства: ${authProvider.deviceCount}/${authProvider.subscriptionLevel == 1 ? 6 : 3}', // Отображение статуса устройств
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: _isLoading ? null : _login,
                       style: theme.elevatedButtonTheme.style,
