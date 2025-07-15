@@ -13,7 +13,9 @@ async function payYookassa(req, res) {
   try {
     const payment = await yooKassa.createPayment({
       amount: { value: amount, currency: 'RUB' },
-      payment_method_data: { type: method || 'bank_card', payment_token: token },
+      payment_method_data: method === 'sbp'
+        ? { type: 'sbp' }
+        : { type: method || 'bank_card', payment_token: token },
       confirmation: { type: 'redirect', return_url: 'https://your-app.com/success' },
       capture: true,
       description: 'Оплата VPN',
