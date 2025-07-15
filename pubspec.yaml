@@ -28,7 +28,7 @@ dependencies:
   yookassa_payments_flutter: ^1.9.0
   webview_flutter: ^4.13.0 
   device_info_plus: ^11.5.0
-  webview_windows: ^0.2.2
+  webview_windows: ^0.4.0
 
 dev_dependencies:
   flutter_test:
