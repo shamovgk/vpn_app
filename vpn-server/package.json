@@ -17,6 +17,7 @@
     "nodemailer": "^7.0.5",
     "express-session": "^1.18.1",
     "yookassa": "^0.1.1",
-    "ejs": "^3.1.10"
+    "ejs": "^3.1.10",
+    "dotenv": "^17.2.0"
   }
 }

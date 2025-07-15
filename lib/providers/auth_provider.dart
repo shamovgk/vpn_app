@@ -359,15 +359,18 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> removeDevice(String deviceToken) async {
-    if (_token == null) throw Exception('Не авторизован');
+    if (_token == null || _username == null) throw Exception('Не авторизован');
+    if (_deviceToken == deviceToken) {
+      throw Exception('Нельзя удалить текущее устройство');
+    }
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/remove-device'),
         headers: {..._headers, 'Authorization': 'Bearer $_token'},
-        body: jsonEncode({'user_id': _username, 'device_token': deviceToken}),
+        body: jsonEncode({'user_id': _username, 'device_token': deviceToken, 'trigger_logout': true}),
       );
       if (response.statusCode == 200) {
-        _deviceCount--; // Уменьшаем локальный счётчик
+        _deviceCount--;
         notifyListeners();
       } else {
         throw Exception('Ошибка удаления устройства: ${response.body}');

@@ -65,7 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       await authProvider.removeDevice(deviceToken);
-      await _fetchDevices(); 
+      await _fetchDevices();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Устройство успешно удалено')),
       );
@@ -80,6 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final currentDeviceToken = authProvider.deviceToken;
 
     return Container(
       decoration: const BoxDecoration(
@@ -157,18 +158,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           itemCount: _devices.length,
                           itemBuilder: (context, index) {
                             final device = _devices[index];
+                            final isCurrentDevice = device['device_token'] == currentDeviceToken;
                             return ListTile(
                               title: Text(
                                 'Устройство ${index + 1} (${device['device_token'].substring(0, 8)}...)',
-                                style: theme.textTheme.bodyMedium,),
+                                style: theme.textTheme.bodyMedium,
+                              ),
                               subtitle: Text(
                                 '${device['device_model']} (${device['device_os']})\nПоследнее подключение: ${device['last_seen']}',
-                                style: theme.textTheme.bodyMedium,),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _removeDevice(device['device_token']),
-                                tooltip: 'Удалить устройство',
+                                style: theme.textTheme.bodyMedium,
                               ),
+                              trailing: isCurrentDevice
+                                  ? const Icon(Icons.block, color: Colors.grey)
+                                  : IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _removeDevice(device['device_token']),
+                                      tooltip: 'Удалить устройство',
+                                    ),
                             );
                           },
                         ),
