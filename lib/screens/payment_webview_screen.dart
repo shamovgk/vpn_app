@@ -83,25 +83,62 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   }
 
   Widget _buildMethodSelection() {
+    final theme = Theme.of(context);
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton(
-            onPressed: () => _fetchPaymentUrl('bank_card'),
-            child: const Text('Оплатить через карту'),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () => _fetchPaymentUrl('sberbank'),
-            child: const Text('Оплатить через СберПей'),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () => _fetchPaymentUrl('sbp'),
-            child: const Text('Оплатить через СБП'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => _fetchPaymentUrl('bank_card'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  textStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                  elevation: 2,
+                ),
+                child: Text('Оплатить через карту', style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => _fetchPaymentUrl('sberbank'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  textStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                  elevation: 2,
+                ),
+                child: Text('Оплатить через СберПей', style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => _fetchPaymentUrl('sbp'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  textStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                  elevation: 2,
+                ),
+                child: Text('Оплатить через СБП', style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -125,20 +162,28 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.black,
-        image: DecorationImage(
+      decoration: BoxDecoration(
+        color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
+        image: const DecorationImage(
           image: AssetImage('assets/background.png'),
           fit: BoxFit.fitWidth,
-          opacity: 0.7,
-          alignment: Alignment(0, -0.9),
+          opacity: 0.3,
+          alignment: Alignment(0, 0.1),
         ),
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: const Text('Оплата подписки'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+          title: Text(
+            'Оплата подписки',
+            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+          ),
           centerTitle: true,
           backgroundColor: Colors.transparent,
           elevation: 0,

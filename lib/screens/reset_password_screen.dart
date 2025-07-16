@@ -110,11 +110,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        image: DecorationImage(
+      decoration: BoxDecoration(
+        color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
+        image: const DecorationImage(
           image: AssetImage('assets/background.png'),
           fit: BoxFit.fitWidth,
-          opacity: 0.7,
+          opacity: 0.3,
+          alignment: Alignment(0, 0.1),
         ),
       ),
       child: Scaffold(
