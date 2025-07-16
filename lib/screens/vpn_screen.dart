@@ -97,10 +97,12 @@ class VpnScreenState extends State<VpnScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
+        color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
         image: const DecorationImage(
           image: AssetImage('assets/background.png'),
           fit: BoxFit.fitWidth,
+          opacity: 0.3,
+          alignment: Alignment(0, 0.1), // чуть выше центра (примерно 2px)
         ),
       ),
       child: PopScope(
@@ -229,7 +231,10 @@ class VpnScreenState extends State<VpnScreen> {
           ),
           body: SafeArea(
             child: Center(
-              child: AnimationButton(key: _animationButtonKey),
+              child: Transform.translate(
+                offset: const Offset(0, -18.5), // 2px (фон) + 5px = 7px вверх
+                child: AnimationButton(key: _animationButtonKey),
+              ),
             ),
           ),
         ),
