@@ -1,4 +1,4 @@
-require('express-async-errors');
+// require('express-async-errors');
 const express = require('express');
 const helmet = require('helmet');
 const csurf = require('csurf');
@@ -16,6 +16,7 @@ const authRoutes = require('./routes/authRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const vpnRoutes = require('./routes/vpnRoutes');
 
 // === Database connection and models ===
 const db = new sqlite3.Database(config.dbPath, (err) => {
@@ -78,6 +79,7 @@ app.use('/auth', authRoutes);
 app.use('/devices', deviceRoutes);
 app.use('/admin', adminRoutes);
 app.use('/pay', paymentRoutes);
+app.use('/vpn', vpnRoutes);
 
 // === Healthcheck endpoint (для мониторинга) ===
 app.get('/healthz', (req, res) => {
