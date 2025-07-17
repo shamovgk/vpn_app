@@ -1,18 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const deviceController = require('../controllers/deviceController');
+const validate = require('../middlewares/validate');
+const { addDeviceSchema, removeDeviceSchema } = require('../schemas/deviceSchemas');
 
-router.post('/add-device', (req, res, next) => {
-  req.db = req.app.get('db');
-  deviceController.addDevice(req, res);
-});
-router.post('/remove-device', (req, res, next) => {
-  req.db = req.app.get('db');
-  deviceController.removeDevice(req, res);
-});
-router.get('/get-devices', (req, res, next) => {
-  req.db = req.app.get('db');
-  deviceController.getDevices(req, res);
-});
+const withDb = require('../middlewares/withDb');
+router.use(withDb);
+
+router.post('/add-device', validate(addDeviceSchema), deviceController.addDevice);
+router.post('/remove-device', validate(removeDeviceSchema), deviceController.removeDevice);
+router.get('/get-devices', deviceController.getDevices);
 
 module.exports = router;

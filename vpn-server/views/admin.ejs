@@ -1,7 +1,7 @@
-<h1>Admin Panel</h1>
+<h1>Пользователи</h1>
 <div class="search-box">
-  <input type="text" id="searchUsername" placeholder="Enter username" style="padding: 5px;" onkeyup="searchUsers()">
-  <button onclick="searchUsers()">Search</button>
+  <input type="text" id="searchUsername" placeholder="Поиск по username" style="padding: 5px;" onkeyup="searchUsers()">
+  <button class="btn" onclick="searchUsers()">Поиск</button>
 </div>
 <% if (users && users.length > 0) { %>
   <table id="usersTable">
@@ -14,7 +14,7 @@
         <th>Is Paid</th>
         <th>Trial End Date</th>
         <th>Device Count</th>
-        <th>Actions</th>
+        <th>Действия</th>
       </tr>
     </thead>
     <tbody>
@@ -23,28 +23,28 @@
           <td><%= user.id %></td>
           <td><%= user.username %></td>
           <td><%= user.email %></td>
-          <td><%= user.email_verified ? 'Yes' : 'No' %></td>
+          <td><%= user.email_verified ? 'Да' : 'Нет' %></td>
           <td>
             <input type="checkbox" onchange="updateUser('<%= user.id %>', 'is_paid', this.checked)" <%= user.is_paid ? 'checked' : '' %>>
           </td>
           <td>
-            <input type="date" onchange="updateUser('<%= user.id %>', 'trial_end_date', this.value)" value="<%= user.trial_end_date || '' %>">
+            <input type="date" onchange="updateUser('<%= user.id %>', 'trial_end_date', this.value)" value="<%= user.trial_end_date ? user.trial_end_date.split('T')[0] : '' %>">
           </td>
           <td><%= user.device_count %></td>
-          <td><button class="edit-btn" onclick="editUser('<%= user.id %>')">Edit</button></td>
+          <td>
+            <button class="edit-btn btn" onclick="editUser('<%= user.id %>')">Edit</button>
+          </td>
         </tr>
       <% }) %>
     </tbody>
   </table>
 <% } else { %>
-  <p>No users found.</p>
+  <p>Пользователи не найдены.</p>
 <% } %>
-<a href="/admin/stats">View Statistics</a>
-<button onclick="logout()">Logout</button>
 <script>
   function searchUsers() {
     const username = document.getElementById('searchUsername').value;
-    fetch(`/admin/users/search?username=${username}`)
+    fetch(`/admin/users/search?username=${encodeURIComponent(username)}`)
       .then(res => res.json())
       .then(users => {
         const tbody = document.querySelector('#usersTable tbody');
@@ -56,33 +56,33 @@
               <td>${user.id}</td>
               <td>${user.username}</td>
               <td>${user.email}</td>
-              <td>${user.email_verified ? 'Yes' : 'No'}</td>
+              <td>${user.email_verified ? 'Да' : 'Нет'}</td>
               <td><input type="checkbox" onchange="updateUser('${user.id}', 'is_paid', this.checked)" ${user.is_paid ? 'checked' : ''}></td>
-              <td><input type="date" onchange="updateUser('${user.id}', 'trial_end_date', this.value)" value="${user.trial_end_date || ''}"></td>
+              <td><input type="date" onchange="updateUser('${user.id}', 'trial_end_date', this.value)" value="${user.trial_end_date ? user.trial_end_date.split('T')[0] : ''}"></td>
               <td>${user.device_count}</td>
-              <td><button class="edit-btn" onclick="editUser('${user.id}')">Edit</button></td>
+              <td><button class="edit-btn btn" onclick="editUser('${user.id}')">Edit</button></td>
             `;
             tbody.appendChild(row);
           });
         } else {
-          tbody.innerHTML = '<tr><td colspan="8">No matching users.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8">Нет совпадений.</td></tr>';
         }
       })
-      .catch(err => console.error('Search fetch error:', err));
+      .catch(err => alert('Ошибка поиска: ' + err));
   }
 
   function updateUser(id, field, value) {
     fetch(`/admin/users/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
       body: JSON.stringify({ [field]: field === 'is_paid' ? (value ? 1 : 0) : value })
     })
     .then(res => res.json())
     .then(data => alert(data.message))
-    .catch(err => console.error('Update error:', err));
+    .catch(err => alert('Ошибка обновления: ' + err));
   }
 
   function editUser(id) {
-    alert(`Editing user with ID: ${id}`);
+    alert(`Редактирование пользователя: ${id}`);
   }
 </script>

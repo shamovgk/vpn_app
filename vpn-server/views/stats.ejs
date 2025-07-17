@@ -1,13 +1,13 @@
-<h1>Admin Statistics</h1>
+<h1>Статистика пользователей</h1>
 <% if (userActivity && userActivity.length > 0) { %>
   <table id="statsTable">
     <thead>
       <tr>
         <th>Username</th>
-        <th>Active Users (Last 30 Days)</th>
-        <th>Paid Users</th>
-        <th>Trial Users</th>
-        <th>Registrations (Last 30 Days)</th>
+        <th>Активны (30д)</th>
+        <th>Платных</th>
+        <th>На пробном</th>
+        <th>Регистраций (30д)</th>
         <th>Email Verified %</th>
       </tr>
     </thead>
@@ -25,7 +25,5 @@
     </tbody>
   </table>
 <% } else { %>
-  <p>No statistics available.</p>
+  <p>Нет данных для отображения.</p>
 <% } %>
-<a href="/admin">Back to Admin Panel</a>
-<button onclick="logout()">Logout</button>

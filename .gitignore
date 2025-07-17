@@ -9,6 +9,8 @@
 .history
 .svn/
 migrate_working_dir/
+logs/*
+!logs/.gitkeep
 
 # IntelliJ related
 *.iml
@@ -76,7 +78,7 @@ web/build/
 
 # Environment variables and secrets
 .env
-.env.*
+.env.
 *.key
 *.pem
 *.cert
