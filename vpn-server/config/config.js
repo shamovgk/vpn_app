@@ -11,16 +11,20 @@ module.exports.config = {
     cookie: { secure: process.env.NODE_ENV === 'production' }
   },
   yooKassa: {
-    shopId: process.env.YOOKASSA_SHOP_ID || 'crhsnk',
-    secretKey: process.env.YOOKASSA_SECRET_KEY || 'crhsnj'
+    shopId: process.env.YOOKASSA_SHOPID || process.env.YOOKASSA_SHOP_ID || '',
+    secretKey: process.env.YOOKASSA_SECRETKEY || process.env.YOOKASSA_SECRET_KEY || ''
   },
   smtp: {
-    host: 'smtp.gmail.com',
-    port: 587,
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
     secure: false,
     auth: {
-      user: process.env.SMTP_USER || 'UgbuganSoft@gmail.com',
-      pass: process.env.SMTP_PASS || 'ohkr jgtg unce hjuc'
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || ''
     }
+  },
+  cors: {
+    origin: (process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean),
+    credentials: true
   }
 };

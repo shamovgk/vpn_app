@@ -1,23 +1,42 @@
 {
-  "name": "database",
+  "name": "vpn-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "VPN backend на Node.js + Express + SQLite + WireGuard",
   "main": "index.js",
- "scripts": {
-    "start": "node index.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "lint": "eslint ."
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "express": "^5.1.0",
-    "sqlite3": "^5.1.7",
-    "nodemailer": "^7.0.5",
-    "express-session": "^1.18.1",
-    "yookassa": "^0.1.1",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "csurf": "^1.11.0",
+    "dotenv": "^16.3.1",
     "ejs": "^3.1.10",
-    "dotenv": "^17.2.0"
-  }
+    "express": "^5.1.0",
+    "express-ejs-layouts": "^2.5.1",
+    "express-session": "^1.18.1",
+    "express-rate-limit": "^7.0.0",
+    "express-async-errors": "^3.1.1",
+    "helmet": "^7.0.0",
+    "joi": "^17.11.0",
+    "nodemailer": "^7.0.5",
+    "sqlite3": "^5.1.7",
+    "yookassa": "^0.1.1",
+    "winston": "^3.9.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  },
+  "keywords": [
+    "vpn",
+    "nodejs",
+    "express",
+    "sqlite",
+    "wireguard"
+  ],
+  "author": "UgbuganVPN",
+  "license": "ISC"
 }

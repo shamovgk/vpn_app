@@ -1,99 +1,121 @@
-function addDevice(req, res) {
+const logger = require('../logger');
+
+exports.addDevice = async (req, res) => {
   const { user_id, device_token, device_model, device_os } = req.body;
-  req.db.get(
-    `SELECT device_count, subscription_level FROM Users WHERE id = ?`,
-    [user_id],
-    (err, user) => {
-      if (err || !user) return res.status(404).json({ error: 'User not found' });
-      const maxDevices = user.subscription_level === 1 ? 6 : 3;
-      if (user.device_count >= maxDevices) return res.status(400).json({ error: `Maximum device limit (${maxDevices}) reached` });
+  const db = req.db;
 
-      req.db.run(
-        `INSERT INTO Devices (user_id, device_token, device_model, device_os, last_seen) VALUES (?, ?, ?, ?, ?)`,
-        [user_id, device_token, device_model || 'Unknown Model', device_os || 'Unknown OS', new Date().toISOString()],
-        (err) => {
-          if (err) return res.status(400).json({ error: err.message });
-          req.db.run(
-            `UPDATE Users SET device_count = device_count + 1 WHERE id = ?`,
-            [user_id],
-            (err) => {
-              if (err) return res.status(500).json({ error: err.message });
-              res.json({ message: 'Device added successfully' });
-            }
-          );
-        }
-      );
-    }
+  const user = await new Promise((resolve, reject) =>
+    db.get(`SELECT device_count, subscription_level FROM Users WHERE id = ?`, [user_id],
+      (err, user) => err ? reject(err) : resolve(user))
   );
-}
+  if (!user) {
+    logger.warn('Add device to non-existent user', { userId: user_id });
+    throw new Error('User not found');
+  }
+  const maxDevices = user.subscription_level === 1 ? 6 : 3;
+  if (user.device_count >= maxDevices) {
+    logger.warn('Device add failed: limit reached', { userId: user_id, device_token });
+    throw new Error(`Maximum device limit (${maxDevices}) reached`);
+  }
 
-function removeDevice(req, res) {
+  await new Promise((resolve, reject) =>
+    db.run(
+      `INSERT INTO Devices (user_id, device_token, device_model, device_os, last_seen) VALUES (?, ?, ?, ?, ?)`,
+      [user_id, device_token, device_model || 'Unknown Model', device_os || 'Unknown OS', new Date().toISOString()],
+      err => err ? reject(err) : resolve()
+    )
+  );
+  await new Promise((resolve, reject) =>
+    db.run(
+      `UPDATE Users SET device_count = device_count + 1 WHERE id = ?`,
+      [user_id],
+      err => err ? reject(err) : resolve()
+    )
+  );
+  logger.info('Device added', { userId: user_id, device_token });
+  res.json({ message: 'Device added successfully' });
+};
+
+exports.removeDevice = async (req, res) => {
   const { user_id, device_token, trigger_logout } = req.body;
-  if (!user_id || !device_token) return res.status(400).json({ error: 'user_id and device_token are required' });
+  if (!user_id || !device_token) throw new Error('user_id and device_token are required');
+  const db = req.db;
 
-  req.db.get(
-    `SELECT device_count, subscription_level FROM Users WHERE id = ?`,
-    [user_id],
-    (err, user) => {
-      if (err || !user) return res.status(404).json({ error: 'User not found' });
-
-      req.db.run(
-        `DELETE FROM Devices WHERE user_id = ? AND device_token = ?`,
-        [user_id, device_token],
-        (err) => {
-          if (err) return res.status(400).json({ error: err.message });
-          if (this.changes === 0) return res.status(404).json({ error: 'Device not found' });
-          req.db.run(
-            `UPDATE Users SET device_count = device_count - 1 WHERE id = ?`,
-            [user_id],
-            (err) => {
-              if (err) return res.status(500).json({ error: err.message });
-              if (trigger_logout) {
-                req.db.get(
-                  `SELECT auth_token FROM Users WHERE id = ?`,
-                  [user_id],
-                  (err, userData) => {
-                    if (err || !userData || !userData.auth_token) console.error('Error fetching auth token for logout:', err?.message);
-                    else {
-                      req.db.run(
-                        `UPDATE Users SET auth_token = NULL, token_expiry = NULL WHERE auth_token = ?`,
-                        [userData.auth_token],
-                        (err) => { if (err) console.error('Logout error during device removal:', err.message); }
-                      );
-                    }
-                  }
-                );
-              }
-              res.json({ message: 'Device removed successfully' });
-            }
-          );
-        }
-      );
-    }
+  const user = await new Promise((resolve, reject) =>
+    db.get(`SELECT device_count, subscription_level FROM Users WHERE id = ?`, [user_id],
+      (err, user) => err ? reject(err) : resolve(user))
   );
-}
+  if (!user) {
+    logger.warn('Remove device from non-existent user', { userId: user_id });
+    throw new Error('User not found');
+  }
 
-function getDevices(req, res) {
+  const result = await new Promise((resolve, reject) =>
+    db.run(
+      `DELETE FROM Devices WHERE user_id = ? AND device_token = ?`,
+      [user_id, device_token],
+      function (err) { err ? reject(err) : resolve(this.changes); }
+    )
+  );
+  if (result === 0) {
+    logger.warn('Remove non-existent device', { userId: user_id, device_token });
+    throw new Error('Device not found');
+  }
+
+  await new Promise((resolve, reject) =>
+    db.run(
+      `UPDATE Users SET device_count = device_count - 1 WHERE id = ?`,
+      [user_id],
+      err => err ? reject(err) : resolve()
+    )
+  );
+
+  if (trigger_logout) {
+    const userData = await new Promise((resolve, reject) =>
+      db.get(
+        `SELECT auth_token FROM Users WHERE id = ?`,
+        [user_id],
+        (err, row) => err ? reject(err) : resolve(row)
+      )
+    );
+    if (userData && userData.auth_token) {
+      await new Promise((resolve, reject) =>
+        db.run(
+          `UPDATE Users SET auth_token = NULL, token_expiry = NULL WHERE auth_token = ?`,
+          [userData.auth_token],
+          err => err ? reject(err) : resolve()
+        )
+      );
+      logger.info('Device removed with forced logout', { userId: user_id });
+    }
+  }
+  logger.info('Device removed', { userId: user_id, device_token });
+  res.json({ message: 'Device removed successfully' });
+};
+
+exports.getDevices = async (req, res) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(400).json({ error: 'Token is required' });
-
+  if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Token is required');
   const token = authHeader.split(' ')[1];
-  req.db.get(
-    `SELECT id FROM Users WHERE auth_token = ? AND token_expiry > ?`,
-    [token, new Date().toISOString()],
-    (err, user) => {
-      if (err || !user) return res.status(401).json({ error: 'Invalid or expired token' });
+  const db = req.db;
 
-      req.db.all(
-        `SELECT id, device_token, device_model, device_os, last_seen FROM Devices WHERE user_id = ?`,
-        [user.id],
-        (err, devices) => {
-          if (err) return res.status(500).json({ error: 'Internal server error' });
-          res.json(devices);
-        }
-      );
-    }
+  const user = await new Promise((resolve, reject) =>
+    db.get(
+      `SELECT id FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+      [token, new Date().toISOString()],
+      (err, user) => err ? reject(err) : resolve(user))
   );
-}
+  if (!user) {
+    logger.warn('Get devices failed: invalid/expired token', { token });
+    throw new Error('Invalid or expired token');
+  }
 
-module.exports = { addDevice, removeDevice, getDevices };
+  const devices = await new Promise((resolve, reject) =>
+    db.all(
+      `SELECT id, device_token, device_model, device_os, last_seen FROM Devices WHERE user_id = ?`,
+      [user.id],
+      (err, devices) => err ? reject(err) : resolve(devices))
+  );
+  logger.info('Device list retrieved', { userId: user.id, deviceCount: devices.length });
+  res.json(devices);
+};
