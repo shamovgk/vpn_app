@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:vpn_app/providers/auth_provider.dart';
-import 'package:logger/logger.dart';
-import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/login_screen.dart';
-
-final logger = Logger();
 
 class ResetPasswordScreen extends StatefulWidget {
   final String username;
-
   const ResetPasswordScreen({super.key, required this.username});
 
   @override
@@ -30,80 +25,46 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _resetPassword() async {
-    if (_isLoading || !_formKey.currentState!.validate()) return;
-
+    if (!_formKey.currentState!.validate() || _isLoading) return;
     setState(() => _isLoading = true);
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final username = widget.username.trim();
-    final resetCode = _resetCodeController.text.trim();
-    final newPassword = _newPasswordController.text.trim();
+    await authProvider.resetPassword(
+      widget.username.trim(),
+      _resetCodeController.text.trim(),
+      _newPasswordController.text.trim(),
+    );
 
-    logger.i('Attempting reset: username=$username, resetCode=$resetCode, newPassword length=${newPassword.length}');
+    if (!mounted) return;
 
-    try {
-      await authProvider.resetPassword(username, resetCode, newPassword);
-      if (!mounted) return;
-      final customColors = Theme.of(context).extension<CustomColors>()!;
+    if (authProvider.errorMessage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Пароль успешно сброшен'),
-          backgroundColor: customColors.success,
+          backgroundColor: Colors.green[700],
           duration: const Duration(seconds: 3),
         ),
       );
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (Route<dynamic> route) => false,
+        (route) => false,
       );
-    } catch (e) {
-      if (!mounted) return;
-      final customColors = Theme.of(context).extension<CustomColors>()!;
-      if (e.toString().contains('Неверный или истёкший код восстановления')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Неверный или истёкший код восстановления'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Все поля обязательны')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Заполните все поля (логин, код и новый пароль)'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Пользователь не найден')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Пользователь не найден'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Не удалось обновить пароль')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Не удалось обновить пароль'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Произошла ошибка при сбросе пароля'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-      logger.e('Reset password error: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    } else {
+      _showErrorSnackbar(authProvider.errorMessage!);
     }
+    setState(() => _isLoading = false);
+  }
+
+  void _showErrorSnackbar(String message) {
+    final theme = Theme.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: theme.colorScheme.error,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -176,10 +137,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ElevatedButton(
                     onPressed: _isLoading ? null : _resetPassword,
                     style: theme.elevatedButtonTheme.style,
-                    child: Text(
-                      'Сбросить пароль',
-                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            'Сбросить пароль',
+                            style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
                   ),
                 ],
               ),
