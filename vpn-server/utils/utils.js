@@ -23,8 +23,8 @@ function generateVerificationCode(meta = {}) {
 }
 
 async function generateVpnKey(userId, db) {
-  const scriptPath = '/vpn-server/scripts/generate_vpn_key.sh';
-  const configScriptPath = '/vpn-server/scripts/add_to_wg_conf.sh';
+  const scriptPath = __dirname + '/../scripts/generate_vpn_key.sh';
+  const configScriptPath = __dirname + '/../scripts/add_to_wg_conf.sh';
 
   try {
     const { privateKey } = await executeScript(scriptPath);
