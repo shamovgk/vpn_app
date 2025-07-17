@@ -1,16 +1,14 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:vpn_app/main.dart';
 import 'package:wireguard_flutter/wireguard_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wireguard_flutter/wireguard_flutter_platform_interface.dart';
 import 'package:logger/logger.dart';
-import 'package:provider/provider.dart';
-import '../services/tray_manager.dart';
-import '../providers/auth_provider.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:io' show Platform;
+import '../services/tray_manager.dart';
+import '../models/vpn_config.dart';
 
 final logger = Logger();
 
@@ -21,7 +19,6 @@ class VpnProvider with ChangeNotifier {
   final Completer<void> _initializationCompleter = Completer<void>();
   static const String _tunnelName = 'vpn_app_tunnel';
 
-  // Геттеры
   bool get isConnecting => _isConnecting;
   bool get isConnected => _isConnected;
   WireGuardFlutterInterface? get wireguard => _wireguard;
@@ -30,24 +27,21 @@ class VpnProvider with ChangeNotifier {
     _initializeWireGuard();
   }
 
-  // Утилитарные методы
   Future<void> _initializeWireGuard() async {
     logger.i('Starting WireGuard initialization...');
     if (_wireguard != null) {
       logger.i('WireGuard already initialized');
-      _initializationCompleter.complete();
+      if (!_initializationCompleter.isCompleted) _initializationCompleter.complete();
       return;
     }
-
     try {
       _wireguard = WireGuardFlutter.instance;
-      logger.i('Instance retrieved: $_wireguard');
       await _wireguard!.initialize(interfaceName: _tunnelName);
-      logger.i('WireGuard initialized with $_tunnelName');
       await _clearTempFiles();
-      _initializationCompleter.complete();
+      if (!_initializationCompleter.isCompleted) _initializationCompleter.complete();
+      logger.i('WireGuard initialized successfully');
     } catch (e) {
-      _initializationCompleter.completeError(e);
+      if (!_initializationCompleter.isCompleted) _initializationCompleter.completeError(e);
       logger.e('Error initializing WireGuard: $e');
       rethrow;
     }
@@ -58,111 +52,88 @@ class VpnProvider with ChangeNotifier {
       final tempDir = await getTemporaryDirectory();
       final tempFiles = tempDir.listSync().where((file) => file.path.contains('wg_'));
       for (var file in tempFiles) {
-        logger.i('Deleting temp file: ${file.path}');
         try {
           await file.delete();
-        } catch (e) {
-          logger.w('Failed to delete temp file ${file.path}: $e');
-        }
+        } catch (_) {}
       }
-      logger.i('Temp files cleared successfully');
-    } catch (e) {
-      logger.e('Error clearing temp files: $e');
-    }
+    } catch (_) {}
   }
 
-  Future<Map<String, dynamic>> _fetchVpnConfig(String baseUrl, String? token) async {
-    if (token == null) {
-      logger.e('Token is null, authentication required');
-      throw Exception('Authentication required');
-    }
-
-    logger.i('Requesting VPN config from $baseUrl/get-vpn-config with token: Bearer $token');
+  Future<VpnConfig> _fetchVpnConfig(String baseUrl, String token) async {
+    logger.i('Запрос WireGuard-конфига');
     final response = await http.get(
-      Uri.parse('$baseUrl/get-vpn-config'),
+      Uri.parse('$baseUrl/vpn/get-vpn-config'),
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
       final config = jsonDecode(response.body);
-      if (config is Map<String, dynamic> &&
-          config.containsKey('clientPrivateKey') &&
-          config.containsKey('serverPublicKey') &&
-          config.containsKey('serverAddress') &&
-          config.containsKey('clientIp')) {
-        logger.i('Received config: $config');
-        return config;
-      } else {
-        logger.e('Invalid configuration: missing required fields - $config');
-        throw Exception('Invalid configuration: missing required fields');
-      }
+      return VpnConfig.fromJson(config);
     } else {
-      logger.e('Error fetching config: ${response.statusCode} - ${response.body}');
-      throw Exception('Ошибка получения конфигурации: ${response.body}');
+      throw Exception('Ошибка получения WireGuard-конфига: ${response.body}');
     }
   }
 
-  String _buildConfig(Map<String, dynamic> configData) {
+  String _buildConfig(VpnConfig config) {
     return '''
-    [Interface]
-    PrivateKey = ${configData['clientPrivateKey']}
-    Address = ${configData['clientIp']}
-    DNS = 8.8.8.8, 1.1.1.1
+[Interface]
+PrivateKey = ${config.privateKey}
+Address = ${config.address}
+DNS = ${config.dns}
 
-    [Peer]
-    PublicKey = ${configData['serverPublicKey']}
-    Endpoint = ${configData['serverAddress']}
-    AllowedIPs = 0.0.0.0/0
-    ''';
+[Peer]
+PublicKey = ${config.serverPublicKey}
+Endpoint = ${config.endpoint}
+AllowedIPs = ${config.allowedIps}
+''';
   }
 
-  // Публичные методы
-  Future<void> connect() async {
+  Future<void> connect({
+    required String baseUrl,
+    required String token,
+    required bool isPaid,
+    required String? trialEndDate,
+    required int deviceCount,
+    required int subscriptionLevel,
+  }) async {
+    await _initializationCompleter.future;
+    final int maxDevices = subscriptionLevel == 1 ? 6 : 3;
+    if (deviceCount > maxDevices) {
+      throw Exception('Достигнут лимит устройств: $deviceCount/$maxDevices');
+    }
+    if (trialEndDate != null) {
+      final trialEnd = DateTime.tryParse(trialEndDate);
+      if (!isPaid && trialEnd != null && trialEnd.isBefore(DateTime.now())) {
+        throw Exception('Срок действия пробного периода истёк');
+      }
+    } else if (!isPaid) {
+      throw Exception('Подключение заблокировано: требуется оплата подписки');
+    }
+    if (_wireguard == null) {
+      await _initializeWireGuard();
+      if (_wireguard == null) throw Exception('Не удалось инициализировать WireGuard');
+    }
+    _isConnecting = true;
+    notifyListeners();
     try {
-      await _initializationCompleter.future;
-      final authProvider = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
-      if (!authProvider.isAuthenticated || authProvider.token == null) {
-        await authProvider.checkAuthStatus();
-        if (!authProvider.isAuthenticated || authProvider.token == null) {
-          throw Exception('Не авторизован или отсутствует токен');
-        }
-      }
-
-      if (authProvider.trialEndDate != null) {
-        final trialEnd = DateTime.parse(authProvider.trialEndDate!);
-        if (!authProvider.isPaid && trialEnd.isBefore(DateTime.now())) {
-          throw Exception('Срок действия пробного периода истёк');
-        }
-      } else if (!authProvider.isPaid) {
-        throw Exception('Подключение заблокировано: требуется оплата подписки');
-      }
-
-      if (_wireguard == null) {
-        await _initializeWireGuard();
-        if (_wireguard == null) throw Exception('Failed to initialize WireGuard');
-      }
-
-      _isConnecting = true;
-      notifyListeners();
-
       final stage = await _wireguard!.stage();
       if (stage == VpnStage.connected) {
         await _wireguard!.stopVpn();
         await Future.delayed(const Duration(seconds: 2));
       }
-
       await _clearTempFiles();
-      final configData = await _fetchVpnConfig(AuthProvider.baseUrl, authProvider.token);
-      final config = _buildConfig(configData);
+      final configData = await _fetchVpnConfig(baseUrl, token);
+      final configText = _buildConfig(configData);
 
       await _wireguard!.startVpn(
-        serverAddress: configData['serverAddress'],
-        wgQuickConfig: config,
+        serverAddress: configData.endpoint,
+        wgQuickConfig: configText,
         providerBundleIdentifier: 'com.shamovgk.vpn_app',
       );
       _isConnected = true;
+      logger.i('VPN подключен');
     } catch (e) {
       _isConnected = false;
-      logger.e('Connection error: $e');
+      logger.e('Ошибка подключения VPN: $e');
       rethrow;
     } finally {
       _isConnecting = false;
@@ -174,18 +145,15 @@ class VpnProvider with ChangeNotifier {
   }
 
   Future<void> disconnect() async {
-    if (_wireguard == null) {
-      logger.w('WireGuard not initialized, skipping disconnect');
-      return;
-    }
-
+    if (_wireguard == null) return;
     _isConnecting = true;
     notifyListeners();
     try {
       await _wireguard!.stopVpn();
       _isConnected = false;
+      logger.i('VPN отключён');
     } catch (e) {
-      logger.e('Disconnect error: $e');
+      logger.e('Ошибка при отключении: $e');
       rethrow;
     } finally {
       _isConnecting = false;
@@ -196,13 +164,18 @@ class VpnProvider with ChangeNotifier {
     }
   }
 
-  bool isConnectionAllowed() {
-    final authProvider = Provider.of<AuthProvider>(navigatorKey.currentContext!, listen: false);
-    if (authProvider.trialEndDate != null) {
-      final trialEnd = DateTime.parse(authProvider.trialEndDate!);
-      return authProvider.isPaid || (!authProvider.isPaid && trialEnd.isAfter(DateTime.now()));
+  bool isConnectionAllowed({
+    required bool isPaid,
+    required String? trialEndDate,
+    required int deviceCount,
+    required int subscriptionLevel,
+  }) {
+    final int maxDevices = subscriptionLevel == 1 ? 6 : 3;
+    if (trialEndDate != null) {
+      final trialEnd = DateTime.tryParse(trialEndDate);
+      return isPaid || (!isPaid && trialEnd != null && trialEnd.isAfter(DateTime.now()));
     }
-    return authProvider.isPaid && authProvider.deviceCount < (authProvider.subscriptionLevel == 1 ? 6 : 3); // Проверка лимита устройств
+    return isPaid && deviceCount < maxDevices;
   }
 
   @override

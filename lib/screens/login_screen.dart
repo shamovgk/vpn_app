@@ -4,12 +4,7 @@ import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/vpn_screen.dart';
 import 'package:vpn_app/screens/register_screen.dart';
-import 'package:logger/logger.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:vpn_app/screens/reset_password_screen.dart';
-
-final logger = Logger();
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,9 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
-  int _failedAttempts = 0;
-  bool _showForgotPassword = false;
   bool _isPasswordVisible = false;
 
   @override
@@ -35,185 +27,51 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (_isLoading || !_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    try {
-      await authProvider.login(_usernameController.text, _passwordController.text);
-      if (!mounted) return;
+    if (!_formKey.currentState!.validate()) return;
 
-      setState(() {
-        _failedAttempts = 0;
-        _showForgotPassword = false;
-      });
+    await authProvider.login(
+      _usernameController.text.trim(),
+      _passwordController.text,
+    );
 
+    if (!mounted) return;
+
+    if (authProvider.isLoggedIn) {
+      // Успешный вход — переход на VPN-экран
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const VpnScreen()),
-        (Route<dynamic> route) => false,
+        (route) => false,
       );
-    } catch (e) {
-      if (!mounted) return;
-
-      _failedAttempts++;
-      logger.i('Login error: $e');
-      if (_failedAttempts == 1 && (e.toString().contains('Неверный пароль') || e.toString().contains('Invalid password') || e.toString().contains('401'))) {
-        setState(() => _showForgotPassword = true);
-      }
-
-      final customColors = Theme.of(context).extension<CustomColors>()!;
-      if (e.toString().contains('Логин и пароль обязательны')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Логин и пароль обязательны'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Пользователь не найден')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Пользователь не найден'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Неверный пароль') || e.toString().contains('Invalid password')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Неверный логин или пароль'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Срок действия пробного периода истёк')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Срок действия пробного периода истёк, требуется оплата'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Достигнут лимит устройств')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Достигнут лимит устройств, удалите устройство или обновите подписку'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Не удалось обновить токен авторизации')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Не удалось обновить токен авторизации'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Внутренняя ошибка сервера')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Ошибка сервера, попробуйте позже'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Произошла неизвестная ошибка'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    } else if (authProvider.errorMessage != null) {
+      _showErrorSnackbar(authProvider.errorMessage!);
     }
   }
 
-  Future<void> _resetPassword() async {
+  void _showErrorSnackbar(String message) {
+    final theme = Theme.of(context);
+    final customColors = theme.extension<CustomColors>();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: customColors?.warning ?? theme.colorScheme.error,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _resetPasswordFlow() {
     final username = _usernameController.text.trim();
     if (username.isEmpty) {
-      final customColors = Theme.of(context).extension<CustomColors>();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Введите логин для восстановления'),
-          backgroundColor: customColors?.warning,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      _showErrorSnackbar('Введите логин для восстановления');
       return;
     }
-
-    setState(() => _isLoading = true);
-    try {
-      final response = await http.post(
-        Uri.parse('${AuthProvider.baseUrl}/forgot-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username}),
-      );
-      if (response.statusCode == 200) {
-        if (mounted) {
-          final customColors = Theme.of(context).extension<CustomColors>();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Инструкции по восстановлению отправлены на ваш email'),
-              backgroundColor: customColors?.info,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-        if (!mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ResetPasswordScreen(username: username)),
-        );
-      } else {
-        throw Exception('Ошибка отправки: ${response.body}');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      final customColors = Theme.of(context).extension<CustomColors>()!;
-      if (e.toString().contains('Пользователь с таким логином не найден')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Пользователь с таким логином не найден'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Не удалось сгенерировать код восстановления')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Не удалось сгенерировать код восстановления'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Не удалось отправить email с инструкциями')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Не удалось отправить email с инструкциями'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Произошла ошибка при запросе восстановления'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-      logger.e('Reset password error: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ResetPasswordScreen(username: username)),
+    );
   }
 
   void _navigateToRegister() {
@@ -227,6 +85,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+
     return Container(
       decoration: BoxDecoration(
         color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
@@ -302,25 +162,34 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-                    if (_showForgotPassword)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
+                    // "Забыли пароль?" — теперь всегда видно
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Align(
+                        alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: _resetPassword,
+                          onPressed: _resetPasswordFlow,
                           child: Text(
                             'Забыли пароль?',
                             style: TextStyle(color: theme.colorScheme.primary),
                           ),
                         ),
                       ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Устройства: ${authProvider.deviceCount}/${authProvider.subscriptionLevel == 1 ? 6 : 3}', // Отображение статуса устройств
-                      style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 20),
+                    if (user != null)
+                      Text(
+                        'Устройства: ${user.deviceCount}/${user.subscriptionLevel == 1 ? 6 : 3}',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    if (authProvider.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _login,
+                      onPressed: authProvider.isLoading ? null : _login,
                       style: theme.elevatedButtonTheme.style,
                       child: Text(
                         'Войти',

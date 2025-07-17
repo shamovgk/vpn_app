@@ -1,90 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:vpn_app/providers/vpn_provider.dart';
-import 'package:logger/logger.dart';
-import 'package:gif/gif.dart';
 import 'package:vpn_app/screens/about_screen.dart';
 import 'package:vpn_app/screens/settings_screen.dart';
 import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/providers/theme_provider.dart';
 import 'package:vpn_app/screens/login_screen.dart';
 import 'package:vpn_app/screens/payment_webview_screen.dart';
-
-final logger = Logger();
+import 'package:gif/gif.dart';
+import 'package:vpn_app/services/api_service.dart';
 
 class VpnScreen extends StatefulWidget {
   const VpnScreen({super.key});
 
   @override
-  State<VpnScreen> createState() => VpnScreenState();
+  State<VpnScreen> createState() => _VpnScreenState();
 }
 
-class VpnScreenState extends State<VpnScreen> {
-  final GlobalKey<AnimationButtonState> _animationButtonKey = GlobalKey<AnimationButtonState>();
-  static VpnScreenState? _instance;
+class _VpnScreenState extends State<VpnScreen> {
   bool _hasShownTrialNotification = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _instance = this;
-  }
-
-  @override
-  void dispose() {
-    _instance = null;
-    super.dispose();
-  }
-
-  static GlobalKey<AnimationButtonState>? getAnimationButtonKey() => _instance?._animationButtonKey;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    if (authProvider.isAuthenticated && authProvider.trialEndDate != null && !_hasShownTrialNotification) {
-      final trialEnd = DateTime.parse(authProvider.trialEndDate!);
-      final daysLeft = trialEnd.difference(DateTime.now()).inDays;
-      if (daysLeft > 0 && !authProvider.isPaid) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            final customColors = Theme.of(context).extension<CustomColors>()!;
+    final user = authProvider.user;
+
+    if (user != null && user.trialEndDate != null && !_hasShownTrialNotification) {
+      final trialEnd = DateTime.tryParse(user.trialEndDate!);
+      if (trialEnd != null) {
+        final daysLeft = trialEnd.difference(DateTime.now()).inDays;
+        if (daysLeft > 0 && !user.isPaid) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Вам доступен пробный период в $daysLeft дней'),
-                backgroundColor: customColors.info,
+                backgroundColor: Colors.blue[600],
                 duration: const Duration(seconds: 3),
               ),
             );
             _hasShownTrialNotification = true;
-          }
-        });
-      } else if (!authProvider.isPaid && trialEnd.isBefore(DateTime.now())) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            final customColors = Theme.of(context).extension<CustomColors>()!;
+          });
+        } else if (!user.isPaid && trialEnd.isBefore(DateTime.now())) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Срок действия пробного периода истёк, оплатите VPN'),
-                backgroundColor: customColors.warning,
+                backgroundColor: Colors.orange[700],
                 duration: const Duration(seconds: 3),
                 action: SnackBarAction(
                   label: 'Оплатить',
-                  textColor: customColors.success,
+                  textColor: Colors.white,
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const PaymentWebViewScreen()),
                     ).then((_) {
-                      setState(() {});
+                      if (mounted) setState(() {});
                     });
                   },
                 ),
               ),
             );
             _hasShownTrialNotification = true;
-          }
-        });
+          });
+        }
       }
     }
   }
@@ -94,6 +76,7 @@ class VpnScreenState extends State<VpnScreen> {
     final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final user = authProvider.user;
 
     return Container(
       decoration: BoxDecoration(
@@ -102,7 +85,7 @@ class VpnScreenState extends State<VpnScreen> {
           image: AssetImage('assets/background.png'),
           fit: BoxFit.fitWidth,
           opacity: 0.3,
-          alignment: Alignment(0, 0.1), // чуть выше центра (примерно 2px)
+          alignment: Alignment(0, 0.1),
         ),
       ),
       child: PopScope(
@@ -110,8 +93,8 @@ class VpnScreenState extends State<VpnScreen> {
         child: Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent, 
-            elevation: 0, 
+            backgroundColor: Colors.transparent,
+            elevation: 0,
             title: Text(
               'UgbuganVPN',
               style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
@@ -127,7 +110,7 @@ class VpnScreenState extends State<VpnScreen> {
           drawer: Drawer(
             backgroundColor: theme.scaffoldBackgroundColor,
             width: 200,
-            shape: LinearBorder(),
+            shape: const LinearBorder(),
             child: SizedBox(
               height: double.infinity,
               child: Column(
@@ -139,7 +122,7 @@ class VpnScreenState extends State<VpnScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
                     child: Text(
                       textAlign: TextAlign.center,
-                      authProvider.isAuthenticated ? authProvider.username ?? 'Пользователь' : 'Гость',
+                      user?.username ?? 'Гость',
                       style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
                     ),
                   ),
@@ -154,7 +137,7 @@ class VpnScreenState extends State<VpnScreen> {
                             context,
                             MaterialPageRoute(builder: (context) => const PaymentWebViewScreen()),
                           ).then((_) {
-                            setState(() {});
+                            if (mounted) setState(() {});
                           });
                         },
                       ),
@@ -190,11 +173,10 @@ class VpnScreenState extends State<VpnScreen> {
                         onTap: () {
                           Navigator.pop(context);
                           themeProvider.toggleTheme();
-                          final customColors = Theme.of(context).extension<CustomColors>()!;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Тема изменена на ${themeProvider.themeMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}'),
-                              backgroundColor: customColors.success,
+                              backgroundColor: Colors.green[600],
                               duration: const Duration(seconds: 3),
                             ),
                           );
@@ -203,24 +185,22 @@ class VpnScreenState extends State<VpnScreen> {
                       ListTile(
                         leading: Icon(Icons.logout, color: theme.textTheme.bodyMedium?.color),
                         title: Text('Выйти', style: theme.textTheme.bodyMedium),
-                        onTap: () {
+                        onTap: () async {
                           Navigator.pop(context);
-                          authProvider.logout();
-                          final customColors = Theme.of(context).extension<CustomColors>()!;
+                          await authProvider.logout();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('Logged out successfully'),
-                              backgroundColor: customColors.success,
+                              content: const Text('Вы вышли из аккаунта'),
+                              backgroundColor: Colors.green[600],
                               duration: const Duration(seconds: 3),
                             ),
                           );
-                          if (mounted) {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
-                              (Route<dynamic> route) => false,
-                            );
-                          }
+                          if (!mounted) return;
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            (Route<dynamic> route) => false,
+                          );
                         },
                       ),
                     ],
@@ -232,8 +212,8 @@ class VpnScreenState extends State<VpnScreen> {
           body: SafeArea(
             child: Center(
               child: Transform.translate(
-                offset: const Offset(0, -18.5), // 2px (фон) + 5px = 7px вверх
-                child: AnimationButton(key: _animationButtonKey),
+                offset: const Offset(0, -18.5),
+                child: const AnimationButton(),
               ),
             ),
           ),
@@ -290,7 +270,17 @@ class AnimationButtonState extends State<AnimationButton> with TickerProviderSta
 
   Future<void> handleTap() async {
     final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
-    if (vpnProvider.isConnecting || _isAnimating || !vpnProvider.isConnectionAllowed()) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    if (vpnProvider.isConnecting || _isAnimating || user == null) return;
+
+    final allowed = vpnProvider.isConnectionAllowed(
+      isPaid: user.isPaid,
+      trialEndDate: user.trialEndDate,
+      deviceCount: user.deviceCount,
+      subscriptionLevel: user.subscriptionLevel,
+    );
+    if (!allowed) return;
 
     setState(() {
       _isAnimating = true;
@@ -304,37 +294,25 @@ class AnimationButtonState extends State<AnimationButton> with TickerProviderSta
         await Future.delayed(const Duration(seconds: 4));
         await vpnProvider.disconnect();
       } else {
-        await vpnProvider.connect();
+        await vpnProvider.connect(
+          baseUrl: ApiService.baseUrl,
+          token: authProvider.token!,
+          isPaid: user.isPaid,
+          trialEndDate: user.trialEndDate,
+          deviceCount: user.deviceCount,
+          subscriptionLevel: user.subscriptionLevel,
+        );
       }
     } catch (e) {
       if (!mounted) return;
-      final customColors = Theme.of(context).extension<CustomColors>()!;
-      if (e.toString().contains('Срок действия пробного периода истёк')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Срок действия пробного периода истёк'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (e.toString().contains('Подключение заблокировано')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Оплатите подписку для подключения'),
-            backgroundColor: customColors.warning,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка подключения: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-      logger.e('VPN operation error: $e');
+      final theme = Theme.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка подключения: $e'),
+          backgroundColor: theme.colorScheme.error,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -348,10 +326,22 @@ class AnimationButtonState extends State<AnimationButton> with TickerProviderSta
   Widget build(BuildContext context) {
     super.build(context);
     final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+
+    final isAllowed = user != null
+        ? vpnProvider.isConnectionAllowed(
+            isPaid: user.isPaid,
+            trialEndDate: user.trialEndDate,
+            deviceCount: user.deviceCount,
+            subscriptionLevel: user.subscriptionLevel,
+          )
+        : false;
+
     return GestureDetector(
-      onTap: vpnProvider.isConnectionAllowed() ? handleTap : null,
+      onTap: isAllowed ? handleTap : null,
       child: AbsorbPointer(
-        absorbing: !vpnProvider.isConnectionAllowed(),
+        absorbing: !isAllowed,
         child: SizedBox(
           width: 300,
           height: 300,

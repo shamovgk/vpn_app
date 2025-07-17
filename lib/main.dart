@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:vpn_app/providers/device_provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/login_screen.dart';
-import 'providers/auth_provider.dart';
 import 'services/tray_manager.dart';
 import 'screens/vpn_screen.dart';
 import 'providers/vpn_provider.dart';
 import 'providers/theme_provider.dart';
 import 'dart:io' show Platform;
+import 'package:provider/provider.dart';
+import 'services/api_service.dart';
+import 'providers/auth_provider.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final apiService = ApiService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +20,7 @@ void main() async {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
     await windowManager.setPreventClose(true);
-    
+
     trayHandler = TrayManagerHandler();
     windowManager.addListener(MyWindowListener());
 
@@ -34,7 +37,8 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuthAndTrialStatus()),
+        ChangeNotifierProvider(create: (_) => AuthProvider(apiService: apiService)),
+        ChangeNotifierProvider(create: (_) => DeviceProvider(apiService: apiService)),
         ChangeNotifierProvider(create: (_) => VpnProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
@@ -62,7 +66,8 @@ class _MyAppState extends State<MyApp> {
           darkTheme: themeProvider.darkTheme,
           themeMode: themeProvider.themeMode,
           home: Consumer<AuthProvider>(
-            builder: (context, authProvider, _) => authProvider.isAuthenticated ? const VpnScreen() : const LoginScreen(),
+            builder: (context, authProvider, _) => 
+              authProvider.isLoggedIn ? const VpnScreen() : const LoginScreen(),
           ),
         );
       },

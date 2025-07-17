@@ -1,14 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:vpn_app/providers/theme_provider.dart';
+import 'package:vpn_app/providers/auth_provider.dart';
 import 'package:vpn_app/screens/login_screen.dart';
 import 'package:vpn_app/screens/register_screen.dart';
-import '../providers/auth_provider.dart';
-import 'package:http/http.dart' as http;
-import 'package:logger/logger.dart';
-
-final logger = Logger();
 
 class VerificationScreen extends StatefulWidget {
   final String username;
@@ -34,115 +28,55 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
     super.dispose();
   }
 
-  Future<void> _cancelRegistration() async {
-    try {
-      final response = await http.post(
-        Uri.parse('${AuthProvider.baseUrl}/cancel-registration'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': widget.username, 'email': widget.email}),
+  Future<void> _verifyEmail() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.verifyEmail(
+      widget.username,
+      widget.email,
+      _verificationCodeController.text.trim(),
+    );
+
+    if (!mounted) return;
+
+    if (authProvider.errorMessage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Email верифицирован! Теперь вы можете войти.'),
+          backgroundColor: Colors.green[700],
+          duration: const Duration(seconds: 3),
+        ),
       );
-      if (response.statusCode != 200) {
-        logger.e('Failed to cancel registration: ${response.body}');
-      } else {
-        if (mounted) {
-          final customColors = Theme.of(context).extension<CustomColors>()!;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Регистрация успешно отменена'),
-              backgroundColor: customColors.success,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      logger.e('Error canceling registration: $e');
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    } else {
+      _showErrorSnackbar(authProvider.errorMessage!);
     }
+    setState(() => _isLoading = false);
   }
 
-  Future<void> _verifyEmail() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      try {
-        await authProvider.verifyEmail(widget.username, widget.email, _verificationCodeController.text);
-        if (!mounted) return;
-        final customColors = Theme.of(context).extension<CustomColors>()!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Email верифицирован! Теперь вы можете войти.'),
-            backgroundColor: customColors.success,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        authProvider.resetRegistrationData();
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
-        }
-      } catch (e) {
-        if (!mounted) return;
-        logger.e('Verification error: $e');
-        final customColors = Theme.of(context).extension<CustomColors>()!;
-        if (e.toString().contains('Срок действия кода верификации истёк')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Срок действия кода верификации истёк, запросите новый'),
-              backgroundColor: customColors.warning,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else if (e.toString().contains('Неверный код верификации')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Введён неверный код верификации'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else if (e.toString().contains('Пользователь или email не найдены')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Пользователь или email не найдены в ожидающих верификации'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else if (e.toString().contains('Не удалось завершить верификацию')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Не удалось завершить верификацию'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Произошла ошибка при верификации'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-        setState(() => _isLoading = false);
-      }
-    }
+  void _showErrorSnackbar(String message) {
+    final theme = Theme.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: theme.colorScheme.error,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   void _navigateToRegister() {
-    setState(() => _isLoading = true);
-    _cancelRegistration();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    authProvider.resetRegistrationData();
-    if (!mounted) return;
-    Navigator.pushReplacement(
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const RegisterScreen()),
+      (route) => false,
     );
-    setState(() => _isLoading = false);
   }
 
   @override
@@ -150,7 +84,6 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
     super.build(context);
     final theme = Theme.of(context);
 
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
     return Container(
       decoration: BoxDecoration(
         color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
@@ -169,13 +102,15 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
             backgroundColor: Colors.transparent,
             elevation: 0,
             title: Text(
-              'Email Verification',
+              'Верификация Email',
               style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
             ),
             leading: IconButton(
               icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
               onPressed: _navigateToRegister,
             ),
+            centerTitle: true,
+            automaticallyImplyLeading: false,
           ),
           body: Center(
             child: SingleChildScrollView(
@@ -188,7 +123,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
                     Icon(Icons.verified_user, size: 100, color: Theme.of(context).primaryColor),
                     const SizedBox(height: 40),
                     Text(
-                      'Enter the verification code sent to ${widget.email}',
+                      'Введите код, отправленный на ${widget.email}',
                       style: theme.textTheme.bodyMedium,
                       textAlign: TextAlign.center,
                     ),
@@ -197,7 +132,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
                       controller: _verificationCodeController,
                       style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                       decoration: InputDecoration(
-                        labelText: 'Verification Code',
+                        labelText: 'Код верификации',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.verified),
                         labelStyle: theme.textTheme.bodyMedium,
@@ -215,10 +150,16 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
                         foregroundColor: theme.scaffoldBackgroundColor,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       ),
-                      child: Text(
-                        'Verify Email',
-                        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(
+                              'Подтвердить Email',
+                              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                            ),
                     ),
                   ],
                 ),
