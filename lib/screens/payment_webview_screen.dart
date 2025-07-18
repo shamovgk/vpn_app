@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'dart:io' show Platform;
+import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
@@ -43,7 +43,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     });
     try {
       final response = await http.post(
-        Uri.parse('http://95.214.10.8:3000/pay-yookassa'),
+        Uri.parse('http://95.214.10.8:3000/pay'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'amount': 1.00, 'method': method}),
       );
@@ -102,23 +102,9 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                   textStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
                   elevation: 2,
                 ),
-                child: Text('Оплатить через карту', style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () => _fetchPaymentUrl('sberbank'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  textStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
-                  elevation: 2,
-                ),
-                child: Text('Оплатить через СберПей', style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
+                child: Text('Оплатить через карту',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
               ),
             ),
             const SizedBox(height: 20),
@@ -134,7 +120,27 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                   textStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
                   elevation: 2,
                 ),
-                child: Text('Оплатить через СБП', style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
+                child: Text('Оплатить через СБП',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => _fetchPaymentUrl('sberbank'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  textStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                  elevation: 2,
+                ),
+                child: Text('Оплатить через СберПей',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
               ),
             ),
           ],
@@ -206,4 +212,4 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     }
     super.dispose();
   }
-} 
+}
