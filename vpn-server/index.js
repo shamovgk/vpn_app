@@ -1,4 +1,3 @@
-// require('express-async-errors');
 const express = require('express');
 const helmet = require('helmet');
 const csurf = require('csurf');
