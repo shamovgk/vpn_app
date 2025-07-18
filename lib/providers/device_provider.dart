@@ -19,7 +19,7 @@ class DeviceProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final res = await apiService.get('/get-devices', auth: true);
+      final res = await apiService.get('/devices/get-devices', auth: true);
       _devices = (res as List).map((item) => Device.fromJson(item)).toList();
     } catch (e) {
       _error = e.toString();
@@ -30,7 +30,7 @@ class DeviceProvider with ChangeNotifier {
 
   Future<void> removeDevice(int deviceId) async {
     try {
-      await apiService.post('/remove-device', {'device_id': deviceId}, auth: true);
+      await apiService.post('/devices/remove-device', {'device_id': deviceId}, auth: true);
       await fetchDevices();
     } catch (e) {
       _error = e.toString();
