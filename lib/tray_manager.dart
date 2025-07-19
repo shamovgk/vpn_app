@@ -1,11 +1,11 @@
 import 'package:tray_manager/tray_manager.dart' as tray;
 import 'package:vpn_app/main.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
-import '../providers/vpn_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'features/auth/providers/auth_provider.dart';
+import 'features/vpn/providers/vpn_provider.dart';
 import 'package:logger/logger.dart';
-import '../services/api_service.dart';
 
 final logger = Logger();
 
@@ -28,38 +28,36 @@ class TrayManagerHandler with tray.TrayListener {
     final context = navigatorKey.currentContext;
     if (context == null) return;
 
-    try {
-      final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    // Используем Riverpod context.read для доступа к провайдерам
+    final container = ProviderScope.containerOf(context);
+    final vpnState = container.read(vpnProvider);
+    final authState = container.read(authProvider);
 
-      final menu = tray.Menu(
-        items: [
-          tray.MenuItem(key: 'show_window', label: 'Show Window'),
-          tray.MenuItem.separator(),
-          tray.MenuItem(
-            key: 'connect',
-            label: 'Connect',
-            disabled: !authProvider.isLoggedIn ||
-                      vpnProvider.isConnected ||
-                      vpnProvider.isConnecting,
-          ),
-          tray.MenuItem(
-            key: 'disconnect',
-            label: 'Disconnect',
-            disabled: !authProvider.isLoggedIn || !vpnProvider.isConnected,
-          ),
-          tray.MenuItem.separator(),
-          tray.MenuItem(key: 'exit', label: 'Exit App'),
-        ],
-      );
-      await tray.TrayManager.instance.setContextMenu(menu);
-      final iconPath = vpnProvider.isConnected
-          ? 'assets/tray_icon_connect.ico'
-          : 'assets/tray_icon_disconnect.ico';
-      await tray.TrayManager.instance.setIcon(iconPath);
-    } catch (e) {
-      logger.e('Error updating tray/menu: $e');
-    }
+    final menu = tray.Menu(
+      items: [
+        tray.MenuItem(key: 'show_window', label: 'Show Window'),
+        tray.MenuItem.separator(),
+        tray.MenuItem(
+          key: 'connect',
+          label: 'Connect',
+          disabled: !authState.isLoggedIn ||
+                    vpnState.isConnected ||
+                    vpnState.isConnecting,
+        ),
+        tray.MenuItem(
+          key: 'disconnect',
+          label: 'Disconnect',
+          disabled: !authState.isLoggedIn || !vpnState.isConnected,
+        ),
+        tray.MenuItem.separator(),
+        tray.MenuItem(key: 'exit', label: 'Exit App'),
+      ],
+    );
+    await tray.TrayManager.instance.setContextMenu(menu);
+    final iconPath = vpnState.isConnected
+        ? 'assets/tray_icon_connect.ico'
+        : 'assets/tray_icon_disconnect.ico';
+    await tray.TrayManager.instance.setIcon(iconPath);
   }
 
   @override
@@ -78,27 +76,28 @@ class TrayManagerHandler with tray.TrayListener {
     final context = navigatorKey.currentContext;
     if (context == null) return;
 
-    final vpnProvider = Provider.of<VpnProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.user;
+    final container = ProviderScope.containerOf(context);
+    final vpnNotifier = container.read(vpnProvider.notifier);
+    final vpnState = container.read(vpnProvider);
+    final authState = container.read(authProvider);
+
+    final user = authState.user;
 
     switch (menuItem.key) {
       case 'show_window':
         windowManager.show();
         break;
       case 'connect':
-        if (!authProvider.isLoggedIn || user == null) {
+        if (!authState.isLoggedIn || user == null) {
           logger.w('Cannot connect: Not authenticated');
           return;
         }
-        if (vpnProvider.isConnected || vpnProvider.isConnecting) {
+        if (vpnState.isConnected || vpnState.isConnecting) {
           logger.w('Cannot connect: Already connected or connecting');
           return;
         }
         try {
-          await vpnProvider.connect(
-            baseUrl: ApiService.baseUrl,
-            token: authProvider.token!,
+          await vpnNotifier.connect(
             isPaid: user.isPaid,
             trialEndDate: user.trialEndDate,
             deviceCount: user.deviceCount,
@@ -110,14 +109,14 @@ class TrayManagerHandler with tray.TrayListener {
         break;
       case 'disconnect':
         try {
-          await vpnProvider.disconnect();
+          await vpnNotifier.disconnect();
         } catch (e) {
           logger.e('Tray disconnect error: $e');
         }
         break;
       case 'exit':
         try {
-          await vpnProvider.disconnect();
+          await vpnNotifier.disconnect();
         } catch (e) {
           logger.e('Disconnect error: $e');
         }

@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:vpn_app/providers/device_provider.dart';
-import 'package:window_manager/window_manager.dart';
-import 'screens/login_screen.dart';
-import 'services/tray_manager.dart';
-import 'screens/vpn_screen.dart';
-import 'providers/vpn_provider.dart';
-import 'providers/theme_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io' show Platform;
-import 'package:provider/provider.dart';
-import 'services/api_service.dart';
-import 'providers/auth_provider.dart';
+import 'package:window_manager/window_manager.dart';
+
+import 'theme_provider.dart';
+import 'features/auth/providers/auth_provider.dart';
+import 'features/auth/screens/login_screen.dart';
+import 'features/vpn/screens/vpn_screen.dart';
+import 'tray_manager.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-final apiService = ApiService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,49 +25,33 @@ void main() async {
       center: true,
       skipTaskbar: false,
     );
-
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
     });
   }
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider(apiService: apiService)),
-        ChangeNotifierProvider(create: (_) => DeviceProvider(apiService: apiService)),
-        ChangeNotifierProvider(create: (_) => VpnProvider()),
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-      ],
-      child: const MyApp(),
+    const ProviderScope(
+      child: MyApp(),
     ),
   );
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(themeProvider);
+    final auth = ref.watch(authProvider);
 
-class _MyAppState extends State<MyApp> {
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, _) {
-        return MaterialApp(
-          navigatorKey: navigatorKey,
-          title: 'UgbuganVPN',
-          theme: themeProvider.lightTheme,
-          darkTheme: themeProvider.darkTheme,
-          themeMode: themeProvider.themeMode,
-          home: Consumer<AuthProvider>(
-            builder: (context, authProvider, _) => 
-              authProvider.isLoggedIn ? const VpnScreen() : const LoginScreen(),
-          ),
-        );
-      },
+    return MaterialApp(
+      navigatorKey: navigatorKey,
+      title: 'UgbuganVPN',
+      theme: theme.lightTheme,
+      darkTheme: theme.darkTheme,
+      themeMode: theme.themeMode,
+      home: auth.isLoggedIn ? const VpnScreen() : const LoginScreen(),
     );
   }
 }

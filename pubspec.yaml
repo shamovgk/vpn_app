@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  provider: ^6.1.5 # Для управления состоянием
+  flutter_riverpod: ^2.6.1 
   flutter_secure_storage: ^9.2.4 # Для хранения токенов/данных
   intl: ^0.20.2 # Для локализации
   cupertino_icons: ^1.0.8

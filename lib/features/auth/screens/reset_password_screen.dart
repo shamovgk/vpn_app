@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:vpn_app/providers/auth_provider.dart';
-import 'package:vpn_app/screens/login_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+import 'login_screen.dart';
 
-class ResetPasswordScreen extends StatefulWidget {
+class ResetPasswordScreen extends ConsumerStatefulWidget {
   final String username;
   const ResetPasswordScreen({super.key, required this.username});
 
   @override
-  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
-class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _resetCodeController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -25,11 +24,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _resetPassword() async {
-    if (!_formKey.currentState!.validate() || _isLoading) return;
-    setState(() => _isLoading = true);
+    final auth = ref.read(authProvider);
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.resetPassword(
+    if (!_formKey.currentState!.validate() || auth.isLoading) return;
+
+    await auth.resetPassword(
       widget.username.trim(),
       _resetCodeController.text.trim(),
       _newPasswordController.text.trim(),
@@ -37,7 +36,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     if (!mounted) return;
 
-    if (authProvider.errorMessage == null) {
+    if (auth.errorMessage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Пароль успешно сброшен'),
@@ -51,9 +50,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         (route) => false,
       );
     } else {
-      _showErrorSnackbar(authProvider.errorMessage!);
+      _showErrorSnackbar(auth.errorMessage!);
     }
-    setState(() => _isLoading = false);
   }
 
   void _showErrorSnackbar(String message) {
@@ -70,6 +68,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authProviderValue = ref.watch(authProvider);
+
     return Container(
       decoration: BoxDecoration(
         color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
@@ -135,9 +135,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
                   const SizedBox(height: 40),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _resetPassword,
+                    onPressed: authProviderValue.isLoading ? null : _resetPassword,
                     style: theme.elevatedButtonTheme.style,
-                    child: _isLoading
+                    child: authProviderValue.isLoading
                         ? const SizedBox(
                             height: 24,
                             width: 24,

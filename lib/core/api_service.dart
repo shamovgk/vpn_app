@@ -1,19 +1,23 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final apiServiceProvider = Provider<ApiService>((ref) {
+  return ApiService();
+});
 
 class ApiService {
   static const baseUrl = 'http://95.214.10.8:3000';
   static final FlutterSecureStorage _storage = FlutterSecureStorage();
 
   String? _token;
+  bool _isInitialized = false;
 
-  ApiService() {
-    _loadToken();
-  }
-
-  Future<void> _loadToken() async {
+  Future<void> init() async {
+    if (_isInitialized) return;
     _token = await _storage.read(key: 'token');
+    _isInitialized = true;
   }
 
   Future<void> setToken(String? token) async {
@@ -26,6 +30,7 @@ class ApiService {
   }
 
   Future<dynamic> get(String path, {bool auth = false}) async {
+    await init();
     final url = Uri.parse('$baseUrl$path');
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -36,6 +41,7 @@ class ApiService {
   }
 
   Future<dynamic> post(String path, Map<String, dynamic> body, {bool auth = false}) async {
+    await init();
     final url = Uri.parse('$baseUrl$path');
     final headers = <String, String>{
       'Content-Type': 'application/json',

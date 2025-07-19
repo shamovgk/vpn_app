@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:vpn_app/providers/auth_provider.dart';
-import 'package:vpn_app/providers/theme_provider.dart';
-import 'package:vpn_app/screens/vpn_screen.dart';
-import 'package:vpn_app/screens/register_screen.dart';
-import 'package:vpn_app/screens/reset_password_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+import '../../vpn/screens/vpn_screen.dart';
+import 'register_screen.dart';
+import 'reset_password_screen.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -27,36 +26,34 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final auth = ref.read(authProvider);
 
     if (!_formKey.currentState!.validate()) return;
 
-    await authProvider.login(
+    await auth.login(
       _usernameController.text.trim(),
       _passwordController.text,
     );
 
     if (!mounted) return;
 
-    if (authProvider.isLoggedIn) {
-      // Успешный вход — переход на VPN-экран
+    if (auth.isLoggedIn) {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const VpnScreen()),
         (route) => false,
       );
-    } else if (authProvider.errorMessage != null) {
-      _showErrorSnackbar(authProvider.errorMessage!);
+    } else if (auth.errorMessage != null) {
+      _showErrorSnackbar(auth.errorMessage!);
     }
   }
 
   void _showErrorSnackbar(String message) {
     final theme = Theme.of(context);
-    final customColors = theme.extension<CustomColors>();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: customColors?.warning ?? theme.colorScheme.error,
+        backgroundColor: theme.colorScheme.error,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -84,8 +81,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
+    final authProviderValue = ref.watch(authProvider);
+    final user = authProviderValue.user;
 
     return Container(
       decoration: BoxDecoration(
@@ -162,7 +159,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-                    // "Забыли пароль?" — теперь всегда видно
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Align(
@@ -182,14 +178,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Устройства: ${user.deviceCount}/${user.subscriptionLevel == 1 ? 6 : 3}',
                         style: theme.textTheme.bodyMedium,
                       ),
-                    if (authProvider.isLoading)
+                    if (authProviderValue.isLoading)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 24.0),
                         child: CircularProgressIndicator(),
                       ),
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: authProvider.isLoading ? null : _login,
+                      onPressed: authProviderValue.isLoading ? null : _login,
                       style: theme.elevatedButtonTheme.style,
                       child: Text(
                         'Войти',
