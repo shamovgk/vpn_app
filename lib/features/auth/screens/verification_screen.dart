@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:vpn_app/providers/auth_provider.dart';
-import 'package:vpn_app/screens/login_screen.dart';
-import 'package:vpn_app/screens/register_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+import 'login_screen.dart';
+import 'register_screen.dart';
 
-class VerificationScreen extends StatefulWidget {
+class VerificationScreen extends ConsumerStatefulWidget {
   final String username;
   final String email;
 
   const VerificationScreen({super.key, required this.username, required this.email});
 
   @override
-  State<VerificationScreen> createState() => _VerificationScreenState();
+  ConsumerState<VerificationScreen> createState() => _VerificationScreenState();
 }
 
-class _VerificationScreenState extends State<VerificationScreen> with AutomaticKeepAliveClientMixin {
+class _VerificationScreenState extends ConsumerState<VerificationScreen> with AutomaticKeepAliveClientMixin {
   final _verificationCodeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -29,11 +28,11 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
   }
 
   Future<void> _verifyEmail() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
+    final auth = ref.read(authProvider);
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.verifyEmail(
+    if (!_formKey.currentState!.validate()) return;
+
+    await auth.verifyEmail(
       widget.username,
       widget.email,
       _verificationCodeController.text.trim(),
@@ -41,7 +40,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
 
     if (!mounted) return;
 
-    if (authProvider.errorMessage == null) {
+    if (auth.errorMessage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Email верифицирован! Теперь вы можете войти.'),
@@ -55,9 +54,8 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
         (route) => false,
       );
     } else {
-      _showErrorSnackbar(authProvider.errorMessage!);
+      _showErrorSnackbar(auth.errorMessage!);
     }
-    setState(() => _isLoading = false);
   }
 
   void _showErrorSnackbar(String message) {
@@ -83,6 +81,7 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
+    final authProviderValue = ref.watch(authProvider);
 
     return Container(
       decoration: BoxDecoration(
@@ -144,13 +143,13 @@ class _VerificationScreenState extends State<VerificationScreen> with AutomaticK
                     ),
                     const SizedBox(height: 40),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _verifyEmail,
+                      onPressed: authProviderValue.isLoading ? null : _verifyEmail,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.scaffoldBackgroundColor,
                         foregroundColor: theme.scaffoldBackgroundColor,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       ),
-                      child: _isLoading
+                      child: authProviderValue.isLoading
                           ? const SizedBox(
                               height: 24,
                               width: 24,

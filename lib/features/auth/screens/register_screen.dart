@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:vpn_app/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import 'verification_screen.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAliveClientMixin {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> with AutomaticKeepAliveClientMixin {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
   bool _isPasswordVisible = false;
 
   @override
@@ -32,11 +31,10 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final auth = ref.read(authProvider);
     final normalizedEmail = _emailController.text.trim().toLowerCase();
 
-    await authProvider.register(
+    await auth.register(
       _usernameController.text.trim(),
       normalizedEmail,
       _passwordController.text,
@@ -44,7 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
 
     if (!mounted) return;
 
-    if (authProvider.errorMessage == null) {
+    if (auth.errorMessage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Регистрация прошла успешно, проверьте email для верификации'),
@@ -62,10 +60,8 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
         ),
       );
     } else {
-      _showErrorSnackbar(authProvider.errorMessage!);
+      _showErrorSnackbar(auth.errorMessage!);
     }
-
-    setState(() => _isLoading = false);
   }
 
   void _showErrorSnackbar(String message) {
@@ -87,6 +83,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
+    final authProviderValue = ref.watch(authProvider);
 
     return Container(
       decoration: BoxDecoration(
@@ -120,7 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.person_add, size: 50, color: Theme.of(context).primaryColor),
+                    Icon(Icons.person_add, size: 50, color: theme.primaryColor),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _usernameController,
@@ -188,13 +185,13 @@ class _RegisterScreenState extends State<RegisterScreen> with AutomaticKeepAlive
                     ),
                     const SizedBox(height: 40),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _register,
+                      onPressed: authProviderValue.isLoading ? null : _register,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.scaffoldBackgroundColor,
                         foregroundColor: theme.scaffoldBackgroundColor,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       ),
-                      child: _isLoading
+                      child: authProviderValue.isLoading
                           ? const SizedBox(
                               height: 24,
                               width: 24,

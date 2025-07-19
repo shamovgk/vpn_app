@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+final themeProvider = ChangeNotifierProvider<ThemeProvider>((ref) => ThemeProvider());
 // Определение кастомного расширения темы
 class CustomColors extends ThemeExtension<CustomColors> {
   final Color warning;

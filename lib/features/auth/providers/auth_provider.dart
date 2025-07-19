@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../models/user.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api_service.dart';
+import '../models/user.dart';
+import '../services/auth_service.dart';
+
+final authProvider = ChangeNotifierProvider<AuthProvider>((ref) {
+  final apiService = ref.watch(apiServiceProvider);
+  return AuthProvider(apiService: apiService);
+});
 
 class AuthProvider with ChangeNotifier {
-  final ApiService apiService;
+  final AuthService _authService;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   User? _user;
@@ -12,7 +19,8 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
-  AuthProvider({required this.apiService}) {
+  AuthProvider({required ApiService apiService})
+      : _authService = AuthService(apiService) {
     _loadToken();
   }
 
@@ -20,8 +28,7 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isLoggedIn => _token != null && _user != null;
-  String? get token => _token; // <-- Важно!
-  static String get baseUrl => ApiService.baseUrl;
+  String? get token => _token;
 
   Future<void> _loadToken() async {
     _token = await _storage.read(key: 'token');
@@ -34,11 +41,11 @@ class AuthProvider with ChangeNotifier {
   Future<void> register(String username, String email, String password) async {
     _setLoading(true);
     try {
-      await apiService.post('/auth/register', {
-        'username': username,
-        'email': email,
-        'password': password,
-      });
+      await _authService.register(
+        username: username,
+        email: email,
+        password: password,
+      );
       _errorMessage = null;
     } on ApiException catch (e) {
       _errorMessage = e.message;
@@ -47,14 +54,15 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> verifyEmail(String username, String email, String verificationCode) async {
+  Future<void> verifyEmail(
+      String username, String email, String verificationCode) async {
     _setLoading(true);
     try {
-      await apiService.post('/auth/verify-email', {
-        'username': username,
-        'email': email,
-        'verificationCode': verificationCode,
-      });
+      await _authService.verifyEmail(
+        username: username,
+        email: email,
+        verificationCode: verificationCode,
+      );
       _errorMessage = null;
     } on ApiException catch (e) {
       _errorMessage = e.message;
@@ -63,25 +71,27 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> login(String username, String password,
-      {String? deviceToken, String? deviceModel, String? deviceOS}) async {
+  Future<void> login(
+    String username,
+    String password, {
+    String? deviceToken,
+    String? deviceModel,
+    String? deviceOS,
+  }) async {
     _setLoading(true);
     try {
-      final body = {
-        'username': username,
-        'password': password,
-      };
-      if (deviceToken != null) body['device_token'] = deviceToken;
-      if (deviceModel != null) body['device_model'] = deviceModel;
-      if (deviceOS != null) body['device_os'] = deviceOS;
-
-      final res = await apiService.post('/auth/login', body);
-      final token = res['auth_token'];
-      if (token == null) throw ApiException('Сервер не вернул токен!');
-      _token = token;
-      await apiService.setToken(token);
-      await _storage.write(key: 'token', value: token);
-      _user = User.fromJson(res);
+      final user = await _authService.login(
+        username: username,
+        password: password,
+        deviceToken: deviceToken,
+        deviceModel: deviceModel,
+        deviceOS: deviceOS,
+      );
+      _token = await _storage.read(key: 'token');
+      if (_token == null) {
+        throw ApiException('Не удалось сохранить токен!');
+      }
+      _user = user;
       _errorMessage = null;
       notifyListeners();
     } on ApiException catch (e) {
@@ -95,8 +105,8 @@ class AuthProvider with ChangeNotifier {
     if (_token == null) return;
     _setLoading(true);
     try {
-      final res = await apiService.get('/auth/validate-token?token=$_token', auth: true);
-      _user = User.fromJson(res);
+      final user = await _authService.validateToken(_token!);
+      _user = user;
       _errorMessage = null;
       notifyListeners();
     } on ApiException catch (e) {
@@ -109,13 +119,10 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> logout() async {
     try {
-      if (_token != null) {
-        await apiService.post('/auth/logout', {}, auth: true);
-      }
+      await _authService.logout();
     } catch (_) {}
     _user = null;
     _token = null;
-    await apiService.setToken(null);
     await _storage.delete(key: 'token');
     notifyListeners();
   }
@@ -123,7 +130,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> forgotPassword(String username) async {
     _setLoading(true);
     try {
-      await apiService.post('/auth/forgot-password', {'username': username});
+      await _authService.forgotPassword(username);
       _errorMessage = null;
     } on ApiException catch (e) {
       _errorMessage = e.message;
@@ -132,14 +139,15 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> resetPassword(String username, String resetCode, String newPassword) async {
+  Future<void> resetPassword(
+      String username, String resetCode, String newPassword) async {
     _setLoading(true);
     try {
-      await apiService.post('/auth/reset-password', {
-        'username': username,
-        'resetCode': resetCode,
-        'newPassword': newPassword,
-      });
+      await _authService.resetPassword(
+        username: username,
+        resetCode: resetCode,
+        newPassword: newPassword,
+      );
       _errorMessage = null;
     } on ApiException catch (e) {
       _errorMessage = e.message;
