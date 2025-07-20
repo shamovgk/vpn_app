@@ -22,7 +22,7 @@ exports.payYookassa = async (req, res) => {
     const payment = await yooKassa.createPayment({
       amount: { value: amount, currency: 'RUB' },
       payment_method_data: { type: method },
-      confirmation: { type: 'redirect', return_url: 'https://your-app.com/success' },
+      confirmation: { type: 'redirect', return_url: 'https://sham.shetanvpn.ru/mainscreen' },
       capture: true,
       description: 'Оплата VPN',
     });
