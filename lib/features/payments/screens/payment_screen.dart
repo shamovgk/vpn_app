@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
 import '../providers/payment_provider.dart';
+import 'dart:async'; // <--- Добавь наверху для StreamSubscription
 
 class PaymentScreen extends ConsumerStatefulWidget {
   const PaymentScreen({super.key});
@@ -15,6 +16,7 @@ class PaymentScreen extends ConsumerStatefulWidget {
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   WebViewController? _mobileWebViewController;
   late final webview_windows.WebviewController _windowsController;
+  StreamSubscription<String>? _winUrlSub; // <-- вот это!
   bool _windowsWebViewReady = false;
 
   @override
@@ -26,6 +28,14 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         setState(() {
           _windowsWebViewReady = true;
         });
+        // Только тут подписываемся!
+        final notifier = ref.read(paymentProvider.notifier);
+        _winUrlSub = _windowsController.url.listen((currentUrl) {
+          if (currentUrl.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
+            notifier.reset();
+            Navigator.of(context).maybePop();
+        }
+      });
         final paymentUrl = ref.read(paymentProvider).paymentUrl;
         if (paymentUrl != null) {
           _windowsController.loadUrl(paymentUrl);
@@ -36,6 +46,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   @override
   void dispose() {
+     _winUrlSub?.cancel();
     if (Platform.isWindows) {
       _windowsController.dispose();
     }
@@ -99,6 +110,20 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       } else {
         _mobileWebViewController ??= WebViewController()
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onNavigationRequest: (NavigationRequest request) {
+                print('WebView navigation to: ${request.url}');
+                if (request.url.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
+                    // Действие по завершению оплаты (например, закрыть экран)
+                    notifier.reset(); // сбрасываем состояние оплаты
+                    Navigator.of(context).maybePop(); // закрываем экран оплаты
+                    return NavigationDecision.prevent;
+                  }
+                  return NavigationDecision.navigate;
+                },
+              ),
+            )
           ..loadRequest(Uri.parse(url));
         return WebViewWidget(controller: _mobileWebViewController!);
       }
