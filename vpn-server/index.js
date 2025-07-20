@@ -11,6 +11,8 @@ const errorHandler = require('./middlewares/errorHandler');
 const logger = require('./logger');
 const { config } = require('./config/config');
 
+const mainscreenRoutes = require('./routes/mainscreenRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');  
 const authRoutes = require('./routes/authRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -40,7 +42,7 @@ app.use(express.json());
 
 // === Security middlewares ===
 app.use(helmet());
-app.use(cors({ origin: ['https://your-app.com'], credentials: true }));
+app.use(cors({ origin: ['https://sham.shetanvpn.ru'], credentials: true }));
 
 // === Sessions ===
 app.use(session(config.session));
@@ -90,6 +92,10 @@ app.get('/healthz', (req, res) => {
     res.send('OK');
   });
 });
+
+app.use('/webhook', webhookRoutes);  // POST /webhook/yookassa
+
+app.use('/', mainscreenRoutes);
 
 // === Error handler ===
 app.use(errorHandler);
