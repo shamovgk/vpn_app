@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/themed_background.dart';
 import '../providers/auth_provider.dart';
 import '../../vpn/screens/vpn_screen.dart';
 import 'register_screen.dart';
@@ -49,11 +51,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showErrorSnackbar(String message) {
-    final theme = Theme.of(context);
+    final colors = AppColors.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: theme.colorScheme.error,
+        backgroundColor: colors.danger,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -80,20 +82,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = AppColors.of(context);
     final authProviderValue = ref.watch(authProvider);
     final user = authProviderValue.user;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
-        image: const DecorationImage(
-          image: AssetImage('assets/background.png'),
-          fit: BoxFit.fitWidth,
-          opacity: 0.3,
-          alignment: Alignment(0, 0.1),
-        ),
-      ),
+    return ThemedBackground(
       child: PopScope(
         canPop: false,
         child: Scaffold(
@@ -103,7 +96,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             elevation: 0,
             title: Text(
               'Вход',
-              style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+              style: TextStyle(
+                fontSize: 20,
+                color: colors.text,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             centerTitle: true,
             automaticallyImplyLeading: false,
@@ -116,16 +113,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock, size: 50, color: theme.primaryColor),
+                    Icon(Icons.lock, size: 50, color: colors.primary),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _usernameController,
-                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      style: TextStyle(color: colors.text),
                       decoration: InputDecoration(
                         labelText: 'Логин',
                         border: const OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person, color: theme.textTheme.bodyMedium?.color),
-                        labelStyle: theme.textTheme.bodyMedium,
+                        prefixIcon: Icon(Icons.person, color: colors.textMuted),
+                        labelStyle: TextStyle(color: colors.textMuted),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Введите логин';
@@ -135,15 +132,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _passwordController,
-                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      style: TextStyle(color: colors.text),
                       decoration: InputDecoration(
                         labelText: 'Пароль',
                         border: const OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock, color: theme.textTheme.bodyMedium?.color),
+                        prefixIcon: Icon(Icons.lock, color: colors.textMuted),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                            color: theme.textTheme.bodyMedium?.color,
+                            color: colors.textMuted,
                           ),
                           onPressed: () {
                             setState(() {
@@ -151,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             });
                           },
                         ),
-                        labelStyle: theme.textTheme.bodyMedium,
+                        labelStyle: TextStyle(color: colors.textMuted),
                       ),
                       obscureText: !_isPasswordVisible,
                       validator: (value) {
@@ -167,7 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onPressed: _resetPasswordFlow,
                           child: Text(
                             'Забыли пароль?',
-                            style: TextStyle(color: theme.colorScheme.primary),
+                            style: TextStyle(color: colors.primary),
                           ),
                         ),
                       ),
@@ -176,7 +173,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     if (user != null)
                       Text(
                         'Устройства: ${user.deviceCount}/${user.subscriptionLevel == 1 ? 6 : 3}',
-                        style: theme.textTheme.bodyMedium,
+                        style: TextStyle(color: colors.textMuted),
                       ),
                     if (authProviderValue.isLoading)
                       const Padding(
@@ -186,10 +183,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: authProviderValue.isLoading ? null : _login,
-                      style: theme.elevatedButtonTheme.style,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        foregroundColor: colors.bgLight,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      ),
                       child: Text(
                         'Войти',
-                        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: colors.bgLight),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -197,8 +198,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: _navigateToRegister,
                       child: Text(
                         'Зарегистрироваться',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.primary,
+                        style: TextStyle(
+                          color: colors.primary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),

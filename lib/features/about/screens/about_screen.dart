@@ -1,24 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/themed_background.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = AppColors.of(context);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
-        image: const DecorationImage(
-          image: AssetImage('assets/background.png'),
-          fit: BoxFit.fitWidth,
-          opacity: 0.3,
-          alignment: Alignment(0, 0.1),
-        ),
-      ),
+    return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -26,11 +19,11 @@ class AboutScreen extends StatelessWidget {
           elevation: 0,
           title: Text(
             'О нас',
-            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+            style: TextStyle(fontSize: 20, color: colors.text, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
+            icon: Icon(Icons.arrow_back, color: colors.textMuted),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -54,7 +47,7 @@ class AboutScreen extends StatelessWidget {
                     Text(
                       'UgbuganVPN — обеспечит вашу конфиденциальность и свободу в сети. Мы работаем над улучшением сервиса каждый день',
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16),
+                      style: TextStyle(color: colors.textMuted, fontSize: 16),
                     ),
                   ],
                 ),
@@ -75,22 +68,22 @@ class AboutScreen extends StatelessWidget {
                       children: [
                         InkWell(
                           onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                          child: Icon(FontAwesomeIcons.telegram, size: 30, color: theme.textTheme.bodyMedium?.color),
+                          child: Icon(FontAwesomeIcons.telegram, size: 30, color: colors.textMuted),
                         ),
                         const SizedBox(width: 20),
                         InkWell(
                           onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                          child: Icon(FontAwesomeIcons.github, size: 30, color: theme.textTheme.bodyMedium?.color),
+                          child: Icon(FontAwesomeIcons.github, size: 30, color: colors.textMuted),
                         ),
                         const SizedBox(width: 20),
                         InkWell(
                           onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                          child: Icon(FontAwesomeIcons.globe, size: 30, color: theme.textTheme.bodyMedium?.color),
+                          child: Icon(FontAwesomeIcons.globe, size: 30, color: colors.textMuted),
                         ),
                         const SizedBox(width: 20),
                         InkWell(
                           onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                          child: Icon(FontAwesomeIcons.envelope, size: 30, color: theme.textTheme.bodyMedium?.color),
+                          child: Icon(FontAwesomeIcons.envelope, size: 30, color: colors.textMuted),
                         ),
                       ],
                     ),
@@ -98,9 +91,9 @@ class AboutScreen extends StatelessWidget {
                     // Версия
                     Text(
                       'Версия: 1.0.0',
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                        color: colors.textMuted.withAlpha(153), // 0.6 * 255 = 153
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -109,9 +102,9 @@ class AboutScreen extends StatelessWidget {
                       onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
                       child: Text(
                         'Политика конфиденциальности',
-                        style: theme.textTheme.bodyMedium?.copyWith(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: theme.colorScheme.primary,
+                          color: colors.primary,
                           decoration: TextDecoration.underline,
                         ),
                       ),
@@ -127,7 +120,6 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  // Функция для открытия URL
   Future<void> _launchURL(Uri url) async {
     if (await canLaunchUrl(url)) {
       await launchUrl(url);

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io' show Platform;
 import 'package:window_manager/window_manager.dart';
 
-import 'theme_provider.dart';
+import 'ui/theme/theme_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/vpn/screens/vpn_screen.dart';
@@ -42,17 +42,27 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = ref.watch(themeProvider);
-    final auth = ref.watch(authProvider);
-
+    final theme = ref.watch(themeProvider); // ThemeProvider
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'UgbuganVPN',
-      theme: theme.lightTheme,
-      darkTheme: theme.darkTheme,
-      themeMode: theme.themeMode,
-      home: auth.isLoggedIn ? const VpnScreen() : const LoginScreen(),
+      theme: theme.lightTheme, // твой кастомный lightTheme
+      darkTheme: theme.darkTheme, // твой кастомный darkTheme
+      themeMode: theme.themeMode, // текущий режим (dark/light/system)
+      home: const _EntryScreen(), // обертка для авторизации
+      debugShowCheckedModeBanner: false,
     );
+  }
+}
+
+// Этот виджет не пересобирает всю MaterialApp при изменении состояния авторизации!
+class _EntryScreen extends ConsumerWidget {
+  const _EntryScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    return auth.isLoggedIn ? const VpnScreen() : const LoginScreen();
   }
 }
 

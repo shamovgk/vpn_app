@@ -1,10 +1,12 @@
 import 'dart:io' show Platform;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
+import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/themed_background.dart';
 import '../providers/payment_provider.dart';
-import 'dart:async'; // <--- Добавь наверху для StreamSubscription
 
 class PaymentScreen extends ConsumerStatefulWidget {
   const PaymentScreen({super.key});
@@ -16,7 +18,7 @@ class PaymentScreen extends ConsumerStatefulWidget {
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   WebViewController? _mobileWebViewController;
   late final webview_windows.WebviewController _windowsController;
-  StreamSubscription<String>? _winUrlSub; // <-- вот это!
+  StreamSubscription<String>? _winUrlSub;
   bool _windowsWebViewReady = false;
 
   @override
@@ -28,14 +30,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         setState(() {
           _windowsWebViewReady = true;
         });
-        // Только тут подписываемся!
         final notifier = ref.read(paymentProvider.notifier);
         _winUrlSub = _windowsController.url.listen((currentUrl) {
           if (currentUrl.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
             notifier.reset();
             Navigator.of(context).maybePop();
-        }
-      });
+          }
+        });
         final paymentUrl = ref.read(paymentProvider).paymentUrl;
         if (paymentUrl != null) {
           _windowsController.loadUrl(paymentUrl);
@@ -46,7 +47,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   @override
   void dispose() {
-     _winUrlSub?.cancel();
+    _winUrlSub?.cancel();
     if (Platform.isWindows) {
       _windowsController.dispose();
     }
@@ -55,6 +56,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final state = ref.watch(paymentProvider);
     final notifier = ref.read(paymentProvider.notifier);
     final theme = Theme.of(context);
@@ -71,25 +73,27 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 {'title': 'Оплатить через СБП', 'method': 'sbp'},
                 {'title': 'Оплатить через СберПей', 'method': 'sberbank'},
               ].map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 20.0),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () => notifier.fetchPaymentUrl(item['method']!),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
-                          foregroundColor: theme.colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                          textStyle: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
-                          elevation: 2,
-                        ),
-                        child: Text(item['title']!,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                                fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onPrimary)),
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => notifier.fetchPaymentUrl(item['method']!),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      foregroundColor: colors.bgLight,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      elevation: 2,
+                      textStyle: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 16, fontWeight: FontWeight.w500, color: colors.bgLight,
                       ),
                     ),
-                  )),
+                    child: Text(item['title']!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 16, fontWeight: FontWeight.w500, color: colors.bgLight)),
+                  ),
+                ),
+              )),
             ],
           ),
         ),
@@ -99,7 +103,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     Widget buildWebView() {
       final url = state.paymentUrl;
       if (url == null) {
-        return const Center(child: Text('Нет ссылки на оплату'));
+        return Center(child: Text('Нет ссылки на оплату', style: TextStyle(color: colors.danger)));
       }
       if (Platform.isWindows) {
         if (!_windowsWebViewReady) {
@@ -113,37 +117,26 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           ..setNavigationDelegate(
             NavigationDelegate(
               onNavigationRequest: (NavigationRequest request) {
-                print('WebView navigation to: ${request.url}');
                 if (request.url.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
-                    // Действие по завершению оплаты (например, закрыть экран)
-                    notifier.reset(); // сбрасываем состояние оплаты
-                    Navigator.of(context).maybePop(); // закрываем экран оплаты
-                    return NavigationDecision.prevent;
-                  }
-                  return NavigationDecision.navigate;
-                },
-              ),
-            )
+                  notifier.reset();
+                  Navigator.of(context).maybePop();
+                  return NavigationDecision.prevent;
+                }
+                return NavigationDecision.navigate;
+              },
+            ),
+          )
           ..loadRequest(Uri.parse(url));
         return WebViewWidget(controller: _mobileWebViewController!);
       }
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
-        image: const DecorationImage(
-          image: AssetImage('assets/background.png'),
-          fit: BoxFit.fitWidth,
-          opacity: 0.3,
-          alignment: Alignment(0, 0.1),
-        ),
-      ),
+    return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back, color: colors.textMuted),
             onPressed: () {
               notifier.reset();
               Navigator.of(context).maybePop();
@@ -151,7 +144,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           ),
           title: Text(
             'Оплата подписки',
-            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+            style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20, color: colors.text),
           ),
           centerTitle: true,
           backgroundColor: Colors.transparent,
@@ -164,10 +157,15 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(state.error!, style: const TextStyle(color: Colors.red)),
+                        Text(state.error!, style: TextStyle(color: colors.danger)),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: notifier.reset,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colors.primary,
+                            foregroundColor: colors.bgLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                          ),
                           child: const Text('Выбрать другой способ'),
                         )
                       ],

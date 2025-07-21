@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/themed_background.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
@@ -59,11 +61,11 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Au
   }
 
   void _showErrorSnackbar(String message) {
-    final theme = Theme.of(context);
+    final colors = AppColors.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: theme.colorScheme.error,
+        backgroundColor: colors.danger,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -80,19 +82,10 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Au
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final theme = Theme.of(context);
+    final colors = AppColors.of(context);
     final authProviderValue = ref.watch(authProvider);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
-        image: const DecorationImage(
-          image: AssetImage('assets/background.png'),
-          fit: BoxFit.fitWidth,
-          opacity: 0.3,
-          alignment: Alignment(0, 0.1),
-        ),
-      ),
+    return ThemedBackground(
       child: PopScope(
         canPop: false,
         child: Scaffold(
@@ -102,10 +95,10 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Au
             elevation: 0,
             title: Text(
               'Верификация Email',
-              style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20),
+              style: TextStyle(fontSize: 20, color: colors.text, fontWeight: FontWeight.bold),
             ),
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyMedium?.color),
+              icon: Icon(Icons.arrow_back, color: colors.textMuted),
               onPressed: _navigateToRegister,
             ),
             centerTitle: true,
@@ -119,22 +112,22 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Au
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.verified_user, size: 100, color: Theme.of(context).primaryColor),
+                    Icon(Icons.verified_user, size: 100, color: colors.primary),
                     const SizedBox(height: 40),
                     Text(
                       'Введите код, отправленный на ${widget.email}',
-                      style: theme.textTheme.bodyMedium,
+                      style: TextStyle(color: colors.textMuted),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _verificationCodeController,
-                      style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                      style: TextStyle(color: colors.text),
                       decoration: InputDecoration(
                         labelText: 'Код верификации',
                         border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.verified),
-                        labelStyle: theme.textTheme.bodyMedium,
+                        prefixIcon: Icon(Icons.verified, color: colors.textMuted),
+                        labelStyle: TextStyle(color: colors.textMuted),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Введите код верификации';
@@ -145,8 +138,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Au
                     ElevatedButton(
                       onPressed: authProviderValue.isLoading ? null : _verifyEmail,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.scaffoldBackgroundColor,
-                        foregroundColor: theme.scaffoldBackgroundColor,
+                        backgroundColor: colors.primary,
+                        foregroundColor: colors.bgLight,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       ),
                       child: authProviderValue.isLoading
@@ -157,7 +150,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Au
                             )
                           : Text(
                               'Подтвердить Email',
-                              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w500),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: colors.bgLight),
                             ),
                     ),
                   ],
