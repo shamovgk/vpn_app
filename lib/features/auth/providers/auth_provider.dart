@@ -80,17 +80,20 @@ class AuthProvider with ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
-      final user = await _authService.login(
+      final response = await _authService.login(
         username: username,
         password: password,
         deviceToken: deviceToken,
         deviceModel: deviceModel,
         deviceOS: deviceOS,
       );
-      _token = await _storage.read(key: 'token');
-      if (_token == null) {
-        throw ApiException('Не удалось сохранить токен!');
+      final token = response['token'];
+      final user = User.fromJson(response['user']);
+      if (token == null || token is! String) {
+        throw ApiException('Не удалось получить токен!');
       }
+      await _storage.write(key: 'token', value: token);
+      _token = token;
       _user = user;
       _errorMessage = null;
       notifyListeners();

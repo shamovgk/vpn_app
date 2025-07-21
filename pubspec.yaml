@@ -31,13 +31,27 @@ dependencies:
   webview_windows: ^0.4.0
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  test: ^1.25.15 # Для написания тестов
+  test: ^1.25.15
   mockito: ^5.4.4
 
+flutter_launcher_icons:
+  image_path: "assets/icons/icon_512x512.png"
+  android: true
+  ios: true
+  macos:
+    generate: true
+    icon_size: 256
+  windows:
+    generate: true
+    icon_size: 256
+
+
 flutter:
+  uses-material-design: true
   assets:
     - assets/tray_icon_connect.png
     - assets/tray_icon_connect.ico
@@ -49,5 +63,3 @@ flutter:
     - assets/light_theme_vpn_disconnect.gif
     - assets/background.png
     - assets/background_vpn.png
-  uses-material-design: true
-  

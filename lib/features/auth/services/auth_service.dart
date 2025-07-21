@@ -7,7 +7,7 @@ class AuthService {
 
   AuthService(this.api);
 
-  Future<User> login({
+  Future<Map<String, dynamic>> login({
     required String username,
     required String password,
     String? deviceToken,
@@ -22,7 +22,7 @@ class AuthService {
       if (deviceOS != null) 'device_os': deviceOS,
     };
     final res = await api.post('/auth/login', body);
-    return User.fromJson(res);
+    return res; // <--- именно Map, не User!
   }
 
   Future<void> register({
