@@ -5,12 +5,15 @@ import 'package:vpn_app/features/vpn/widgets/vpn_drawer.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/vpn_provider.dart';
 import '../../payments/screens/payment_screen.dart';
+import '../../../ui/theme/app_colors.dart';
+import '../../../ui/widgets/themed_background.dart';
 
 class VpnScreen extends ConsumerWidget {
   const VpnScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     final vpnState = ref.watch(vpnProvider);
     final vpnNotifier = ref.read(vpnProvider.notifier);
     final auth = ref.watch(authProvider);
@@ -29,30 +32,28 @@ class VpnScreen extends ConsumerWidget {
       }
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: HSLColor.fromAHSL(1.0, 40, 0.6, 0.08).toColor(),
-        image: const DecorationImage(
-          image: AssetImage('assets/background.png'),
-          fit: BoxFit.fitWidth,
-          opacity: 0.3,
-          alignment: Alignment(0, 0.1),
-        ),
-      ),
+    return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: const Text('UgbuganVPN'),
+          title: Text(
+            'UgbuganVPN',
+            style: theme.textTheme.headlineLarge?.copyWith(
+              fontSize: 20,
+              color: colors.text,
+            ),
+          ),
           centerTitle: true,
           backgroundColor: Colors.transparent,
           elevation: 0,
           actions: [
             IconButton(
-              icon: const Icon(Icons.payment),
+              icon: Icon(Icons.payment, color: colors.textMuted),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const PaymentScreen()),
               ),
+              tooltip: 'Подписка',
             ),
           ],
         ),
@@ -84,7 +85,11 @@ class VpnScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     vpnState.error!,
-                    style: TextStyle(color: theme.colorScheme.error),
+                    style: TextStyle(
+                      color: colors.danger,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
             ],
