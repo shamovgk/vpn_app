@@ -218,15 +218,17 @@ exports.login = async (req, res) => {
 
   logger.info('User logged in', { userId: user.id, username, device_token });
   res.json({
-    id: user.id,
-    username: user.username,
-    email_verified: user.email_verified,
-    is_paid: user.is_paid,
-    subscription_level: user.subscription_level,
-    vpn_key: user.vpn_key || null,
-    trial_end_date: user.trial_end_date,
-    device_count: currentDeviceCount,
-    auth_token: token
+    token: token,
+    user: {
+      id: user.id,
+      username: user.username,
+      email_verified: user.email_verified,
+      is_paid: user.is_paid,
+      subscription_level: user.subscription_level,
+      vpn_key: user.vpn_key || null,
+      trial_end_date: user.trial_end_date,
+      device_count: currentDeviceCount,
+    }
   });
 };
 
