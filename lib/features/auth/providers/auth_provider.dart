@@ -105,10 +105,9 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> validateToken() async {
-    if (_token == null) return;
     _setLoading(true);
     try {
-      final user = await _authService.validateToken(_token!);
+      final user = await _authService.validateToken();
       _user = user;
       _errorMessage = null;
       notifyListeners();
