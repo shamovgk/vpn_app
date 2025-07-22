@@ -1,9 +1,10 @@
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/api_service.dart';
 import '../models/user.dart';
 
 class AuthService {
   final ApiService api;
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   AuthService(this.api);
 
@@ -22,7 +23,7 @@ class AuthService {
       if (deviceOS != null) 'device_os': deviceOS,
     };
     final res = await api.post('/auth/login', body);
-    return res; // <--- именно Map, не User!
+    return res;
   }
 
   Future<void> register({
@@ -49,12 +50,16 @@ class AuthService {
     });
   }
 
+  /// ЛОГАУТ: токен отправляется в header!
   Future<void> logout() async {
     await api.post('/auth/logout', {}, auth: true);
   }
 
-  Future<User> validateToken(String token) async {
-    final res = await api.get('/auth/validate-token?token=$token', auth: true);
+  /// ВАЛИДАЦИЯ: токен отправляется в query!
+  Future<User> validateToken() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw ApiException('Token is required');
+    final res = await api.get('/auth/validate-token?token=$token');
     return User.fromJson(res);
   }
 
