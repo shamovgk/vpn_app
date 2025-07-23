@@ -2,53 +2,48 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'token_provider.dart'; // импорт tokenProvider
 
 final apiServiceProvider = Provider<ApiService>((ref) {
-  return ApiService();
+  return ApiService(ref); // ref нужен для доступа к tokenProvider
 });
 
 class ApiService {
+  final Ref ref;
   static const baseUrl = 'http://95.214.10.8:3000';
   static final FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  String? _token;
-  bool _isInitialized = false;
+  ApiService(this.ref);
 
-  Future<void> init() async {
-    if (_isInitialized) return;
-    _token = await _storage.read(key: 'token');
-    _isInitialized = true;
-  }
-
-  Future<void> setToken(String? token) async {
-    _token = token;
-    if (token != null) {
-      await _storage.write(key: 'token', value: token);
-    } else {
-      await _storage.delete(key: 'token');
-    }
-  }
-
+  // Чтение токена только при необходимости
   Future<dynamic> get(String path, {bool auth = false}) async {
-    await init();
     final url = Uri.parse('$baseUrl$path');
+    final token = ref.read(tokenProvider);
     final headers = <String, String>{
       'Content-Type': 'application/json',
-      if (auth && _token != null) 'Authorization': 'Bearer $_token',
+      if (auth && token != null) 'Authorization': 'Bearer $token',
     };
     final response = await http.get(url, headers: headers);
     return _processResponse(response);
   }
 
   Future<dynamic> post(String path, Map<String, dynamic> body, {bool auth = false}) async {
-    await init();
     final url = Uri.parse('$baseUrl$path');
+    final token = ref.read(tokenProvider);
     final headers = <String, String>{
       'Content-Type': 'application/json',
-      if (auth && _token != null) 'Authorization': 'Bearer $_token',
+      if (auth && token != null) 'Authorization': 'Bearer $token',
     };
     final response = await http.post(url, headers: headers, body: jsonEncode(body));
     return _processResponse(response);
+  }
+
+  Future<void> saveToken(String? token) async {
+    if (token != null) {
+      await _storage.write(key: 'token', value: token);
+    } else {
+      await _storage.delete(key: 'token');
+    }
   }
 
   dynamic _processResponse(http.Response response) {

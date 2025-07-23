@@ -55,13 +55,17 @@ class MyApp extends ConsumerWidget {
   }
 }
 
-// Этот виджет не пересобирает всю MaterialApp при изменении состояния авторизации!
 class _EntryScreen extends ConsumerWidget {
   const _EntryScreen();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    if (!auth.isInitialized) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return auth.isLoggedIn ? const VpnScreen() : const LoginScreen();
   }
 }

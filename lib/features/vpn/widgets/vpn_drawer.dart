@@ -7,6 +7,7 @@ import '../../about/screens/about_screen.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../../ui/theme/theme_provider.dart';
 import '../../../ui/theme/app_colors.dart';
+import '../../../main.dart'; 
 
 class VpnDrawer extends ConsumerWidget {
   final String? username;
@@ -74,7 +75,7 @@ class VpnDrawer extends ConsumerWidget {
               );
             },
           ),
-          // -------- Кнопка смены темы --------
+          const Spacer(),
           ListTile(
             leading: Icon(Icons.brightness_6, color: colors.highlight),
             title: Text('Сменить тему', style: TextStyle(color: colors.text)),
@@ -93,8 +94,6 @@ class VpnDrawer extends ConsumerWidget {
               );
             },
           ),
-          // ----------- Кнопка "Выйти" -----------
-          const Spacer(),
           if (auth.isLoggedIn)
             ListTile(
               leading: Icon(Icons.logout, color: colors.danger),
@@ -102,8 +101,7 @@ class VpnDrawer extends ConsumerWidget {
               onTap: () async {
                 Navigator.pop(context);
                 await ref.read(authProvider.notifier).logout();
-                Navigator.pushAndRemoveUntil(
-                  context,
+                navigatorKey.currentState?.pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                   (route) => false,
                 );
