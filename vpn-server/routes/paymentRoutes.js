@@ -4,9 +4,11 @@ const paymentController = require('../controllers/paymentController');
 const validate = require('../middlewares/validate');
 const { payYookassaSchema } = require('../schemas/paymentSchemas');
 const withDb = require('../middlewares/withDb');
-router.use(withDb);
+const auth = require('../middlewares/auth');
 
-// Универсальный endpoint для всех типов оплаты (карта, SBP)
+router.use(withDb);
+router.use(auth);
+
 router.post('/', validate(payYookassaSchema), paymentController.payYookassa);
 
 module.exports = router;

@@ -30,6 +30,7 @@ const db = new sqlite3.Database(config.dbPath, (err) => {
     require('./models/deviceModel')(db);
     require('./models/passwordResetModel')(db);
     require('./models/userStatsModel')(db);
+    require('./models/paymentModel')(db);
   }
 });
 

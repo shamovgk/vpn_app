@@ -11,7 +11,8 @@ const yooKassa = new YooKassa({
 exports.payYookassa = async (req, res) => {
   try {
     const { amount, method } = req.body;
-    logger.info('Payment initiated', { amount, method });
+    const userId = req.user?.id || req.body.user_id; // желательно получать user_id из токена или явно из клиента
+    logger.info('Payment initiated', { amount, method, userId });
 
     // Проверка метода
     const allowed = ['bank_card', 'sbp', 'sberbank'];
@@ -25,7 +26,18 @@ exports.payYookassa = async (req, res) => {
       confirmation: { type: 'redirect', return_url: 'https://sham.shetanvpn.ru/mainscreen' },
       capture: true,
       description: 'Оплата VPN',
+      metadata: { user_id: userId }, // <-- вот это главное!
     });
+
+    // Записываем в таблицу Payments (pending)
+    await new Promise((resolve, reject) =>
+      req.db.run(
+        `INSERT INTO Payments (user_id, amount, currency, payment_id, status, method, meta)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [userId, amount, 'RUB', payment.id, payment.status, method, JSON.stringify(payment)],
+        err => err ? reject(err) : resolve()
+      )
+    );
 
     logger.info('Payment created', { paymentId: payment.id, status: payment.status });
 
@@ -39,3 +51,4 @@ exports.payYookassa = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+

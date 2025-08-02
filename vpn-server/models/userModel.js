@@ -16,7 +16,8 @@ module.exports = (db) => {
       auth_token TEXT,
       token_expiry TEXT,
       client_ip TEXT,
-      is_admin INTEGER DEFAULT 0
+      is_admin INTEGER DEFAULT 0,
+      paid_until TEXT
     )
   `);
 };
