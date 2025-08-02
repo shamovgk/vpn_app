@@ -13,7 +13,7 @@ class PaymentService {
     final res = await api.post('/pay', {
       'amount': amount,
       'method': method,
-    });
+    }, auth: true);
 
     final confirmationUrl = res['confirmationUrl'];
     if (confirmationUrl is String && confirmationUrl.isNotEmpty) {

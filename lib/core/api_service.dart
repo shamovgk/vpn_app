@@ -10,7 +10,7 @@ final apiServiceProvider = Provider<ApiService>((ref) {
 
 class ApiService {
   final Ref ref;
-  static const baseUrl = 'http://95.214.10.8:3000';
+  static const baseUrl = 'https://sham.shetanvpn.ru';
   static final FlutterSecureStorage _storage = FlutterSecureStorage();
 
   ApiService(this.ref);

@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vpn_app/features/auth/providers/auth_provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
 import 'package:vpn_app/ui/theme/app_colors.dart';
@@ -31,10 +32,20 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           _windowsWebViewReady = true;
         });
         final notifier = ref.read(paymentProvider.notifier);
-        _winUrlSub = _windowsController.url.listen((currentUrl) {
+        _winUrlSub = _windowsController.url.listen((currentUrl) async {
           if (currentUrl.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
+            await ref.read(authProvider.notifier).validateToken();
             notifier.reset();
-            Navigator.of(context).maybePop();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Подписка активирована!'),
+                  backgroundColor: AppColors.of(context).success,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+              Navigator.of(context).maybePop();
+            }
           }
         });
         final paymentUrl = ref.read(paymentProvider).paymentUrl;
@@ -116,14 +127,24 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
           ..setNavigationDelegate(
             NavigationDelegate(
-              onNavigationRequest: (NavigationRequest request) {
+              onNavigationRequest: (NavigationRequest request) async {
                 if (request.url.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
+                  await ref.read(authProvider.notifier).validateToken();
                   notifier.reset();
-                  Navigator.of(context).maybePop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Подписка активирована!'),
+                        backgroundColor: AppColors.of(context).success,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                    Navigator.of(context).maybePop();
+                  }
                   return NavigationDecision.prevent;
                 }
                 return NavigationDecision.navigate;
-              },
+              }
             ),
           )
           ..loadRequest(Uri.parse(url));

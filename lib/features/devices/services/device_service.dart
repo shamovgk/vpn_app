@@ -14,7 +14,19 @@ class DeviceService {
     throw Exception('Некорректный формат ответа');
   }
 
-  Future<void> removeDevice(int deviceId) async {
-    await api.post('/devices/remove-device', {'device_id': deviceId}, auth: true);
+  Future<void> removeDevice(String deviceToken) async {
+    await api.post('/devices/remove-device', {'device_token': deviceToken}, auth: true);
+  }
+
+  Future<void> addDevice({
+    required String deviceToken,
+    required String deviceModel,
+    required String deviceOS,
+  }) async {
+    await api.post('/devices/add-device', {
+      'device_token': deviceToken,
+      'device_model': deviceModel,
+      'device_os': deviceOS,
+    }, auth: true);
   }
 }

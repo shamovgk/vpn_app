@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vpn_app/features/payments/screens/subscription_status_screen.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../payments/screens/payment_screen.dart';
-import '../../devices/screens/settings_screen.dart';
+import '../../devices/screens/device_screen.dart';
 import '../../about/screens/about_screen.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../../ui/theme/theme_provider.dart';
@@ -54,16 +55,28 @@ class VpnDrawer extends ConsumerWidget {
             },
           ),
           ListTile(
-            leading: Icon(Icons.devices, color: colors.info),
-            title: Text('Устройства и настройки', style: TextStyle(color: colors.text)),
+            leading: Icon(Icons.subscriptions, color: colors.primary),
+            title: Text('Подписка', style: TextStyle(color: colors.text)),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                MaterialPageRoute(builder: (_) => const SubscriptionStatusScreen()),
               );
             },
           ),
+          ListTile(
+            leading: Icon(Icons.devices, color: colors.info),
+            title: Text('Устройства', style: TextStyle(color: colors.text)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DevicesScreen()),
+              );
+            },
+          ),
+
           ListTile(
             leading: Icon(Icons.info_outline, color: colors.secondary),
             title: Text('О приложении', style: TextStyle(color: colors.text)),
