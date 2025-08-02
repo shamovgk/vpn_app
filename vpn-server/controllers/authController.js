@@ -105,7 +105,7 @@ exports.verifyEmail = async (req, res) => {
     const { privateKey, clientIp } = await generateVpnKey(pendingUser.id, db);
     await new Promise((resolve, reject) =>
       db.run(
-        `INSERT INTO Users (username, password, email, trial_end_date, vpn_key, client_ip) VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO Users (username, password, email, trial_end_date, vpn_key, client_ip, paid_until) VALUES (?, ?, ?, ?, ?, ?, NULL)`,
         [username, pendingUser.password, email, pendingUser.trial_end_date, privateKey, clientIp],
         function (err) { err ? reject(err) : resolve(this.lastID); }
       )
@@ -130,6 +130,7 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
+// ------- Главное изменение: Разрешаем логин всегда, статус даём через can_use ---------
 exports.login = async (req, res) => {
   const { username, password, device_token, device_model, device_os } = req.body;
   const db = req.db;
@@ -149,11 +150,12 @@ exports.login = async (req, res) => {
     logger.warn('Login attempt: wrong password', { username, userId: user.id });
     throw new Error('Неверный пароль');
   }
-  const trialExpired = user.trial_end_date && new Date(user.trial_end_date) < new Date();
-  if (!user.is_paid && trialExpired) {
-    logger.warn('Login attempt: trial expired', { username, userId: user.id });
-    throw new Error('Срок действия пробного периода истёк');
-  }
+
+  // Теперь логика "can_use" на сервере, но не блокируем логин
+  const now = new Date();
+  const isTrial = user.trial_end_date && new Date(user.trial_end_date) > now;
+  const isPaid = user.is_paid && user.paid_until && new Date(user.paid_until) > now;
+  const canUse = isTrial || isPaid;
 
   let currentDeviceCount = 0;
   if (device_token) {
@@ -223,23 +225,27 @@ exports.login = async (req, res) => {
       id: user.id,
       username: user.username,
       email_verified: user.email_verified,
-      is_paid: user.is_paid,
+      is_paid: isPaid,
+      paid_until: user.paid_until,
       subscription_level: user.subscription_level,
       vpn_key: user.vpn_key || null,
       trial_end_date: user.trial_end_date,
       device_count: currentDeviceCount,
+      is_trial: isTrial,
+      can_use: canUse
     }
   });
 };
 
 exports.validateToken = async (req, res) => {
-  const { token } = req.query;
-  if (!token) throw new Error('Token is required');
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Token is required');
+  const token = authHeader.split(' ')[1];
   const db = req.db;
 
   const user = await new Promise((resolve, reject) =>
     db.get(
-      `SELECT id, username, email_verified, is_paid, subscription_level, vpn_key, trial_end_date, device_count
+      `SELECT id, username, email_verified, is_paid, paid_until, subscription_level, vpn_key, trial_end_date, device_count
        FROM Users WHERE auth_token = ? AND token_expiry > ?`,
       [token, new Date().toISOString()],
       (err, user) => err ? reject(err) : resolve(user)
@@ -250,16 +256,24 @@ exports.validateToken = async (req, res) => {
     throw new Error('Invalid or expired token');
   }
 
+  const now = new Date();
+  const isTrial = user.trial_end_date && new Date(user.trial_end_date) > now;
+  const isPaid = user.is_paid && user.paid_until && new Date(user.paid_until) > now;
+  const canUse = isTrial || isPaid;
+
   logger.info('Token validated', { userId: user.id, username: user.username, token });
   res.json({
     id: user.id,
     username: user.username,
     email_verified: user.email_verified,
-    is_paid: user.is_paid,
+    is_paid: isPaid,
+    paid_until: user.paid_until,
     subscription_level: user.subscription_level,
     vpn_key: user.vpn_key || null,
     trial_end_date: user.trial_end_date,
     device_count: user.device_count,
+    is_trial: isTrial,
+    can_use: canUse
   });
 };
 
@@ -386,4 +400,39 @@ exports.resetPassword = async (req, res) => {
   );
   logger.info('Password reset successful', { userId: user.id, username });
   res.json({ message: 'Пароль успешно сброшен' });
+};
+
+// Новый endpoint: получить полный статус подписки
+exports.subscriptionStatus = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Token is required');
+  const token = authHeader.split(' ')[1];
+  const db = req.db;
+
+  const user = await new Promise((resolve, reject) =>
+    db.get(`SELECT id, trial_end_date, is_paid, paid_until, subscription_level, device_count FROM Users WHERE auth_token = ? AND token_expiry > ?`,
+      [token, new Date().toISOString()],
+      (err, user) => err ? reject(err) : resolve(user))
+  );
+  if (!user) throw new Error('Invalid or expired token');
+
+  const now = new Date();
+  let isTrial = false;
+  let trialEnd = user.trial_end_date ? new Date(user.trial_end_date) : null;
+  if (trialEnd && trialEnd > now) isTrial = true;
+
+  let isPaid = false;
+  let paidUntil = user.paid_until ? new Date(user.paid_until) : null;
+  if (user.is_paid && paidUntil && paidUntil > now) isPaid = true;
+
+  res.json({
+    is_trial: isTrial,
+    trial_end_date: trialEnd ? trialEnd.toISOString() : null,
+    is_paid: isPaid,
+    paid_until: paidUntil ? paidUntil.toISOString() : null,
+    can_use: isTrial || isPaid,
+    subscription_level: user.subscription_level,
+    device_count: user.device_count,
+    max_devices: user.subscription_level === 1 ? 6 : 3,
+  });
 };

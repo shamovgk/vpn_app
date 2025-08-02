@@ -7,6 +7,9 @@ const { addDeviceSchema, removeDeviceSchema } = require('../schemas/deviceSchema
 const withDb = require('../middlewares/withDb');
 router.use(withDb);
 
+const auth = require('../middlewares/auth');
+router.use(auth);
+
 router.post('/add-device', validate(addDeviceSchema), deviceController.addDevice);
 router.post('/remove-device', validate(removeDeviceSchema), deviceController.removeDevice);
 router.get('/get-devices', deviceController.getDevices);
