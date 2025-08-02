@@ -1,0 +1,71 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+*.gz
+*.out
+
+# SQLite DB & backups
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.bak
+*.backup
+
+# Env & config
+.env
+.env.*
+config/local.js
+config/*.local.js
+
+# WireGuard, VPN secrets
+*.key
+*.pem
+*.crt
+*.conf
+secrets/
+private/
+scripts/*.key
+scripts/*.conf
+
+# Email, payments, etc.
+*.p12
+*.cer
+
+# Misc
+.idea/
+.vscode/
+coverage/
+dist/
+build/
+tmp/
+temp/
+.cache/
+__pycache__/
+
+# Server output
+/public/uploads
+/public/temp
+
+# Ignore generated ejs views cache
+views/*.ejs~
+
+# Systemd & service files
+*.service
+
+# Ignore your compiled shell scripts outputs (если есть)
+scripts/*.out
+scripts/*.log
+package-lock.json

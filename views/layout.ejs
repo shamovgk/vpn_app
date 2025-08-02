@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+    header {
+      background: #262626;
+      color: #fff;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-menu {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .nav-menu a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: 500;
+      padding: 8px 12px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .nav-menu a:hover, .nav-menu .active {
+      background: #444;
+    }
+    .logout-btn {
+      background: #e74c3c;
+      border: none;
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: 10px;
+      transition: background 0.2s;
+    }
+    .logout-btn:hover { background: #c0392b; }
+    main { max-width: 1100px; margin: 40px auto 0 auto; background: #fff; border-radius: 12px; padding: 32px 24px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);}
+    h1, h2 { font-weight: 600; margin-bottom: 18px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+    th, td { border: 1px solid #eee; padding: 8px 12px; text-align: left; }
+    th { background: #f7f7f7; }
+    .search-box { margin-bottom: 24px; }
+    .error { color: #e74c3c; margin-bottom: 14px; }
+    .btn { padding: 6px 16px; border-radius: 4px; border: none; cursor: pointer; }
+    .edit-btn { background: #2980b9; color: #fff; }
+    .edit-btn:hover { background: #1565a7; }
+    @media (max-width: 700px) {
+      main { padding: 12px; }
+      table, th, td { font-size: 13px; }
+      header { flex-direction: column; align-items: flex-start; height: auto; padding: 8px; }
+      .nav-menu { gap: 10px; margin-top: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <b style="font-size: 19px; letter-spacing: 1px;">UgbuganVPN Admin</b>
+    </div>
+    <nav class="nav-menu">
+      <a href="/admin" class="<%= title === 'Admin Panel' ? 'active' : '' %>">Пользователи</a>
+      <a href="/admin/stats" class="<%= title === 'Admin Statistics' ? 'active' : '' %>">Статистика</a>
+      <button class="logout-btn" onclick="logout()">Выйти</button>
+    </nav>
+  </header>
+  <main>
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+    <%- body %>
+  </main>
+  <form id="logoutForm" action="/admin/logout" method="POST" style="display:none;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  </form>
+  <script>
+    function logout() { document.getElementById('logoutForm').submit(); }
+  </script>
+</body>
+</html>

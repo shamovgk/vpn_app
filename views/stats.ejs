@@ -1,0 +1,29 @@
+<h1>Статистика пользователей</h1>
+<% if (userActivity && userActivity.length > 0) { %>
+  <table id="statsTable">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Активны (30д)</th>
+        <th>Платных</th>
+        <th>На пробном</th>
+        <th>Регистраций (30д)</th>
+        <th>Email Verified %</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% userActivity.forEach(stat => { %>
+        <tr>
+          <td><%= stat.username %></td>
+          <td><%= stat.active_users || 0 %></td>
+          <td><%= stat.paid_users || 0 %></td>
+          <td><%= stat.trial_users || 0 %></td>
+          <td><%= stat.registrations || 0 %></td>
+          <td><%= stat.email_verified_pct || 0 %>%</td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } else { %>
+  <p>Нет данных для отображения.</p>
+<% } %>
