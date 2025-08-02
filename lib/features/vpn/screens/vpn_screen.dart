@@ -7,6 +7,7 @@ import '../providers/vpn_provider.dart';
 import '../../payments/screens/payment_screen.dart';
 import '../../../ui/theme/app_colors.dart';
 import '../../../ui/widgets/themed_background.dart';
+import '../../payments/widgets/subscription_banner.dart';
 
 class VpnScreen extends ConsumerWidget {
   const VpnScreen({super.key});
@@ -62,6 +63,7 @@ class VpnScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              SubscriptionBanner(),
               AnimationButton(
                 isConnected: vpnState.isConnected,
                 isConnecting: vpnState.isConnecting,

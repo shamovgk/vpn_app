@@ -17,7 +17,7 @@ class ThemedBackground extends StatelessWidget {
           image: AssetImage('assets/background.png'),
           fit: BoxFit.fitWidth,
           opacity: 0.3,
-          alignment: Alignment(0, 0.1),
+          alignment: Alignment(0, -0.1),
         ),
       ),
       child: child,

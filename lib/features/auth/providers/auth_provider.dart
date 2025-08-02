@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vpn_app/features/devices/providers/device_provider.dart';
 import 'package:vpn_app/features/vpn/providers/vpn_provider.dart';
 import '../../../core/api_service.dart';
 import '../../../core/token_provider.dart'; // !
@@ -101,12 +102,16 @@ class AuthProvider with ChangeNotifier {
       _user = user;
       _errorMessage = null;
       notifyListeners();
+
+      await ref.read(deviceProvider.notifier).addCurrentDevice();
+  
     } on ApiException catch (e) {
       _errorMessage = e.message;
     } finally {
       _setLoading(false);
     }
   }
+
 
   Future<void> validateToken() async {
     _setLoading(true);
@@ -115,6 +120,7 @@ class AuthProvider with ChangeNotifier {
       _user = user;
       _errorMessage = null;
       notifyListeners();
+      await ref.read(deviceProvider.notifier).addCurrentDevice();
     } on ApiException catch (e) {
       _errorMessage = e.message;
       await logout();

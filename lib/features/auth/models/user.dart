@@ -4,6 +4,7 @@ class User {
   final bool isPaid;
   final int subscriptionLevel;
   final String? trialEndDate;
+  final String? paidUntil;
   final int deviceCount;
 
   User({
@@ -12,6 +13,7 @@ class User {
     required this.isPaid,
     required this.subscriptionLevel,
     this.trialEndDate,
+    this.paidUntil,
     required this.deviceCount,
   });
 
@@ -22,6 +24,7 @@ class User {
       isPaid: (json['is_paid'] ?? json['isPaid']) == 1 || (json['is_paid'] ?? json['isPaid']) == true,
       subscriptionLevel: (json['subscription_level'] ?? json['subscriptionLevel']) as int? ?? 0,
       trialEndDate: json['trial_end_date'] as String? ?? json['trialEndDate'] as String?,
+      paidUntil: json['paid_until'] as String? ?? json['paidUntil'] as String?,
       deviceCount: (json['device_count'] ?? json['deviceCount']) as int? ?? 0,
     );
   }
