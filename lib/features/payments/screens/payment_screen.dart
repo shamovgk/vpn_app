@@ -73,18 +73,17 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     final theme = Theme.of(context);
 
     Widget buildMethodSelection() {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ...[
-                {'title': 'Оплатить через карту', 'method': 'bank_card'},
-                {'title': 'Оплатить через СБП', 'method': 'sbp'},
-                {'title': 'Оплатить через СберПей', 'method': 'sberbank'},
-              ].map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 20.0),
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _SubscriptionStatusCard(), // Карточка статуса подписки (всегда сверху)
+          const SizedBox(height: 36),
+          ...[
+            {'title': 'Оплатить через карту', 'method': 'bank_card'},
+            {'title': 'Оплатить через СБП', 'method': 'sbp'},
+            {'title': 'Оплатить через СберПей', 'method': 'sberbank'},
+          ].map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 20.0, left: 24.0, right: 24.0),
                 child: SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -105,51 +104,57 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   ),
                 ),
               )),
-            ],
-          ),
-        ),
+        ],
       );
     }
 
     Widget buildWebView() {
       final url = state.paymentUrl;
-      if (url == null) {
-        return Center(child: Text('Нет ссылки на оплату', style: TextStyle(color: colors.danger)));
-      }
-      if (Platform.isWindows) {
-        if (!_windowsWebViewReady) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        _windowsController.loadUrl(url);
-        return webview_windows.Webview(_windowsController);
-      } else {
-        _mobileWebViewController ??= WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setNavigationDelegate(
-            NavigationDelegate(
-              onNavigationRequest: (NavigationRequest request) async {
-                if (request.url.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
-                  await ref.read(authProvider.notifier).validateToken();
-                  notifier.reset();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Подписка активирована!'),
-                        backgroundColor: AppColors.of(context).success,
-                        duration: const Duration(seconds: 3),
-                      ),
-                    );
-                    Navigator.of(context).maybePop();
-                  }
-                  return NavigationDecision.prevent;
-                }
-                return NavigationDecision.navigate;
-              }
-            ),
-          )
-          ..loadRequest(Uri.parse(url));
-        return WebViewWidget(controller: _mobileWebViewController!);
-      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SubscriptionStatusCard(), // Карточка статуса подписки (сверху)
+          const SizedBox(height: 36),
+          Expanded(
+            child: url == null
+                ? Center(child: Text('Нет ссылки на оплату', style: TextStyle(color: colors.danger)))
+                : (Platform.isWindows
+                    ? (!_windowsWebViewReady
+                        ? const Center(child: CircularProgressIndicator())
+                        : webview_windows.Webview(_windowsController))
+                    : Builder(
+                        builder: (context) {
+                          _mobileWebViewController ??= WebViewController()
+                            ..setJavaScriptMode(JavaScriptMode.unrestricted)
+                            ..setNavigationDelegate(
+                              NavigationDelegate(
+                                onNavigationRequest: (NavigationRequest request) async {
+                                  if (request.url.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
+                                    await ref.read(authProvider.notifier).validateToken();
+                                    notifier.reset();
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: const Text('Подписка активирована!'),
+                                          backgroundColor: AppColors.of(context).success,
+                                          duration: const Duration(seconds: 3),
+                                        ),
+                                      );
+                                      Navigator.of(context).maybePop();
+                                    }
+                                    return NavigationDecision.prevent;
+                                  }
+                                  return NavigationDecision.navigate;
+                                },
+                              ),
+                            )
+                            ..loadRequest(Uri.parse(url));
+                          return WebViewWidget(controller: _mobileWebViewController!);
+                        },
+                      )),
+          ),
+        ],
+      );
     }
 
     return ThemedBackground(
@@ -178,6 +183,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        _SubscriptionStatusCard(),
+                        const SizedBox(height: 36),
                         Text(state.error!, style: TextStyle(color: colors.danger)),
                         const SizedBox(height: 20),
                         ElevatedButton(
@@ -197,5 +204,54 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                     : buildWebView(),
       ),
     );
+  }
+}
+
+class _SubscriptionStatusCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
+    final user = ref.watch(authProvider).user;
+    if (user == null) return const SizedBox();
+
+    final now = DateTime.now();
+    final trialEnd = user.trialEndDate != null ? DateTime.tryParse(user.trialEndDate!) : null;
+    final paidUntil = user.paidUntil != null ? DateTime.tryParse(user.paidUntil!) : null;
+    final isTrialActive = trialEnd != null && trialEnd.isAfter(now);
+    final isPaid = user.isPaid;
+
+    String statusText;
+    String periodText;
+    if (isTrialActive) {
+      statusText = "Пробный период";
+      periodText = "Доступ до ${_formatDate(trialEnd)}";
+    } else if (isPaid && paidUntil != null) {
+      statusText = "Подписка активна";
+      periodText = "До ${_formatDate(paidUntil)}";
+    } else {
+      statusText = "Подписка неактивна";
+      periodText = "Нет активной подписки";
+    }
+
+    return Card(
+      color: colors.bgLight,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(statusText, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.text)),
+            const SizedBox(height: 10),
+            Text(periodText, style: TextStyle(fontSize: 16, color: colors.textMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
+    return "${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}";
   }
 }
