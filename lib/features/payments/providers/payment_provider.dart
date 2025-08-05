@@ -36,7 +36,7 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
   Future<void> fetchPaymentUrl(String method) async {
     state = state.copyWith(loading: true, error: null);
     try {
-      final url = await service.createPaymentUrl(amount: 1.00, method: method);
+      final url = await service.createPaymentUrl(amount: 150.00, method: method);
       state = PaymentState(loading: false, paymentUrl: url);
     } catch (e) {
       state = PaymentState(loading: false, error: e.toString());
