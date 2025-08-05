@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vpn_app/features/auth/providers/auth_provider.dart';
 import '../../../core/api_service.dart';
 import '../services/vpn_service.dart';
 
@@ -32,29 +33,25 @@ final vpnServiceProvider = Provider<VpnService>((ref) => VpnService());
 final vpnProvider = StateNotifierProvider<VpnNotifier, VpnState>((ref) {
   final service = ref.watch(vpnServiceProvider);
   final apiService = ref.watch(apiServiceProvider);
-  return VpnNotifier(service, apiService);
+  return VpnNotifier(service, apiService, ref);
 });
 
 class VpnNotifier extends StateNotifier<VpnState> {
   final VpnService service;
   final ApiService apiService;
+  final Ref ref;
 
-  VpnNotifier(this.service, this.apiService) : super(const VpnState());
+  VpnNotifier(this.service, this.apiService, this.ref) : super(const VpnState());
 
-  Future<void> connect({
-    required bool isPaid,
-    required String? trialEndDate,
-    required int deviceCount,
-    required int subscriptionLevel,
-  }) async {
+  Future<void> connect() async {
     state = state.copyWith(isConnecting: true, error: null);
     try {
+      final user = ref.read(authProvider).user;
+      if (user == null) throw Exception('Пользователь не найден');
       await service.connect(
         apiService: apiService,
-        isPaid: isPaid,
-        trialEndDate: trialEndDate,
-        deviceCount: deviceCount,
-        subscriptionLevel: subscriptionLevel,
+        isPaid: user.isPaid,
+        trialEndDate: user.trialEndDate,
       );
       state = state.copyWith(isConnecting: false, isConnected: true, error: null);
     } catch (e) {

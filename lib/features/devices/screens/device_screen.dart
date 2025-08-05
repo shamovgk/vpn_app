@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
 import 'package:vpn_app/ui/widgets/themed_background.dart';
 import '../../devices/providers/device_provider.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../services/device_id_helper.dart';
 
 final currentDeviceTokenProvider = FutureProvider<String>((ref) async {
@@ -16,18 +15,22 @@ class DevicesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deviceState = ref.watch(deviceProvider);
-    final user = ref.watch(authProvider).user;
     final colors = AppColors.of(context);
     final theme = Theme.of(context);
 
-    final maxDevices = user?.subscriptionLevel == 1 ? 6 : 3;
+    const maxDevices = 3;
     final currentDeviceTokenAsync = ref.watch(currentDeviceTokenProvider);
 
     return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: Text('Устройства', style: theme.textTheme.headlineSmall?.copyWith(color: colors.text)),
+          title: Text('Устройства',
+              style: theme.textTheme.headlineLarge?.copyWith(
+                fontSize: 20,
+                color: colors.text,
+              )),
+          centerTitle: true,
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
@@ -41,7 +44,7 @@ class DevicesScreen extends ConsumerWidget {
                 : deviceState.error != null
                     ? Center(child: Text('Ошибка: ${deviceState.error}', style: TextStyle(color: colors.danger)))
                     : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Card(
                             color: colors.bgLight,
@@ -49,9 +52,16 @@ class DevicesScreen extends ConsumerWidget {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
-                              child: Text(
-                                'Подключено устройств: ${deviceState.devices.length} из $maxDevices',
-                                style: TextStyle(color: colors.text, fontWeight: FontWeight.bold),
+                              child: Center(
+                                child: Text(
+                                  'Подключено устройств: ${deviceState.devices.length} из $maxDevices',
+                                  style: TextStyle(
+                                    color: colors.text,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ),
