@@ -172,7 +172,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 20),
                     if (user != null)
                       Text(
-                        'Устройства: ${user.deviceCount}/${user.subscriptionLevel == 1 ? 6 : 3}',
+                        'Устройства: ${user.deviceCount}/3',
                         style: TextStyle(color: colors.textMuted),
                       ),
                     if (authProviderValue.isLoading)

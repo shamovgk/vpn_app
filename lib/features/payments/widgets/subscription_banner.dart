@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vpn_app/features/auth/providers/auth_provider.dart';
-import 'package:vpn_app/features/payments/screens/payment_screen.dart';
+import 'package:vpn_app/features/payments/screens/subscription_screen.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
 
 class SubscriptionBanner extends ConsumerWidget {
@@ -65,7 +65,7 @@ class SubscriptionBanner extends ConsumerWidget {
               textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentScreen()));
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
             },
             child: const Text('Оплатить'),
           )

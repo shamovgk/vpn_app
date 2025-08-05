@@ -56,30 +56,24 @@ class VpnService {
 
   String buildConfig(VpnConfig config) {
     return '''
-[Interface]
-PrivateKey = ${config.privateKey}
-Address = ${config.address}
-DNS = ${config.dns}
-
-[Peer]
-PublicKey = ${config.serverPublicKey}
-Endpoint = ${config.endpoint}
-AllowedIPs = ${config.allowedIps}
-''';
+    [Interface]
+    PrivateKey = ${config.privateKey}
+    Address = ${config.address}
+    DNS = ${config.dns}
+    
+    [Peer]
+    PublicKey = ${config.serverPublicKey}
+    Endpoint = ${config.endpoint}
+    AllowedIPs = ${config.allowedIps}
+    ''';
   }
 
   Future<void> connect({
     required ApiService apiService,
     required bool isPaid,
     required String? trialEndDate,
-    required int deviceCount,
-    required int subscriptionLevel,
   }) async {
     await _initializeWireGuard();
-    final int maxDevices = subscriptionLevel == 1 ? 6 : 3;
-    if (deviceCount > maxDevices) {
-      throw Exception('Достигнут лимит устройств: $deviceCount/$maxDevices');
-    }
     if (trialEndDate != null) {
       final trialEnd = DateTime.tryParse(trialEndDate);
       if (!isPaid && trialEnd != null && trialEnd.isBefore(DateTime.now())) {

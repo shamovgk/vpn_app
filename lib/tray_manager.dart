@@ -98,10 +98,6 @@ class TrayManagerHandler with tray.TrayListener {
         }
         try {
           await vpnNotifier.connect(
-            isPaid: user.isPaid,
-            trialEndDate: user.trialEndDate,
-            deviceCount: user.deviceCount,
-            subscriptionLevel: user.subscriptionLevel,
           );
         } catch (e) {
           logger.e('Tray connect error: $e');
