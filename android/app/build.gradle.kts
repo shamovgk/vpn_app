@@ -33,9 +33,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("../keystore/my-release-key.jks") // Путь к вашему .jks файлу
-            storePassword = "abdsham" // Пароль, который вы задали
-            keyAlias = "mykey" // Псевдоним ключа
-            keyPassword = "abdsham" // Пароль ключа
+            storePassword = "33772744" // Пароль, который вы задали
+            keyAlias = "my-key-alias" // Псевдоним ключа
+            keyPassword = "33772744" // Пароль ключа
         }
     }
 
