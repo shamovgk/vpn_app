@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
 import 'package:vpn_app/ui/widgets/themed_background.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -10,6 +9,7 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final theme = Theme.of(context);
 
     return ThemedBackground(
       child: Scaffold(
@@ -17,114 +17,185 @@ class AboutScreen extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: Text(
-            'О нас',
-            style: TextStyle(fontSize: 20, color: colors.text, fontWeight: FontWeight.bold),
-          ),
           centerTitle: true,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: colors.textMuted),
-            onPressed: () => Navigator.pop(context),
+          title: 
+          Text(
+            "О приложении",
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: colors.text, 
+              fontWeight: FontWeight.w700,
+              ),
           ),
         ),
-        body: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Основная часть: Логотип и описание
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/tray_icon_connect.png',
-                      height: 50,
-                      width: 50,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'UgbuganVPN — обеспечит вашу конфиденциальность и свободу в сети. Мы работаем над улучшением сервиса каждый день',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.textMuted, fontSize: 16),
-                    ),
-                  ],
+        body: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: colors.bgLight,
+                  borderRadius: BorderRadius.circular(24),
                 ),
-              ),
-            ),
-            // Футер
-            Flexible(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Ссылки на контакты
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        InkWell(
-                          onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                          child: Icon(FontAwesomeIcons.telegram, size: 30, color: colors.textMuted),
-                        ),
-                        const SizedBox(width: 20),
-                        InkWell(
-                          onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                          child: Icon(FontAwesomeIcons.github, size: 30, color: colors.textMuted),
-                        ),
-                        const SizedBox(width: 20),
-                        InkWell(
-                          onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                          child: Icon(FontAwesomeIcons.globe, size: 30, color: colors.textMuted),
-                        ),
-                        const SizedBox(width: 20),
-                        InkWell(
-                          onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                          child: Icon(FontAwesomeIcons.envelope, size: 30, color: colors.textMuted),
-                        ),
-                      ],
+                    Image.asset(
+                      'assets/icons/about_icon.png', // Укажи путь к своему PNG-логотипу
+                      width: 128,
+                      height: 128,
+                      fit: BoxFit.contain,
                     ),
-                    const SizedBox(height: 10),
-                    // Версия
+                    const SizedBox(height: 18),
                     Text(
-                      'Версия: 1.0.0',
-                      style: TextStyle(
+                      "UgbuganVPN",
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: colors.text,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "UgbuganVPN — это про надёжность, скорость и колорит!",
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: colors.textMuted,
+                        fontWeight: FontWeight.w500,
                         fontSize: 14,
-                        color: colors.textMuted.withAlpha(153), // 0.6 * 255 = 153
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    // Политика конфиденциальности
-                    InkWell(
-                      onTap: () => _launchURL(Uri.parse('https://github.com/shamovgk')),
-                      child: Text(
-                        'Политика конфиденциальности',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colors.primary,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 30),
+              Card(
+                color: colors.bgLight,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center, // Центрируем всё
+                    children: [
+                      Text(
+                        "Версия",
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: colors.text,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "1.0.0",
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.textMuted,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Text(
+                        "Разработчики",
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: colors.text,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Абдурахманов Гасан\n Шамов Гаджикурбан", // Впиши реальные имена или команду
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.textMuted,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+
+              // ===== КОНТАКТНЫЕ КНОПКИ =====
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Email
+                  IconButton(
+                    icon: Icon(Icons.email, color: colors.primary, size: 32),
+                    tooltip: "Почта",
+                    onPressed: () async {
+                      final uri = Uri(
+                        scheme: 'mailto',
+                        path: 'support@vpnapp.com', // Замени на свою почту
+                        query: 'subject=Обращение через приложение',
+                      );
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 24),
+
+                  // Website
+                  IconButton(
+                    icon: Icon(Icons.language, color: colors.primary, size: 32),
+                    tooltip: "Сайт",
+                    onPressed: () async {
+                      final uri = Uri.parse('https://ugbuganvpn.com');
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 24),
+
+                  // Telegram
+                  IconButton(
+                    icon: Icon(Icons.telegram, color: colors.primary, size: 32),
+                    tooltip: "Telegram",
+                    onPressed: () async {
+                      final uri = Uri.parse('https://t.me/ugbuganvpn');
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // ===== ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ =====
+              Center(
+                child: GestureDetector(
+                  onTap: () async {
+                    final uri = Uri.parse('https://ugbuganvpn.com/privacy'); // Замени на свой url
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Text(
+                    "Политика конфиденциальности",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colors.primary,
+                      decoration: TextDecoration.underline,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  Future<void> _launchURL(Uri url) async {
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    } else {
-      throw 'Не удалось открыть $url';
-    }
   }
 }
