@@ -76,13 +76,27 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+  
     final gifAsset = _isAnimating
-        ? (_currentIsConnected
-            ? 'assets/dark_theme_vpn_disconnect.gif'
-            : 'assets/dark_theme_vpn_connect.gif')
-        : (_currentIsConnected
-            ? 'assets/dark_theme_vpn_disconnect.gif'
-            : 'assets/dark_theme_vpn_connect.gif');
+        ? (
+            _currentIsConnected
+                ? (isDark
+                    ? 'assets/dark_theme_vpn_disconnect.gif'
+                    : 'assets/light_theme_vpn_disconnect.gif')
+                : (isDark
+                    ? 'assets/dark_theme_vpn_connect.gif'
+                    : 'assets/light_theme_vpn_connect.gif')
+          )
+        : (
+            _currentIsConnected
+                ? (isDark
+                    ? 'assets/dark_theme_vpn_disconnect.gif'
+                    : 'assets/light_theme_vpn_disconnect.gif')
+                : (isDark
+                    ? 'assets/dark_theme_vpn_connect.gif'
+                    : 'assets/light_theme_vpn_connect.gif')
+          );
 
     return GestureDetector(
       onTap: widget.onConnect != null && !_isAnimating && !widget.isConnecting
