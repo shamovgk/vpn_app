@@ -7,6 +7,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/vpn_provider.dart';
 import '../../../ui/theme/app_colors.dart';
 import '../../../ui/widgets/themed_background.dart';
+import '../../../ui/widgets/app_custom_appbar.dart';
 import '../../payments/widgets/subscription_banner.dart';
 
 class VpnScreen extends ConsumerWidget {
@@ -19,30 +20,26 @@ class VpnScreen extends ConsumerWidget {
     final vpnNotifier = ref.read(vpnProvider.notifier);
     final auth = ref.watch(authProvider);
     final user = auth.user;
-    final theme = Theme.of(context);
     final isAllowed = ref.watch(vpnAccessProvider);
 
     return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(
-            'UgbuganVPN',
-            style: theme.textTheme.headlineLarge?.copyWith(
-              fontSize: 20,
-              color: colors.text,
+        appBar: AppCustomAppBar(
+          title: 'UgbuganVPN',
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: Icon(Icons.menu, color: colors.text),
+              onPressed: () => Scaffold.of(context).openDrawer(),
             ),
           ),
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
         ),
         drawer: VpnDrawer(username: user?.username),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SubscriptionBanner(),
+              const SubscriptionBanner(),
               if (isAllowed)
                 AnimationButton(
                   isConnected: vpnState.isConnected,

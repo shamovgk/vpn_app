@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
 import 'package:vpn_app/features/auth/providers/auth_provider.dart';
 import 'package:vpn_app/features/payments/providers/payment_provider.dart';
+import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar.dart';
 import 'package:vpn_app/ui/widgets/themed_background.dart';
-
+import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
 import '../widgets/status_card.dart';
 import '../widgets/pay_button.dart';
 import '../widgets/payment_method_sheet.dart';
-import '../widgets/payment_webview.dart';
+import 'package:vpn_app/features/payments/screens/payment_webview_screen.dart';
 
 class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
@@ -18,10 +20,41 @@ class SubscriptionScreen extends ConsumerStatefulWidget {
 }
 
 class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
+  bool _isWebViewOpen = false;
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<PaymentState>(paymentProvider, (prev, next) {
+      if (!_isWebViewOpen && next.paymentUrl != null) {
+        _isWebViewOpen = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          final notifier = ref.read(paymentProvider.notifier);
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => PaymentWebViewScreen(
+              url: next.paymentUrl!,
+              onSuccess: () async {
+                await ref.read(authProvider.notifier).validateToken();
+                notifier.reset();
+                if (!mounted) return;
+                showAppSnackbar(
+                  context,
+                  text: 'Подписка активирована!',
+                  type: AppSnackbarType.success,
+                );
+              },
+              onCancel: () {
+                notifier.reset();
+              },
+            ),
+          ));
+          if (!mounted) return;
+          _isWebViewOpen = false;
+        });
+      }
+    });
+
     final colors = AppColors.of(context);
-    final theme = Theme.of(context);
     final user = ref.watch(authProvider).user;
     final paymentState = ref.watch(paymentProvider);
     final notifier = ref.read(paymentProvider.notifier);
@@ -30,6 +63,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       return ThemedBackground(
         child: Scaffold(
           backgroundColor: Colors.transparent,
+          appBar: const AppCustomAppBar(title: 'Подписка'),
           body: const Center(child: Text('Пользователь не найден')),
         ),
       );
@@ -79,23 +113,21 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       ),
     );
 
-    // Лоадер во время создания оплаты
     if (paymentState.loading) {
       return ThemedBackground(
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: _buildAppBar(theme, colors),
+          appBar: const AppCustomAppBar(title: 'Подписка'),
           body: const Center(child: CircularProgressIndicator()),
         ),
       );
     }
 
-    // Ошибка
     if (paymentState.error != null) {
       return ThemedBackground(
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: _buildAppBar(theme, colors),
+          appBar: const AppCustomAppBar(title: 'Подписка'),
           body: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -125,60 +157,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       );
     }
 
-    // WebView оплаты
-    if (paymentState.paymentUrl != null) {
-      return ThemedBackground(
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: _buildAppBar(theme, colors, onClose: () {
-            notifier.reset();
-          }),
-          body: PaymentWebView(
-            url: paymentState.paymentUrl!,
-            onPaymentSuccess: () async {
-              await ref.read(authProvider.notifier).validateToken();
-              notifier.reset();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Подписка активирована!'),
-                    backgroundColor: AppColors.of(context).success,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
-            },
-          ),
-        ),
-      );
-    }
-
-    // Основной экран
     return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: _buildAppBar(theme, colors),
+        appBar: const AppCustomAppBar(title: 'Подписка'),
         body: mainContent,
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(ThemeData theme, AppColors colors, {VoidCallback? onClose}) {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      automaticallyImplyLeading: onClose == null,
-      leading: onClose != null
-          ? IconButton(
-              icon: Icon(Icons.close, color: colors.textMuted),
-              onPressed: onClose,
-            )
-          : null,
-      title: Text(
-        'Подписка',
-        style: theme.textTheme.headlineLarge?.copyWith(fontSize: 20, color: colors.text),
-      ),
-      centerTitle: true,
     );
   }
 

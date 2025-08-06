@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
 import 'package:vpn_app/ui/widgets/themed_background.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -14,19 +15,8 @@ class AboutScreen extends StatelessWidget {
     return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          title: 
-          Text(
-            "О приложении",
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: colors.text, 
-              fontWeight: FontWeight.w700,
-              ),
-          ),
+        appBar: const AppCustomAppBar(
+          title: 'О приложении',
         ),
         body: Padding(
           padding: const EdgeInsets.all(20.0),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
 import 'package:vpn_app/ui/widgets/themed_background.dart';
 import '../../devices/providers/device_provider.dart';
 import '../services/device_id_helper.dart';
@@ -16,7 +17,7 @@ class DevicesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final deviceState = ref.watch(deviceProvider);
     final colors = AppColors.of(context);
-    final theme = Theme.of(context);
+    Theme.of(context);
 
     const maxDevices = 3;
     final currentDeviceTokenAsync = ref.watch(currentDeviceTokenProvider);
@@ -24,16 +25,8 @@ class DevicesScreen extends ConsumerWidget {
     return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text('Устройства',
-              style: theme.textTheme.headlineLarge?.copyWith(
-                fontSize: 20,
-                color: colors.text,
-              )),
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
+        appBar: const AppCustomAppBar(title: 'Устройства'),
+
         body: currentDeviceTokenAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Ошибка получения deviceToken: $e')),
@@ -73,7 +66,7 @@ class DevicesScreen extends ConsumerWidget {
                                   ? Center(child: Text('Нет устройств', style: TextStyle(color: colors.textMuted)))
                                   : ListView.separated(
                                       itemCount: deviceState.devices.length,
-                                      separatorBuilder: (_, __) => Divider(color: colors.borderMuted),
+                                      separatorBuilder: (_, _) => Divider(color: colors.borderMuted),
                                       itemBuilder: (context, idx) {
                                         final device = deviceState.devices[idx];
                                         final isCurrentDevice = device.deviceToken == currentDeviceToken;
