@@ -1,5 +1,5 @@
 const bcrypt = require('bcrypt');
-const logger = require('../logger');
+const logger = require('../utils/logger.js');
 
 exports.adminAuth = (req, res, next) => {
   if (!req.session.admin) {

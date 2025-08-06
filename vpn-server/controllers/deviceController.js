@@ -1,5 +1,5 @@
 // controllers/deviceController.js
-const logger = require('../logger');
+const logger = require('../utils/logger.js');
 
 // Добавление устройства
 exports.addDevice = async (req, res) => {

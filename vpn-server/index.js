@@ -1,3 +1,4 @@
+// index.js
 const express = require('express');
 const helmet = require('helmet');
 const csurf = require('csurf');
@@ -8,18 +9,18 @@ const rateLimit = require('express-rate-limit');
 const sqlite3 = require('sqlite3');
 const expressLayouts = require('express-ejs-layouts');
 const errorHandler = require('./middlewares/errorHandler');
-const logger = require('./logger');
-const { config } = require('./config/config');
+const logger = require('./utils/logger.js');
+const config = require('./config/config');
 
-const mainscreenRoutes = require('./routes/mainscreenRoutes');
-const webhookRoutes = require('./routes/webhookRoutes');  
+// ==== Импорты роутов ====
 const authRoutes = require('./routes/authRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const vpnRoutes = require('./routes/vpnRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 
-// === Database connection and models ===
+// ==== Database connection and models ====
 const db = new sqlite3.Database(config.dbPath, (err) => {
   if (err) {
     logger.error('Error opening database', { error: err });
@@ -34,32 +35,33 @@ const db = new sqlite3.Database(config.dbPath, (err) => {
   }
 });
 
-// === Express app settings ===
+// ==== Express app settings ====
 const app = express();
+app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', __dirname + '/views');
 app.use(expressLayouts);
 app.use(express.json());
 
-// === Security middlewares ===
+// ==== Security middlewares ====
 app.use(helmet());
-app.use(cors({ origin: ['https://sham.shetanvpn.ru'], credentials: true }));
+app.use(cors(config.cors));
 
-// === Sessions ===
+// ==== Sessions (только для SSR/админки) ====
 app.use(session(config.session));
 app.set('db', db);
 
-// === Global Rate Limit ===
+// ==== Глобальный Rate Limit ====
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
   message: 'Too many requests from this IP, please try again later.'
 }));
 
-// === CSRF ONLY for admin (ejs forms, not API) ===
+// ==== CSRF только для админки (EJS формы, не для API) ====
 app.use('/admin', cookieParser(), csurf({ cookie: true }));
 
-// === Per-route rate limiters ===
+// ==== Пер-роут Rate Limit ====
 app.use('/auth', rateLimit({
   windowMs: 60 * 1000,
   max: 10,
@@ -76,14 +78,20 @@ app.use('/admin', rateLimit({
   message: 'Too many admin requests, relax!'
 }));
 
-// === Routers ===
+// ==== Routers ====
 app.use('/auth', authRoutes);
 app.use('/devices', deviceRoutes);
 app.use('/admin', adminRoutes);
 app.use('/pay', paymentRoutes);
 app.use('/vpn', vpnRoutes);
+app.use('/webhook', webhookRoutes);
 
-// === Healthcheck endpoint (для мониторинга) ===
+// === Опционально: "страница успеха" для ЮKassa (можно просто редирект, если нет SSR)
+app.get('/payment_success', (req, res) => {
+  res.redirect('https://sham.shetanvpn.ru/payment-success');
+});
+
+// ==== Healthcheck endpoint (для мониторинга) ====
 app.get('/healthz', (req, res) => {
   req.app.get('db').get('SELECT 1', [], (err) => {
     if (err) {
@@ -94,12 +102,8 @@ app.get('/healthz', (req, res) => {
   });
 });
 
-app.use('/webhook', webhookRoutes);  // POST /webhook/yookassa
-
-app.use('/', mainscreenRoutes);
-
-// === Error handler ===
+// ==== Глобальный Error handler ====
 app.use(errorHandler);
 
-// === Start server ===
+// ==== Start server ====
 app.listen(config.port, () => logger.info(`Server running on http://localhost:${config.port}`));

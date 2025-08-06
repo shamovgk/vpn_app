@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const logger = require('../logger');
+const logger = require('../utils/logger.js');
 
 function getCurrentDatePlusDays(days, meta = {}) {
   const date = new Date();
