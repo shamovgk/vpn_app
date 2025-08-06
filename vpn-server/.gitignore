@@ -69,3 +69,5 @@ views/*.ejs~
 scripts/*.out
 scripts/*.log
 package-lock.json
+.package-lock.json
+../package-lock.json

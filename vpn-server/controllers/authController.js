@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
-const { config } = require('../config/config');
-const logger = require('../logger');
+const config = require('../config/config');
+const logger = require('../utils/logger.js');
 const { getCurrentDatePlusDays, generateToken, generateVerificationCode, generateVpnKey } = require('../utils/utils');
 
 const transporter = nodemailer.createTransport(config.smtp);

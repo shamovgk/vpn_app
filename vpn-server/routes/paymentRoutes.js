@@ -8,7 +8,6 @@ const auth = require('../middlewares/auth');
 
 router.use(withDb);
 router.use(auth);
-
 router.post('/', validate(payYookassaSchema), paymentController.payYookassa);
 
 module.exports = router;

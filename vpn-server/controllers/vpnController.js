@@ -1,5 +1,5 @@
-const { config } = require('../config/config');
-const logger = require('../logger');
+const config = require('../config/config');
+const logger = require('../utils/logger.js');
 
 exports.getVpnConfig = async (req, res) => {
   try {

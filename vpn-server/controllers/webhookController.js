@@ -1,4 +1,4 @@
-const logger = require('../logger');
+const logger = require('../utils/logger.js');
 
 exports.yookassaWebhook = async (req, res) => {
   try {
