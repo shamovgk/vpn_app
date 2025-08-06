@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar.dart';
 import 'package:vpn_app/ui/widgets/themed_background.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
 import '../providers/auth_provider.dart';
 import 'verification_screen.dart';
 
@@ -45,12 +48,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> with AutomaticK
     if (!mounted) return;
 
     if (auth.errorMessage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Регистрация прошла успешно, проверьте email для верификации'),
-          backgroundColor: Colors.green[700],
-          duration: const Duration(seconds: 3),
-        ),
+      showAppSnackbar(
+        context,
+        text: 'Регистрация прошла успешно, проверьте email для верификации',
+        type: AppSnackbarType.success,
       );
       Navigator.pushReplacement(
         context,
@@ -67,13 +68,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> with AutomaticK
   }
 
   void _showErrorSnackbar(String message) {
-    final colors = AppColors.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: colors.danger,
-        duration: const Duration(seconds: 3),
-      ),
+    showAppSnackbar(
+      context,
+      text: message,
+      type: AppSnackbarType.error,
     );
   }
 
@@ -92,19 +90,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> with AutomaticK
         canPop: false,
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            title: Text(
-              'Регистрация',
-              style: TextStyle(
-                fontSize: 20,
-                color: colors.text,
-                fontWeight: FontWeight.bold,
-              ),
+          appBar: AppCustomAppBar(
+            title: 'Регистрация',
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: colors.textMuted),
+              onPressed: () => Navigator.of(context).maybePop(),
             ),
-            centerTitle: true,
-            automaticallyImplyLeading: false,
           ),
           body: Center(
             child: SingleChildScrollView(

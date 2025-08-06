@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'token_provider.dart'; // импорт tokenProvider
+import 'token_provider.dart';
 
 final apiServiceProvider = Provider<ApiService>((ref) {
-  return ApiService(ref); // ref нужен для доступа к tokenProvider
+  return ApiService(ref);
 });
 
 class ApiService {
@@ -15,7 +15,6 @@ class ApiService {
 
   ApiService(this.ref);
 
-  // Чтение токена только при необходимости
   Future<dynamic> get(String path, {bool auth = false}) async {
     final url = Uri.parse('$baseUrl$path');
     final token = ref.read(tokenProvider);
@@ -48,14 +47,37 @@ class ApiService {
 
   dynamic _processResponse(http.Response response) {
     final statusCode = response.statusCode;
-    final body = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+    final contentType = response.headers['content-type'];
+    final isJson = contentType != null && contentType.contains('application/json');
+    dynamic body;
+
+    if (response.body.isNotEmpty) {
+      if (isJson) {
+        try {
+          body = jsonDecode(response.body);
+        } catch (e) {
+          body = response.body;
+        }
+      } else {
+        body = response.body;
+      }
+    }
 
     if (statusCode >= 200 && statusCode < 300) {
       return body;
     } else if (statusCode == 401) {
-      throw UnauthorizedException(body?['error'] ?? body?['message'] ?? 'Unauthorized');
+      throw UnauthorizedException(
+        body is Map
+          ? (body['error'] ?? body['message'] ?? 'Unauthorized')
+          : body?.toString() ?? 'Unauthorized'
+      );
     } else {
-      throw ApiException(body?['error'] ?? body?['message'] ?? 'Ошибка: $statusCode', statusCode);
+      throw ApiException(
+        body is Map
+          ? (body['error'] ?? body['message'] ?? 'Ошибка: $statusCode')
+          : body?.toString() ?? 'Ошибка: $statusCode',
+        statusCode,
+      );
     }
   }
 }

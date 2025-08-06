@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
 import 'package:vpn_app/ui/widgets/themed_background.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
@@ -39,12 +42,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     if (!mounted) return;
 
     if (auth.errorMessage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Пароль успешно сброшен'),
-          backgroundColor: Colors.green[700],
-          duration: const Duration(seconds: 3),
-        ),
+      showAppSnackbar(
+        context,
+        text: 'Пароль успешно сброшен',
+        type: AppSnackbarType.success,
       );
       Navigator.pushAndRemoveUntil(
         context,
@@ -57,13 +58,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   }
 
   void _showErrorSnackbar(String message) {
-    final colors = AppColors.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: colors.danger,
-        duration: const Duration(seconds: 3),
-      ),
+    showAppSnackbar(
+      context,
+      text: message,
+      type: AppSnackbarType.error,
     );
   }
 
@@ -75,16 +73,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     return ThemedBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            'Сброс пароля',
-            style: TextStyle(fontSize: 20, color: colors.text, fontWeight: FontWeight.bold),
+        appBar: AppCustomAppBar(
+          title: 'Сброс пароля',
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: colors.textMuted),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
-          centerTitle: true,
-          automaticallyImplyLeading: true,
-          iconTheme: IconThemeData(color: colors.textMuted),
         ),
         body: Center(
           child: SingleChildScrollView(

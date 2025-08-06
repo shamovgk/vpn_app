@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar.dart';
 import 'package:vpn_app/ui/widgets/themed_background.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
 import '../providers/auth_provider.dart';
 import '../../vpn/screens/vpn_screen.dart';
 import 'register_screen.dart';
@@ -51,13 +54,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showErrorSnackbar(String message) {
-    final colors = AppColors.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: colors.danger,
-        duration: const Duration(seconds: 3),
-      ),
+    showAppSnackbar(
+      context,
+      text: message,
+      type: AppSnackbarType.error,
     );
   }
 
@@ -91,19 +91,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         canPop: false,
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            title: Text(
-              'Вход',
-              style: TextStyle(
-                fontSize: 20,
-                color: colors.text,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            centerTitle: true,
-            automaticallyImplyLeading: false,
+          appBar: AppCustomAppBar(
+            title: 'Вход',
+            leading: null,
           ),
           body: Center(
             child: SingleChildScrollView(

@@ -1,26 +1,36 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
-/// Универсальный виджет для показа WebView оплаты на всех платформах
 class PaymentWebView extends StatelessWidget {
   final String url;
   final VoidCallback onPaymentSuccess;
+  final VoidCallback? onPaymentCancel;
 
   const PaymentWebView({
     super.key,
     required this.url,
     required this.onPaymentSuccess,
+    this.onPaymentCancel,
   });
 
   @override
   Widget build(BuildContext context) {
     if (Platform.isWindows) {
-      return _WindowsPaymentWebView(url: url, onPaymentSuccess: onPaymentSuccess);
+      return _WindowsPaymentWebView(
+        url: url,
+        onPaymentSuccess: onPaymentSuccess,
+        onPaymentCancel: onPaymentCancel,
+      );
     } else {
-      return _MobilePaymentWebView(url: url, onPaymentSuccess: onPaymentSuccess);
+      return _MobilePaymentWebView(
+        url: url,
+        onPaymentSuccess: onPaymentSuccess,
+        onPaymentCancel: onPaymentCancel,
+      );
     }
   }
 }
@@ -29,10 +39,12 @@ class PaymentWebView extends StatelessWidget {
 class _MobilePaymentWebView extends StatefulWidget {
   final String url;
   final VoidCallback onPaymentSuccess;
+  final VoidCallback? onPaymentCancel;
 
   const _MobilePaymentWebView({
     required this.url,
     required this.onPaymentSuccess,
+    this.onPaymentCancel,
   });
 
   @override
@@ -50,8 +62,13 @@ class _MobilePaymentWebViewState extends State<_MobilePaymentWebView> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (request) {
-            if (request.url.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
+            final url = request.url;
+            if (url.startsWith('https://sham.shetanvpn.ru/payment-success')) {
               widget.onPaymentSuccess();
+              return NavigationDecision.prevent;
+            }
+            if (url.startsWith('https://sham.shetanvpn.ru/payment-cancel')) {
+              if (widget.onPaymentCancel != null) widget.onPaymentCancel!();
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
@@ -71,10 +88,12 @@ class _MobilePaymentWebViewState extends State<_MobilePaymentWebView> {
 class _WindowsPaymentWebView extends StatefulWidget {
   final String url;
   final VoidCallback onPaymentSuccess;
+  final VoidCallback? onPaymentCancel;
 
   const _WindowsPaymentWebView({
     required this.url,
     required this.onPaymentSuccess,
+    this.onPaymentCancel,
   });
 
   @override
@@ -94,8 +113,11 @@ class _WindowsPaymentWebViewState extends State<_WindowsPaymentWebView> {
       setState(() => _ready = true);
       _controller.loadUrl(widget.url);
       _urlSub = _controller.url.listen((url) {
-        if (url.startsWith('https://sham.shetanvpn.ru/mainscreen')) {
+        if (url.startsWith('https://sham.shetanvpn.ru/payment-success')) {
           widget.onPaymentSuccess();
+        }
+        if (url.startsWith('https://sham.shetanvpn.ru/payment-cancel')) {
+          if (widget.onPaymentCancel != null) widget.onPaymentCancel!();
         }
       });
     });
