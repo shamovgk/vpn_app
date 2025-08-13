@@ -1,5 +1,7 @@
+// lib/ui/widgets/app_snackbar.dart
 import 'package:flutter/material.dart';
-import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/core/extensions/context_ext.dart';
+import 'package:vpn_app/ui/theme/app_theme.dart';
 
 enum AppSnackbarType { success, error, info, warning }
 
@@ -15,17 +17,18 @@ class AppSnackbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final style = AppSnackbarStyle.fromType(type, colors);
+    final c = context.colors;
+    final t = context.tokens;
+    final style = AppSnackbarStyle.fromType(type, c);
 
     return Row(
       children: [
         Icon(style.icon, color: style.iconColor, size: 28),
-        const SizedBox(width: 12),
+        SizedBox(width: t.spacing.sm),
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
+            style: t.typography.body.copyWith(
               color: style.textColor,
               fontWeight: FontWeight.w600,
               fontSize: 16,

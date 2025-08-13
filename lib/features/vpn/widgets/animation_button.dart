@@ -82,20 +82,20 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
         ? (
             _currentIsConnected
                 ? (isDark
-                    ? 'assets/dark_theme_vpn_disconnect.gif'
-                    : 'assets/light_theme_vpn_disconnect.gif')
+                    ? 'assets/anim/dark/dark_theme_vpn_disconnect.gif'
+                    : 'assets/anim/light/light_theme_vpn_disconnect.gif')
                 : (isDark
-                    ? 'assets/dark_theme_vpn_connect.gif'
-                    : 'assets/light_theme_vpn_connect.gif')
+                    ? 'assets/anim/dark/dark_theme_vpn_connect.gif'
+                    : 'assets/anim/light/light_theme_vpn_connect.gif')
           )
         : (
             _currentIsConnected
                 ? (isDark
-                    ? 'assets/dark_theme_vpn_disconnect.gif'
-                    : 'assets/light_theme_vpn_disconnect.gif')
+                    ? 'assets/anim/dark/dark_theme_vpn_disconnect.gif'
+                    : 'assets/anim/light/light_theme_vpn_disconnect.gif')
                 : (isDark
-                    ? 'assets/dark_theme_vpn_connect.gif'
-                    : 'assets/light_theme_vpn_connect.gif')
+                    ? 'assets/anim/dark/dark_theme_vpn_connect.gif'
+                    : 'assets/anim/light/light_theme_vpn_connect.gif')
           );
 
     return GestureDetector(

@@ -14,15 +14,4 @@ class VpnConfig {
     required this.endpoint,
     required this.allowedIps,
   });
-
-  factory VpnConfig.fromJson(Map<String, dynamic> json) {
-    return VpnConfig(
-      privateKey: json['privateKey'],
-      address: json['address'],
-      dns: json['dns'] ?? '1.1.1.1',
-      serverPublicKey: json['serverPublicKey'],
-      endpoint: json['endpoint'],
-      allowedIps: json['allowedIps'] ?? '0.0.0.0/0, ::/0',
-    );
-  }
 }

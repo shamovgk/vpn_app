@@ -1,5 +1,6 @@
+// lib/ui/widgets/app_custom_appbar.dart
 import 'package:flutter/material.dart';
-import 'package:vpn_app/ui/theme/app_colors.dart';
+import 'package:vpn_app/core/extensions/context_ext.dart';
 
 class AppCustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -20,22 +21,17 @@ class AppCustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
+    final c = context.colors;
+    final t = context.tokens;
 
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
       centerTitle: centerTitle,
       leading: leading,
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 20,
-          color: colors.text,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      title: Text(title, style: t.typography.h1.copyWith(color: c.text)),
       actions: actions,
     );
   }
 }
+

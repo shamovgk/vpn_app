@@ -1,85 +1,100 @@
+// lib/features/payments/widgets/payment_method_sheet.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:vpn_app/ui/theme/app_colors.dart';
-import 'package:vpn_app/features/payments/providers/payment_provider.dart';
+import 'package:vpn_app/core/extensions/context_ext.dart';
+import 'package:vpn_app/features/payments/providers/payment_providers.dart';
+import 'package:vpn_app/features/payments/models/domain/payment_method.dart';
 
 void showPaymentMethodSheet(BuildContext context, WidgetRef ref) {
-  final colors = AppColors.of(context);
-  final notifier = ref.read(paymentProvider.notifier);
+  final c = context.colors;
+  final t = context.tokens;
+  final ctrl = ref.read(paymentControllerProvider.notifier);
+
+  const items = [
+    PaymentMethod.bankCard,
+    PaymentMethod.sbp,
+    PaymentMethod.sberpay,
+  ];
 
   showModalBottomSheet(
     context: context,
-    backgroundColor: colors.bgLight,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    backgroundColor: c.bgLight,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(t.radii.xl)),
     ),
     builder: (ctx) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 12),
+        SizedBox(height: t.spacing.xs),
         Container(
           width: 48,
           height: 5,
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: EdgeInsets.only(bottom: t.spacing.xs),
           decoration: BoxDecoration(
-            color: colors.borderMuted,
-            borderRadius: BorderRadius.circular(12),
+            color: c.borderMuted,
+            borderRadius: BorderRadius.circular(t.radii.sm),
           ),
         ),
-        _PaymentMethodButton(
-          icon: Icons.credit_card,
-          label: 'Картой',
-          onTap: () {
-            Navigator.of(ctx).pop();
-            notifier.fetchPaymentUrl('bank_card');
-          },
-        ),
-        _PaymentMethodButton(
-          icon: Icons.account_balance_wallet_rounded,
-          label: 'СБП',
-          onTap: () {
-            Navigator.of(ctx).pop();
-            notifier.fetchPaymentUrl('sbp');
-          },
-        ),
-        _PaymentMethodButton(
-          icon: Icons.account_balance,
-          label: 'СберПей',
-          onTap: () {
-            Navigator.of(ctx).pop();
-            notifier.fetchPaymentUrl('sberbank');
-          },
-        ),
-        const SizedBox(height: 18),
+        for (final m in items)
+          _PaymentMethodButton(
+            method: m,
+            onTap: () {
+              Navigator.of(ctx).pop();
+              ctrl.startPayment(method: m);
+            },
+          ),
+        SizedBox(height: t.spacing.md),
       ],
     ),
   );
 }
 
 class _PaymentMethodButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
+  final PaymentMethod method;
   final VoidCallback onTap;
 
-  const _PaymentMethodButton({required this.icon, required this.label, required this.onTap});
+  const _PaymentMethodButton({required this.method, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final theme = Theme.of(context);
+    final c = context.colors;
+    final t = context.tokens;
+
+    IconData icon() {
+      switch (method) {
+        case PaymentMethod.bankCard:
+          return Icons.credit_card;
+        case PaymentMethod.sbp:
+          return Icons.account_balance_wallet_rounded;
+        case PaymentMethod.sberpay:
+          return Icons.account_balance;
+      }
+    }
+
+    String label() {
+      switch (method) {
+        case PaymentMethod.bankCard:
+          return 'Картой';
+        case PaymentMethod.sbp:
+          return 'СБП';
+        case PaymentMethod.sberpay:
+          return 'СберПэй';
+      }
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: t.spacing.lg, vertical: t.spacing.xs),
       child: SizedBox(
         width: double.infinity,
         height: 54,
         child: ElevatedButton.icon(
           onPressed: onTap,
-          icon: Icon(icon, color: colors.primary, size: 26),
-          label: Text(label, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 17, color: colors.text)),
+          icon: Icon(icon(), color: c.primary, size: 26),
+          label: Text(label(), style: t.typography.body.copyWith(fontSize: 17, color: c.text)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: colors.bg,
-            foregroundColor: colors.text,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            backgroundColor: c.bg,
+            foregroundColor: c.text,
+            shape: RoundedRectangleBorder(borderRadius: t.radii.brMd),
             elevation: 0,
           ),
         ),

@@ -1,5 +1,5 @@
+// lib/features/payments/widgets/payment_webview.dart
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:webview_flutter/webview_flutter.dart';
@@ -7,12 +7,16 @@ import 'package:webview_windows/webview_windows.dart' as webview_windows;
 
 class PaymentWebView extends StatelessWidget {
   final String url;
+  final String successPrefix;
+  final String cancelPrefix;
   final VoidCallback onPaymentSuccess;
   final VoidCallback? onPaymentCancel;
 
   const PaymentWebView({
     super.key,
     required this.url,
+    required this.successPrefix,
+    required this.cancelPrefix,
     required this.onPaymentSuccess,
     this.onPaymentCancel,
   });
@@ -22,12 +26,16 @@ class PaymentWebView extends StatelessWidget {
     if (Platform.isWindows) {
       return _WindowsPaymentWebView(
         url: url,
+        successPrefix: successPrefix,
+        cancelPrefix: cancelPrefix,
         onPaymentSuccess: onPaymentSuccess,
         onPaymentCancel: onPaymentCancel,
       );
     } else {
       return _MobilePaymentWebView(
         url: url,
+        successPrefix: successPrefix,
+        cancelPrefix: cancelPrefix,
         onPaymentSuccess: onPaymentSuccess,
         onPaymentCancel: onPaymentCancel,
       );
@@ -35,14 +43,18 @@ class PaymentWebView extends StatelessWidget {
   }
 }
 
-// --- Мобильная версия WebView ---
+// --- Mobile ---
 class _MobilePaymentWebView extends StatefulWidget {
   final String url;
+  final String successPrefix;
+  final String cancelPrefix;
   final VoidCallback onPaymentSuccess;
   final VoidCallback? onPaymentCancel;
 
   const _MobilePaymentWebView({
     required this.url,
+    required this.successPrefix,
+    required this.cancelPrefix,
     required this.onPaymentSuccess,
     this.onPaymentCancel,
   });
@@ -62,12 +74,12 @@ class _MobilePaymentWebViewState extends State<_MobilePaymentWebView> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (request) {
-            final url = request.url;
-            if (url.startsWith('https://sham.shetanvpn.ru/payment-success')) {
+            final u = request.url;
+            if (u.startsWith(widget.successPrefix)) {
               widget.onPaymentSuccess();
               return NavigationDecision.prevent;
             }
-            if (url.startsWith('https://sham.shetanvpn.ru/payment-cancel')) {
+            if (u.startsWith(widget.cancelPrefix)) {
               if (widget.onPaymentCancel != null) widget.onPaymentCancel!();
               return NavigationDecision.prevent;
             }
@@ -79,19 +91,21 @@ class _MobilePaymentWebViewState extends State<_MobilePaymentWebView> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return WebViewWidget(controller: _controller);
-  }
+  Widget build(BuildContext context) => WebViewWidget(controller: _controller);
 }
 
-// --- Windows версия WebView ---
+// --- Windows ---
 class _WindowsPaymentWebView extends StatefulWidget {
   final String url;
+  final String successPrefix;
+  final String cancelPrefix;
   final VoidCallback onPaymentSuccess;
   final VoidCallback? onPaymentCancel;
 
   const _WindowsPaymentWebView({
     required this.url,
+    required this.successPrefix,
+    required this.cancelPrefix,
     required this.onPaymentSuccess,
     this.onPaymentCancel,
   });
@@ -112,11 +126,10 @@ class _WindowsPaymentWebViewState extends State<_WindowsPaymentWebView> {
     _controller.initialize().then((_) {
       setState(() => _ready = true);
       _controller.loadUrl(widget.url);
-      _urlSub = _controller.url.listen((url) {
-        if (url.startsWith('https://sham.shetanvpn.ru/payment-success')) {
+      _urlSub = _controller.url.listen((u) {
+        if (u.startsWith(widget.successPrefix)) {
           widget.onPaymentSuccess();
-        }
-        if (url.startsWith('https://sham.shetanvpn.ru/payment-cancel')) {
+        } else if (u.startsWith(widget.cancelPrefix)) {
           if (widget.onPaymentCancel != null) widget.onPaymentCancel!();
         }
       });
