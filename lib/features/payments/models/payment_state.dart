@@ -1,28 +1,40 @@
-import 'package:flutter/foundation.dart';
+// lib/features/payments/models/payment_state.dart
+import 'domain/payment.dart';
 
-@immutable
-class PaymentState {
-  final String? paymentUrl;
-  final bool isLoading;
-  final String? error;
+sealed class PaymentState {
+  const PaymentState();
+}
 
-  const PaymentState({
-    this.paymentUrl,
-    this.isLoading = false,
-    this.error,
-  });
+class PaymentIdle extends PaymentState {
+  const PaymentIdle();
+}
 
-  PaymentState copyWith({
-    String? paymentUrl,
-    bool? isLoading,
-    String? error,
-  }) {
-    return PaymentState(
-      paymentUrl: paymentUrl ?? this.paymentUrl,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-    );
-  }
+class PaymentLoading extends PaymentState {
+  const PaymentLoading();
+}
 
-  static const initial = PaymentState();
+class PaymentReady extends PaymentState {
+  final Payment payment;
+  const PaymentReady(this.payment);
+}
+
+class PaymentPolling extends PaymentState {
+  final Payment payment;
+  const PaymentPolling(this.payment);
+}
+
+class PaymentSucceeded extends PaymentState {
+  final Payment payment;
+  const PaymentSucceeded(this.payment);
+}
+
+class PaymentCanceled extends PaymentState {
+  final Payment payment;
+  const PaymentCanceled(this.payment);
+}
+
+class PaymentFailed extends PaymentState {
+  final String message;
+  final String? paymentId;
+  const PaymentFailed(this.message, {this.paymentId});
 }

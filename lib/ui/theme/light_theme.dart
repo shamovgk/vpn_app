@@ -1,24 +1,51 @@
+// lib/ui/theme/light_theme.dart
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import 'app_theme.dart';
 
 const _lightAppColors = AppColors(
-  bgDark: Color(0xFFEAE7DA),       // hsl(44, 24%, 88%)
-  bg: Color(0xFFF7F5ED),           // hsl(44, 44%, 93%)
-  bgLight: Color(0xFFFFFEFB),      // hsl(44, 100%, 99%)
-  text: Color(0xFF241F12),         // hsl(39, 98%, 3%)
-  textMuted: Color(0xFF58513D),    // hsl(44, 19%, 26%)
-  highlight: Color(0xFFFCFAF5),    // hsl(44, 100%, 97%)
-  border: Color(0xFF9A9277),       // hsl(44, 11%, 48%)
-  borderMuted: Color(0xFFBBB49A),  // hsl(44, 13%, 59%)
-  primary: Color(0xFF6C5609),      // hsl(47, 100%, 13%)
-  secondary: Color(0xFF373F62),    // hsl(227, 42%, 35%)
-  danger: Color(0xFF593A36),       // hsl(9, 21%, 41%)
-  warning: Color(0xFF6D6645),      // hsl(52, 23%, 34%)
-  success: Color(0xFF375140),      // hsl(147, 19%, 36%)
-  info: Color(0xFF3D475B),         // hsl(217, 22%, 41%)
+  bgDark: Color(0xFFEAE7DA),
+  bg:     Color(0xFFF7F5ED),
+  bgLight:Color(0xFFFFFEFB),
+  text:   Color(0xFF241F12),
+  textMuted: Color(0xFF58513D),
+  highlight: Color(0xFFFCFAF5),
+  border: Color(0xFF9A9277),
+  borderMuted: Color(0xFFBBB49A),
+  primary: Color(0xFF6C5609),
+  secondary: Color(0xFF373F62),
+  danger: Color(0xFF593A36),
+  warning: Color(0xFF6D6645),
+  success: Color(0xFF375140),
+  info: Color(0xFF3D475B),
 );
 
-final ThemeData appLightTheme  = ThemeData(
+// локальные ARGB для теней (light)
+const _kBlack12 = Color(0x1F000000);
+const _kBlack16 = Color(0x29000000);
+const _kBlack20 = Color(0x33000000);
+const _kBlack24 = Color(0x3D000000);
+const _kBlack28 = Color(0x47000000);
+const _kBlack32 = Color(0x52000000);
+
+const _lightShadows = Shadows(
+  z1: [BoxShadow(color: _kBlack12, blurRadius: 6,  offset: Offset(0, 2))],
+  z2: [BoxShadow(color: _kBlack16, blurRadius: 10, offset: Offset(0, 4))],
+  z3: [BoxShadow(color: _kBlack20, blurRadius: 14, offset: Offset(0, 6))],
+  z4: [BoxShadow(color: _kBlack24, blurRadius: 20, offset: Offset(0, 8))],
+  z5: [BoxShadow(color: _kBlack28, blurRadius: 28, offset: Offset(0, 12))],
+  z6: [BoxShadow(color: _kBlack32, blurRadius: 36, offset: Offset(0, 16))],
+);
+
+final _lightTokens = AppTheme(
+  spacing: const Spacing(),
+  radii: const Radii(),
+  shadows: _lightShadows,
+  opacities: const Opacities(),
+  typography: TypographyTokens.regular(),
+  colors: _lightAppColors,
+);
+
+final ThemeData appLightTheme = ThemeData(
   scaffoldBackgroundColor: _lightAppColors.bg,
   cardColor: _lightAppColors.bgLight,
   dividerColor: _lightAppColors.borderMuted,
@@ -33,22 +60,15 @@ final ThemeData appLightTheme  = ThemeData(
     onSurface: _lightAppColors.text,
   ),
   textTheme: TextTheme(
-    headlineLarge: TextStyle(
-      color: _lightAppColors.text,
-      fontWeight: FontWeight.bold,
-      fontSize: 24,
-    ),
-    bodyMedium: TextStyle(
-      color: _lightAppColors.textMuted,
-      fontSize: 16,
-    ),
+    headlineLarge: _lightTokens.typography.h1.copyWith(color: _lightAppColors.text),
+    bodyMedium:    _lightTokens.typography.body.copyWith(color: _lightAppColors.textMuted),
   ),
-  appBarTheme: AppBarTheme(
-    backgroundColor: Colors.transparent,
-    foregroundColor: _lightAppColors.text,
-    elevation: 0,
-  ),
+  appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, elevation: 0),
+  // оставляем ТОЛЬКО AppTheme
   extensions: <ThemeExtension<dynamic>>[
-    _lightAppColors,
+    _lightTokens,
   ],
 );
+
+
+

@@ -1,12 +1,16 @@
+// lib/features/auth/screens/reset_password_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:vpn_app/ui/theme/app_colors.dart';
-import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
+import 'package:go_router/go_router.dart';
+import 'package:vpn_app/core/extensions/context_ext.dart';
+import 'package:vpn_app/core/extensions/nav_ext.dart';
+import 'package:vpn_app/core/models/feature_state.dart';
 import 'package:vpn_app/ui/widgets/app_snackbar.dart';
 import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
-import 'package:vpn_app/ui/widgets/themed_background.dart';
-import '../providers/auth_provider.dart';
-import 'login_screen.dart';
+import 'package:vpn_app/ui/widgets/atoms/secondary_button.dart';
+import 'package:vpn_app/features/auth/providers/auth_providers.dart';
+import '../widgets/auth_fields.dart';
+import '../widgets/auth_scaffold.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   final String username;
@@ -17,135 +21,81 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
 }
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
-  final _resetCodeController = TextEditingController();
-  final _newPasswordController = TextEditingController();
+  final _code = TextEditingController();
+  final _newPassword = TextEditingController();
+  final _pwdNode = FocusNode();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
-    _resetCodeController.dispose();
-    _newPasswordController.dispose();
+    _code.dispose();
+    _newPassword.dispose();
+    _pwdNode.dispose();
     super.dispose();
   }
 
-  Future<void> _resetPassword() async {
-    final auth = ref.read(authProvider);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    if (!_formKey.currentState!.validate() || auth.isLoading) return;
-
-    await auth.resetPassword(
-      widget.username.trim(),
-      _resetCodeController.text.trim(),
-      _newPasswordController.text.trim(),
-    );
+    await ref.read(authControllerProvider.notifier).resetPassword(
+          widget.username.trim(),
+          _code.text.trim(),
+          _newPassword.text.trim(),
+        );
 
     if (!mounted) return;
-
-    if (auth.errorMessage == null) {
-      showAppSnackbar(
-        context,
-        text: 'Пароль успешно сброшен',
-        type: AppSnackbarType.success,
-      );
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
+    final state = ref.read(authControllerProvider);
+    final err = state.errorMessage;
+    if (err != null) {
+      showAppSnackbar(context, text: err, type: AppSnackbarType.error);
     } else {
-      _showErrorSnackbar(auth.errorMessage!);
+      showAppSnackbar(context, text: 'Пароль успешно сброшен', type: AppSnackbarType.success);
+      context.goLogin();
     }
-  }
-
-  void _showErrorSnackbar(String message) {
-    showAppSnackbar(
-      context,
-      text: message,
-      type: AppSnackbarType.error,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final authProviderValue = ref.watch(authProvider);
+    final c = context.colors;
+    final t = context.tokens;
+    final isLoading = ref.watch(authControllerProvider).isLoading;
 
-    return ThemedBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppCustomAppBar(
-          title: 'Сброс пароля',
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: colors.textMuted),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-        ),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.lock_reset, size: 50, color: colors.primary),
-                  const SizedBox(height: 40),
-                  TextFormField(
-                    controller: _resetCodeController,
-                    style: TextStyle(color: colors.text),
-                    decoration: InputDecoration(
-                      labelText: 'Код восстановления',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.verified, color: colors.textMuted),
-                      labelStyle: TextStyle(color: colors.textMuted),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Введите код восстановления';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _newPasswordController,
-                    style: TextStyle(color: colors.text),
-                    decoration: InputDecoration(
-                      labelText: 'Новый пароль',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock, color: colors.textMuted),
-                      labelStyle: TextStyle(color: colors.textMuted),
-                    ),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Введите новый пароль';
-                      if (value.length < 6) return 'Пароль должен содержать минимум 6 символов';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    onPressed: authProviderValue.isLoading ? null : _resetPassword,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.primary,
-                      foregroundColor: colors.bgLight,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    ),
-                    child: authProviderValue.isLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(
-                            'Сбросить пароль',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: colors.bgLight),
-                          ),
-                  ),
-                ],
-              ),
+    return AuthScaffold(
+      title: 'Сброс пароля',
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back, color: c.textMuted),
+        onPressed: () => context.pop(),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            Icon(Icons.lock_reset, size: 50, color: c.primary),
+            SizedBox(height: t.spacing.lg + t.spacing.xs),
+            CodeField(
+              controller: _code,
+              label: 'Код восстановления',
+              textInputAction: TextInputAction.next,
+              exactLength: 6,
+              onSubmitted: (_) => _pwdNode.requestFocus(),
             ),
-          ),
+            SizedBox(height: t.spacing.sm),
+            PasswordField(
+              controller: _newPassword,
+              focusNode: _pwdNode,
+              label: 'Новый пароль',
+            ),
+            SizedBox(height: t.spacing.lg + t.spacing.xs),
+            SecondaryButton(
+              label: 'Сбросить пароль',
+              onPressed: isLoading ? null : _submit,
+              icon: Icons.check_rounded,
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+
