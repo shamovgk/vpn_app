@@ -13,5 +13,6 @@ router.use(auth);
 router.post('/add-device', validate(addDeviceSchema), deviceController.addDevice);
 router.post('/remove-device', validate(removeDeviceSchema), deviceController.removeDevice);
 router.get('/get-devices', deviceController.getDevices);
+router.post('/update-last-seen', deviceController.updateLastSeen);
 
 module.exports = router;

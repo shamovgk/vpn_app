@@ -1,3 +1,4 @@
+// routes/paymentRoutes.js
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
@@ -8,6 +9,8 @@ const auth = require('../middlewares/auth');
 
 router.use(withDb);
 router.use(auth);
+
 router.post('/', validate(payYookassaSchema), paymentController.payYookassa);
+router.post('/:paymentId/reconcile', paymentController.reconcilePayment);
 
 module.exports = router;

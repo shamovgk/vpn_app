@@ -1,3 +1,4 @@
+// services/paymentService.js
 const YooKassa = require('yookassa');
 const { yooKassa, payment } = require('../config/config');
 
@@ -20,4 +21,11 @@ async function createPayment({ amount, method, userId }) {
   });
 }
 
-module.exports = { createPayment };
+async function getPaymentById(paymentId) {
+  return yooKassaInstance.getPayment(paymentId);
+}
+
+module.exports = {
+  createPayment,
+  getPaymentById,
+};
