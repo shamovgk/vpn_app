@@ -22,7 +22,7 @@ module.exports = {
 
   // Платёжные константы
   payment: {
-    returnUrl: 'https://sham.shetanvpn.ru/payment_success', // URL возврата после оплаты (используй для YooKassa)
+    returnUrl: 'https://sham.shetanvpn.ru/payment.successed', // URL возврата после оплаты (используй для YooKassa)
     allowedMethods: ['bank_card', 'sbp', 'sberbank'],
     description: 'Оплата VPN',
     currency: 'RUB',

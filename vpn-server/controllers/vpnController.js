@@ -1,40 +1,31 @@
 const config = require('../config/config');
 const logger = require('../utils/logger.js');
+const { getUserByToken } = require('../services/authService');
+const { getActiveSubscription } = require('../services/subscriptionService');
 
 exports.getVpnConfig = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Token is required');
+    if (!authHeader || !authHeader.startsWith('Bearer '))
+      return res.status(401).json({ error: 'Token is required' });
     const token = authHeader.split(' ')[1];
     const db = req.db;
 
-    const user = await new Promise((resolve, reject) =>
-      db.get(
-        `SELECT username, is_paid, trial_end_date, vpn_key, client_ip FROM Users WHERE auth_token = ? AND token_expiry > ?`,
-        [token, new Date().toISOString()],
-        (err, user) => err ? reject(err) : resolve(user)
-      )
-    );
-    if (!user) throw new Error('Invalid or expired token');
+    const user = await getUserByToken({ token, db });
+    if (!user) return res.status(401).json({ error: 'Invalid or expired token' });
 
-    // Проверка оплаты или trial
-    const trialActive = user.trial_end_date && new Date(user.trial_end_date) > new Date();
-    if (!user.is_paid && !trialActive) throw new Error('Trial period expired or not paid');
+    const sub = await getActiveSubscription({ userId: user.id, db });
+    if (!sub) return res.status(403).json({ error: 'Нет активной подписки или триала' });
 
-    // Параметры WireGuard из config.vpn
-    const serverPublicKey = config.vpn.serverPublicKey;
-    const endpoint = config.vpn.endpoint;
-    const dns = config.vpn.dns;
+    if (!user.vpn_key || !user.client_ip)
+      return res.status(400).json({ error: 'VPN key or IP not assigned' });
 
-    if (!user.vpn_key || !user.client_ip) throw new Error('VPN key or IP not assigned');
-
-    // JSON (Клиенту — удобно парсить, удобно собирать конфиг)
     res.json({
       privateKey: user.vpn_key,
       address: user.client_ip,
-      dns,
-      serverPublicKey,
-      endpoint,
+      dns: config.vpn.dns,
+      serverPublicKey: config.vpn.serverPublicKey,
+      endpoint: config.vpn.endpoint,
       allowedIps: '0.0.0.0/0, ::/0'
     });
   } catch (e) {

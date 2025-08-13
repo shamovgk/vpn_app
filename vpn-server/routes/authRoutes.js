@@ -8,9 +8,7 @@ const {
   verifyEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  cancelRegistrationSchema,
 } = require('../schemas/authSchemas');
-
 const withDb = require('../middlewares/withDb');
 router.use(withDb);
 
@@ -21,6 +19,5 @@ router.post('/forgot-password', validate(forgotPasswordSchema), authController.f
 router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 router.get('/validate-token', authController.validateToken);
 router.post('/logout', authController.logout);
-router.get('/subscription-status', authController.subscriptionStatus);
 
 module.exports = router;

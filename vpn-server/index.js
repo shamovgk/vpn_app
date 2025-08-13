@@ -18,7 +18,7 @@ const deviceRoutes = require('./routes/deviceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const vpnRoutes = require('./routes/vpnRoutes');
-const webhookRoutes = require('./routes/webhookRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
 
 // ==== Database connection and models ====
 const db = new sqlite3.Database(config.dbPath, (err) => {
@@ -32,6 +32,7 @@ const db = new sqlite3.Database(config.dbPath, (err) => {
     require('./models/passwordResetModel')(db);
     require('./models/userStatsModel')(db);
     require('./models/paymentModel')(db);
+    require('./models/subscriptionModel')(db);
   }
 });
 
@@ -41,6 +42,8 @@ app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', __dirname + '/views');
 app.use(expressLayouts);
+
+// Глобальный json-парсер (остаётся)
 app.use(express.json());
 
 // ==== Security middlewares ====
@@ -61,17 +64,43 @@ app.use(rateLimit({
 // ==== CSRF только для админки (EJS формы, не для API) ====
 app.use('/admin', cookieParser(), csurf({ cookie: true }));
 
+// ==== Healthcheck endpoint (для мониторинга) ====
+app.get('/healthz', (req, res) => {
+  req.app.get('db').get('SELECT 1', [], (err) => {
+    if (err) {
+      logger.error('Healthcheck failed', { error: err });
+      return res.status(500).send('DB error');
+    }
+    res.send('OK');
+  });
+});
+
+// ======= ВЕБХУК ЮKassa ДО лимитеров и ДО /pay роутера =======
+const withDb = require('./middlewares/withDb');
+const paymentController = require('./controllers/paymentController');
+
+// Явно принимаем вебхук тут, чтобы его не трогали ни auth, ни лимитеры
+app.post('/pay/yookassa', express.json(), withDb, (req, res, next) => {
+  // расширенный лог для диагностики (временно можно оставить)
+  logger.info('Webhook hit', { ip: req.ip, ips: req.ips, ua: req.headers['user-agent'] });
+  return paymentController.yookassaWebhook(req, res, next);
+});
+// =============================================================
+
 // ==== Пер-роут Rate Limit ====
 app.use('/auth', rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   message: 'Too many auth attempts, slow down!'
 }));
+
+// Лимитер на /pay НЕ касается вебхука — он выше и отдельно
 app.use('/pay', rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: 50,
   message: 'Too many payment attempts, try later.'
 }));
+
 app.use('/admin', rateLimit({
   windowMs: 60 * 1000,
   max: 20,
@@ -82,24 +111,18 @@ app.use('/admin', rateLimit({
 app.use('/auth', authRoutes);
 app.use('/devices', deviceRoutes);
 app.use('/admin', adminRoutes);
-app.use('/pay', paymentRoutes);
+app.use('/pay', paymentRoutes); // здесь уже нет вебхука
 app.use('/vpn', vpnRoutes);
-app.use('/webhook', webhookRoutes);
+app.use('/subscription', subscriptionRoutes);
 
-// === Опционально: "страница успеха" для ЮKassa (можно просто редирект, если нет SSR)
+// redirect после успешной оплаты
 app.get('/payment_success', (req, res) => {
   res.redirect('https://sham.shetanvpn.ru/payment-success');
 });
 
-// ==== Healthcheck endpoint (для мониторинга) ====
-app.get('/healthz', (req, res) => {
-  req.app.get('db').get('SELECT 1', [], (err) => {
-    if (err) {
-      logger.error('Healthcheck failed', { error: err });
-      return res.status(500).send('DB error');
-    }
-    res.send('OK');
-  });
+// ==== 404 ====
+app.use((req, res, next) => {
+  res.status(404).json({ error: 'Not Found' });
 });
 
 // ==== Глобальный Error handler ====

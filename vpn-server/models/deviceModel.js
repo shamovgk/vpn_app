@@ -1,5 +1,3 @@
-const sqlite3 = require('sqlite3').verbose();
-
 module.exports = (db) => {
   db.run(`
     CREATE TABLE IF NOT EXISTS Devices (
