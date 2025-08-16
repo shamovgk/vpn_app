@@ -1,88 +1,102 @@
 <h1>Пользователи</h1>
-<div class="search-box">
-  <input type="text" id="searchUsername" placeholder="Поиск по username" style="padding: 5px;" onkeyup="searchUsers()">
-  <button class="btn" onclick="searchUsers()">Поиск</button>
+
+<div class="toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+  <input type="text" id="q" placeholder="Поиск по username/email" style="padding:5px;max-width:240px;" value="<%= pagination.q || '' %>">
+  <select id="filter" style="padding:5px;">
+    <option value="all"   <%= pagination.filter==='all'?'selected':'' %>>Все</option>
+    <option value="paid"  <%= pagination.filter==='paid'?'selected':'' %>>Только платные</option>
+    <option value="trial" <%= pagination.filter==='trial'?'selected':'' %>>Только триал</option>
+    <option value="none"  <%= pagination.filter==='none'?'selected':'' %>>Без подписки</option>
+  </select>
+  <select id="limit" style="padding:5px;">
+    <% [10,20,50,100].forEach(n => { %>
+      <option value="<%= n %>" <%= Number(pagination.limit)===n?'selected':'' %>><%= n %>/стр</option>
+    <% }) %>
+  </select>
+  <button class="btn" id="applyBtn" style="background:#2980b9;color:#fff;">Применить</button>
+  <% if (pagination.q || pagination.filter!=='all') { %>
+    <button class="btn" id="resetBtn">Сброс</button>
+  <% } %>
 </div>
-<% if (users && users.length > 0) { %>
+
+<div class="table-wrap">
   <table id="usersTable">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Username</th>
-        <th>Email</th>
-        <th>Email Verified</th>
-        <th>Is Paid</th>
-        <th>Trial End Date</th>
-        <th>Device Count</th>
-        <th>Действия</th>
+        <th><button class="th-btn" data-col="id" data-sort="<%= pagination.sort==='id' ? pagination.dir : '' %>">ID</button></th>
+        <th><button class="th-btn" data-col="username" data-sort="<%= pagination.sort==='username' ? pagination.dir : '' %>">Username</button></th>
+        <th><button class="th-btn" data-col="email" data-sort="<%= pagination.sort==='email' ? pagination.dir : '' %>">Email</button></th>
+        <th><button class="th-btn" data-col="email_verified" data-sort="<%= pagination.sort==='email_verified' ? pagination.dir : '' %>">Email Verified</button></th>
+        <th><button class="th-btn" data-col="is_paid" data-sort="<%= pagination.sort==='is_paid' ? pagination.dir : '' %>">Is Paid</button></th>
+        <th><button class="th-btn" data-col="paid_until" data-sort="<%= pagination.sort==='paid_until' ? pagination.dir : '' %>">Paid Until</button></th>
+        <th><button class="th-btn" data-col="trial_until" data-sort="<%= pagination.sort==='trial_until' ? pagination.dir : '' %>">Trial Until</button></th>
+        <th><button class="th-btn" data-col="device_count" data-sort="<%= pagination.sort==='device_count' ? pagination.dir : '' %>">Devices</button></th>
+        <th class="w-actions">Действия</th>
       </tr>
     </thead>
     <tbody>
-      <% users.forEach(user => { %>
-        <tr>
-          <td><%= user.id %></td>
-          <td><%= user.username %></td>
-          <td><%= user.email %></td>
-          <td><%= user.email_verified ? 'Да' : 'Нет' %></td>
+      <% users.forEach(u => { %>
+        <tr data-id="<%= u.id %>">
+          <td><%= u.id %></td>
+          <td><%= u.username %></td>
+          <td><%= u.email %></td>
+          <td><%= u.email_verified ? 'Да' : 'Нет' %></td>
+          <td><input type="checkbox" class="js-is-paid" <%= u.is_paid ? 'checked' : '' %>></td>
           <td>
-            <input type="checkbox" onchange="updateUser('<%= user.id %>', 'is_paid', this.checked)" <%= user.is_paid ? 'checked' : '' %>>
+            <input type="date" class="js-paid-until w-date" value="<%= u.paid_until ? u.paid_until.split('T')[0] : '' %>">
+            <button class="btn mini js-grant30" style="background:#2980b9;">+30 дней</button>
           </td>
-          <td>
-            <input type="date" onchange="updateUser('<%= user.id %>', 'trial_end_date', this.value)" value="<%= user.trial_end_date ? user.trial_end_date.split('T')[0] : '' %>">
-          </td>
-          <td><%= user.device_count %></td>
-          <td>
-            <button class="edit-btn btn" onclick="editUser('<%= user.id %>')">Edit</button>
-          </td>
+          <td><input type="date" class="js-trial-until w-date" value="<%= u.trial_until ? u.trial_until.split('T')[0] : '' %>"></td>
+          <td class="devices-count"><%= u.device_count %></td>
+          <td><button class="edit-btn btn js-open-devices">Устройства</button></td>
         </tr>
       <% }) %>
     </tbody>
   </table>
-<% } else { %>
-  <p>Пользователи не найдены.</p>
-<% } %>
-<script>
-  function searchUsers() {
-    const username = document.getElementById('searchUsername').value;
-    fetch(`/admin/users/search?username=${encodeURIComponent(username)}`)
-      .then(res => res.json())
-      .then(users => {
-        const tbody = document.querySelector('#usersTable tbody');
-        tbody.innerHTML = '';
-        if (users && users.length > 0) {
-          users.forEach(user => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-              <td>${user.id}</td>
-              <td>${user.username}</td>
-              <td>${user.email}</td>
-              <td>${user.email_verified ? 'Да' : 'Нет'}</td>
-              <td><input type="checkbox" onchange="updateUser('${user.id}', 'is_paid', this.checked)" ${user.is_paid ? 'checked' : ''}></td>
-              <td><input type="date" onchange="updateUser('${user.id}', 'trial_end_date', this.value)" value="${user.trial_end_date ? user.trial_end_date.split('T')[0] : ''}"></td>
-              <td>${user.device_count}</td>
-              <td><button class="edit-btn btn" onclick="editUser('${user.id}')">Edit</button></td>
-            `;
-            tbody.appendChild(row);
-          });
-        } else {
-          tbody.innerHTML = '<tr><td colspan="8">Нет совпадений.</td></tr>';
-        }
-      })
-      .catch(err => alert('Ошибка поиска: ' + err));
-  }
+</div>
 
-  function updateUser(id, field, value) {
-    fetch(`/admin/users/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
-      body: JSON.stringify({ [field]: field === 'is_paid' ? (value ? 1 : 0) : value })
-    })
-    .then(res => res.json())
-    .then(data => alert(data.message))
-    .catch(err => alert('Ошибка обновления: ' + err));
-  }
+<!-- Пагинация -->
+<div id="pager" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap;">
+  <div>Стр. <b id="p_cur"><%= pagination.page %></b> из <b id="p_pages"><%= pagination.pages %></b> (всего <span id="p_total"><%= pagination.total %></span>)</div>
+  <div style="display:flex;gap:6px;">
+    <button class="btn pager-first" data-goto="1" <% if (pagination.page<=1) { %>disabled<% } %> >« Первая</button>
+    <button class="btn pager-prev"  data-goto="<%= Math.max(1, pagination.page-1) %>" <% if (pagination.page<=1) { %>disabled<% } %> >‹ Пред</button>
+    <button class="btn pager-next"  data-goto="<%= Math.min(pagination.pages, pagination.page+1) %>" <% if (pagination.page>=pagination.pages) { %>disabled<% } %> >След ›</button>
+    <button class="btn pager-last"  data-goto="<%= pagination.pages %>" <% if (pagination.page>=pagination.pages) { %>disabled<% } %> >Последняя »</button>
+  </div>
+</div>
 
-  function editUser(id) {
-    alert(`Редактирование пользователя: ${id}`);
-  }
+<!-- Модалка устройств -->
+<div id="devicesModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="devicesTitle">Устройства</h3>
+      <button class="btn close">×</button>
+    </div>
+    <div id="devicesBody" class="modal-body">Загрузка...</div>
+  </div>
+</div>
+
+<style>
+  .th-btn { background:none; border:none; cursor:pointer; font-weight:600; position:relative; padding-right:18px; }
+  .th-btn[data-sort="asc"]::after  { content: '▲'; position:absolute; right:2px; top:50%; transform:translateY(-50%); font-size:12px; }
+  .th-btn[data-sort="desc"]::after { content: '▼'; position:absolute; right:2px; top:50%; transform:translateY(-50%); font-size:12px; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:1000;}
+  .modal-content { background:#fff; width:min(800px, 92vw); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.25);}
+  .modal-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #eee;}
+  .modal-body { padding:16px; max-height:70vh; overflow:auto; }
+  .btn.close { background:#e74c3c; color:#fff; }
+  .btn.mini { padding:4px 8px; font-size:12px; background:#555; color:#fff; }
+</style>
+
+<!-- INIT -->
+<script id="init" type="application/json">
+<%- JSON.stringify({
+  page: Number(pagination.page),
+  limit: Number(pagination.limit),
+  q: pagination.q || "",
+  sort: pagination.sort,
+  dir: pagination.dir,
+  filter: pagination.filter
+}) %>
 </script>

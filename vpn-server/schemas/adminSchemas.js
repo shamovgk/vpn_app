@@ -1,16 +1,16 @@
+// schemas/adminSchemas.js
 const Joi = require('joi');
 
-// Логин админа
 const adminLoginSchema = Joi.object({
   username: Joi.string().required(),
   password: Joi.string().required(),
+  next: Joi.string().allow('', null).optional()
 });
 
-// Обновление пользователя админом
 const adminUpdateUserSchema = Joi.object({
-  is_paid: Joi.boolean().required(),
-  trial_end_date: Joi.date().iso().optional().allow(null, ''),
-  subscription_level: Joi.number().integer().optional(),
+  is_paid: Joi.boolean().optional(),
+  paid_until: Joi.date().iso().allow(null, '').optional(),
+  trial_until: Joi.date().iso().allow(null, '').optional(),
 });
 
 module.exports = {

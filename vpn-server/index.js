@@ -1,5 +1,6 @@
 // index.js
 const express = require('express');
+const path = require('path');
 const helmet = require('helmet');
 const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
@@ -9,10 +10,11 @@ const rateLimit = require('express-rate-limit');
 const sqlite3 = require('sqlite3');
 const expressLayouts = require('express-ejs-layouts');
 const errorHandler = require('./middlewares/errorHandler');
+require('events').defaultMaxListeners = 30;
 const logger = require('./utils/logger.js');
 const config = require('./config/config');
 
-// ==== Импорты роутов ====
+// Routers
 const authRoutes = require('./routes/authRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -20,113 +22,114 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const vpnRoutes = require('./routes/vpnRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 
-// ==== Database connection and models ====
-const db = new sqlite3.Database(config.dbPath, (err) => {
+// DB
+const db = new sqlite3.Database(config.dbPath, async (err) => {
   if (err) {
     logger.error('Error opening database', { error: err });
-  } else {
-    logger.info(`Connected to the SQLite database at ${config.dbPath}`);
-    require('./models/userModel')(db);
-    require('./models/pendingUserModel')(db);
-    require('./models/deviceModel')(db);
-    require('./models/passwordResetModel')(db);
-    require('./models/userStatsModel')(db);
-    require('./models/paymentModel')(db);
-    require('./models/subscriptionModel')(db);
+    process.exit(1);
+  }
+  logger.info(`Connected to the SQLite database at ${config.dbPath}`);
+  try {
+    await require('./db/bootstrap')(db);
+    startServer(db);
+  } catch (e) {
+    logger.error('bootstrap failed', { error: e });
+    process.exit(1);
   }
 });
 
-// ==== Express app settings ====
-const app = express();
-app.set('trust proxy', 1);
-app.set('view engine', 'ejs');
-app.set('views', __dirname + '/views');
-app.use(expressLayouts);
+function startServer(db) {
+  const app = express();
+  app.set('trust proxy', 1);
+  app.set('view engine', 'ejs');
+  app.set('views', __dirname + '/views');
+  app.use(expressLayouts);
 
-// Глобальный json-парсер (остаётся)
-app.use(express.json());
+  // Безопасность/база
+  app.use(helmet());
+  app.use(cors(config.cors));
+  app.use(express.json());              // JSON для API
+  app.use(session(config.session));     // сессии
+  app.set('db', db);
 
-// ==== Security middlewares ====
-app.use(helmet());
-app.use(cors(config.cors));
+  // Раздача статики (внешний JS/CSS админки)
+  app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
 
-// ==== Sessions (только для SSR/админки) ====
-app.use(session(config.session));
-app.set('db', db);
-
-// ==== Глобальный Rate Limit ====
-app.use(rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: 'Too many requests from this IP, please try again later.'
-}));
-
-// ==== CSRF только для админки (EJS формы, не для API) ====
-app.use('/admin', cookieParser(), csurf({ cookie: true }));
-
-// ==== Healthcheck endpoint (для мониторинга) ====
-app.get('/healthz', (req, res) => {
-  req.app.get('db').get('SELECT 1', [], (err) => {
-    if (err) {
-      logger.error('Healthcheck failed', { error: err });
-      return res.status(500).send('DB error');
-    }
-    res.send('OK');
+  // locals для layout
+  app.use((req, res, next) => {
+    res.locals.error = null;
+    res.locals.title = res.locals.title || 'UgbuganVPN Admin';
+    next();
   });
-});
 
-// ======= ВЕБХУК ЮKassa ДО лимитеров и ДО /pay роутера =======
-const withDb = require('./middlewares/withDb');
-const paymentController = require('./controllers/paymentController');
+  // Лимитеры
+  app.use('/auth', rateLimit({ windowMs: 60_000, max: 10, message: 'Too many auth attempts, slow down!' }));
+  app.use('/pay',  rateLimit({ windowMs: 60_000, max: 50, message: 'Too many payment attempts, try later.' }));
+  app.use('/admin',rateLimit({ windowMs: 60_000, max: 300, message: 'Too many admin requests, relax!' }));
 
-// Явно принимаем вебхук тут, чтобы его не трогали ни auth, ни лимитеры
-app.post('/pay/yookassa', express.json(), withDb, (req, res, next) => {
-  // расширенный лог для диагностики (временно можно оставить)
-  logger.info('Webhook hit', { ip: req.ip, ips: req.ips, ua: req.headers['user-agent'] });
-  return paymentController.yookassaWebhook(req, res, next);
-});
-// =============================================================
+  // Health
+  app.get('/healthz', (req, res) => {
+    req.app.get('db').get('SELECT 1', [], (err) => {
+      if (err) {
+        logger.error('Healthcheck failed', { error: err });
+        return res.status(500).send('DB error');
+      }
+      res.send('OK');
+    });
+  });
 
-// ==== Пер-роут Rate Limit ====
-app.use('/auth', rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
-  message: 'Too many auth attempts, slow down!'
-}));
+  // YooKassa вебхук — без CSRF
+  const withDb = require('./middlewares/withDb');
+  const paymentController = require('./controllers/paymentController');
+  app.post('/pay/yookassa', express.json(), withDb, (req, res, next) =>
+    paymentController.yookassaWebhook(req, res, next)
+  );
 
-// Лимитер на /pay НЕ касается вебхука — он выше и отдельно
-app.use('/pay', rateLimit({
-  windowMs: 60 * 1000,
-  max: 50,
-  message: 'Too many payment attempts, try later.'
-}));
+  // Публичные API
+  app.use('/auth', authRoutes);
+  app.use('/devices', deviceRoutes);
+  app.use('/pay', paymentRoutes);
+  app.use('/vpn', vpnRoutes);
+  app.use('/subscription', subscriptionRoutes);
 
-app.use('/admin', rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  message: 'Too many admin requests, relax!'
-}));
+  // ===== ADMIN: один CSRF-комбайн для форм и AJAX =====
+  app.use('/admin',
+    cookieParser(),
+    express.urlencoded({ extended: false }),    // для формы логина
+    csurf({ cookie: { sameSite: 'lax' } })
+  );
 
-// ==== Routers ====
-app.use('/auth', authRoutes);
-app.use('/devices', deviceRoutes);
-app.use('/admin', adminRoutes);
-app.use('/pay', paymentRoutes); // здесь уже нет вебхука
-app.use('/vpn', vpnRoutes);
-app.use('/subscription', subscriptionRoutes);
+  // Роуты админки
+  app.use('/admin', adminRoutes);
 
-// redirect после успешной оплаты
-app.get('/payment_success', (req, res) => {
-  res.redirect('https://sham.shetanvpn.ru/payment-success');
-});
+  // Обработчик CSRF-ошибок только для /admin
+  app.use('/admin', (err, req, res, next) => {
+    if (err && err.code === 'EBADCSRFTOKEN') {
+      logger.warn('Invalid CSRF token', { path: req.path, ip: req.ip });
+      try {
+        return res.status(403).render('login', {
+          title: 'Вход в админку',
+          csrfToken: req.csrfToken(),
+          next: req.originalUrl.includes('/admin/login') ? '/admin' : (req.query.next || '/admin'),
+          error: 'Неверный CSRF токен. Обновите страницу и войдите снова.'
+        });
+      } catch {
+        return res.status(403).json({ error: 'invalid csrf token' });
+      }
+    }
+    next(err);
+  });
 
-// ==== 404 ====
-app.use((req, res, next) => {
-  res.status(404).json({ error: 'Not Found' });
-});
+  // Возврат из YooKassa
+  app.get('/payment-return', (_req, res) => {
+    res.status(200).send(`<!doctype html><meta charset="utf-8">
+      <title>Возврат в приложение</title>
+      <p>Можно вернуться в приложение. Если страница не закрылась автоматически, закройте её.</p>`);
+  });
 
-// ==== Глобальный Error handler ====
-app.use(errorHandler);
+  // 404/ошибки
+  app.use((req, res) => res.status(404).json({ error: 'Not Found' }));
+  app.use(errorHandler);
 
-// ==== Start server ====
-app.listen(config.port, () => logger.info(`Server running on http://localhost:${config.port}`));
+  app.listen(config.port, () => logger.info(`Server running on http://localhost:${config.port}`));
+}

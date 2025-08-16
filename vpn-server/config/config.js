@@ -1,17 +1,21 @@
 // config/config.js
+const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config();
 
 module.exports = {
   port: process.env.PORT || 3000,
-  dbPath: process.env.DB_PATH || './vpn.db',
+  dbPath: path.resolve(process.cwd(), process.env.DB_PATH || 'vpn.db'),
 
   // Сессии (для админки/SSR)
   session: {
     secret: process.env.SESSION_SECRET || 'your_secret_key',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' }
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    }
   },
 
   // YooKassa
@@ -22,7 +26,7 @@ module.exports = {
 
   // Платёжные константы
   payment: {
-    returnUrl: 'https://sham.shetanvpn.ru/payment.successed', // URL возврата после оплаты (используй для YooKassa)
+    returnUrl: 'https://sham.shetanvpn.ru/payment-return',
     allowedMethods: ['bank_card', 'sbp', 'sberbank'],
     description: 'Оплата VPN',
     currency: 'RUB',

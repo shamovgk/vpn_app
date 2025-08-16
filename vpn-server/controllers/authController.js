@@ -40,7 +40,6 @@ exports.verifyEmail = async (req, res) => {
 
     logger.info('User successfully verified and created', { username: u, email: em, clientIp });
 
-    // стартуем trial
     await subscriptionService.startTrial({ userId, db });
 
     res.json({ message: 'Email успешно верифицирован, аккаунт создан' });
@@ -76,7 +75,7 @@ exports.validateToken = async (req, res) => {
   const db = req.db;
   try {
     const user = await authService.validateToken({ token, db });
-    logger.info('Token validated', { userId: user.id, username: user.username, token });
+    logger.info('Token validated', { userId: user.id, username: user.username });
     res.json(user);
   } catch (e) {
     if (e.message === 'TOKEN_INVALID')

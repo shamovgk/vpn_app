@@ -39,7 +39,7 @@ exports.yookassaWebhook = async (req, res) => {
     // req.db гарантирован withDb в index.js
     const db = req.db;
 
-    logger.info('Получен webhook от ЮKassa', { body: req.body, headers: req.headers });
+    logger.info('Получен webhook от ЮKassa', { event: req.body?.event, objectId: req.body?.object?.id });
 
     const event = req.body.event;
     const object = req.body.object;
