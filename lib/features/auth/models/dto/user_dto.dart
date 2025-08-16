@@ -1,4 +1,4 @@
-// lib/features/auth/models/user_dto.dart
+// lib/features/auth/models/dto/user_dto.dart
 class UserDto {
   final String username;
   final String? email;

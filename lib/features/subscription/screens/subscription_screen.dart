@@ -52,7 +52,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     ref.read(paymentControllerProvider.notifier).reset();
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Подписка активирована!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Подписка активирована!')),
+    );
   }
 
   @override
@@ -65,20 +67,21 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       if (!_isWebViewOpen && next is PaymentReady) {
         _isWebViewOpen = true;
 
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
 
           final ctrl = ref.read(paymentControllerProvider.notifier);
-          final baseUrl = ref.read(httpClientProvider).options.baseUrl;
-          final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+          final cfg = ref.read(appConfigProvider);
 
           context.pushPayment(
             PaymentWebViewArgs(
               url: next.payment.confirmationUrl!,
-              successPrefix: '$base/payment-success',
-              cancelPrefix: '$base/payment-cancel',
+              // единый URL возврата из ЮKassa (закрываем WebView в любом случае)
+              successPrefix: cfg.paymentSuccessPrefix,
+              cancelPrefix: cfg.paymentCancelPrefix,
               onSuccess: () async {
                 await ctrl.checkPaymentStatus(next.payment.id);
+                _isWebViewOpen = false;
               },
               onCancel: () {
                 ctrl.reset();
@@ -87,9 +90,6 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               },
             ),
           );
-
-          if (!mounted) return;
-          _isWebViewOpen = false;
         });
       }
 
@@ -155,7 +155,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     final bool isPaymentLoading = paymentState is PaymentLoading;
     final String? paymentError = paymentState is PaymentFailed ? paymentState.message : null;
     final bool isPolling = paymentState is PaymentPolling &&
-        (paymentState.payment.status == PaymentStatus.pending || paymentState.payment.status == PaymentStatus.waitingForCapture);
+        (paymentState.payment.status == PaymentStatus.pending ||
+         paymentState.payment.status == PaymentStatus.waitingForCapture);
 
     final mainContent = Padding(
       padding: t.spacing.all(t.spacing.lg),

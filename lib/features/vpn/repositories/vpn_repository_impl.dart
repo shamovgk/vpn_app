@@ -1,5 +1,6 @@
 // lib/features/vpn/repositories/vpn_repository_impl.dart
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:vpn_app/features/vpn/mappers/vpn_mapper.dart';
@@ -20,22 +21,13 @@ class VpnRepositoryImpl implements VpnRepository {
   final ApiService _api;
 
   final VpnChannel _vpn = VpnChannel();
-  Completer<void>? _initC;
 
   static const String _tunnelName = 'vpn_app_tunnel';
   static const String _bundleId   = 'com.example.vpn_app';
 
   Future<void> _ensureInitialized() async {
-    if (_initC != null && _initC!.isCompleted) return;
-    _initC ??= Completer<void>();
-    try {
-      await _vpn.initialize(interfaceName: _tunnelName);
-      await _clearTempFiles();
-      _initC?.complete();
-    } catch (e) {
-      _initC?.completeError(e);
-      rethrow;
-    }
+    await _vpn.initialize(interfaceName: _tunnelName);
+    await _clearTempFiles();
   }
 
   Future<void> _clearTempFiles() async {
@@ -74,11 +66,32 @@ class VpnRepositoryImpl implements VpnRepository {
     await validateConfigIsolate(cfg);
     final wgQuick = await buildWgQuickIsolate(cfg);
 
-    await _vpn.start(
-      serverAddress: cfg.endpoint,
-      wgQuickConfig: wgQuick,
-      providerBundleIdentifier: _bundleId,
-    );
+    const maxAttempts = 5;
+    var backoff = const Duration(milliseconds: 300);
+    final rnd = math.Random();
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await _vpn.start(
+          serverAddress: cfg.endpoint,
+          wgQuickConfig: wgQuick,
+          providerBundleIdentifier: _bundleId,
+        );
+        return; // успех
+      } catch (e) {
+        if (_isMarkedForDeleteError(e) && attempt < maxAttempts) {
+          // 1) Даём Windows закончить delete старого сервиса
+          await _vpn.waitServiceDeleted(timeout: const Duration(seconds: 7));
+          // 2) Джиттер, чтобы не биться ровно в одну и ту же фазу SCM
+          final jitterMs = 100 + rnd.nextInt(150); // 100..250мс
+          await Future.delayed(backoff + Duration(milliseconds: jitterMs));
+          backoff = Duration(milliseconds: (backoff.inMilliseconds * 1.8).ceil());
+          // 3) Следующий заход
+          continue;
+        }
+        rethrow;
+      }
+    }
   }
 
   @override
@@ -90,5 +103,13 @@ class VpnRepositoryImpl implements VpnRepository {
   Future<bool> isConnected() async {
     final s = await _vpn.stage();
     return s == VpnStage.connected;
+  }
+
+  bool _isMarkedForDeleteError(Object e) {
+    final s = e.toString();
+    return s.contains('1072') ||
+           s.contains('ERROR_SERVICE_MARKED_FOR_DELETE') ||
+           s.toLowerCase().contains('marked for delete') ||
+           (s.toLowerCase().contains('sid') && s.contains('1072'));
   }
 }

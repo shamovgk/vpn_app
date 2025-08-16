@@ -18,7 +18,7 @@ import '../usecases/validate_token_usecase.dart';
 import '../usecases/logout_usecase.dart';
 import '../usecases/forgot_password_usecase.dart';
 import '../usecases/reset_password_usecase.dart';
-import 'auth_providers.dart'; // для tokenProvider
+import 'auth_providers.dart';
 
 typedef AuthState = FeatureState<User>;
 
@@ -94,7 +94,7 @@ class AuthController extends StateNotifier<AuthState> {
       _userCache.set(user);
       state = FeatureReady<User>(user);
       await ref.read(subscriptionControllerProvider.notifier).fetch();
-      await ref.read(deviceControllerProvider.notifier).touchLastSeen();
+      unawaited(ref.read(deviceControllerProvider.notifier).touchLastSeen());
     } catch (_) {
       // шум не нужен
     }
@@ -117,7 +117,7 @@ class AuthController extends StateNotifier<AuthState> {
 
       await ref.read(subscriptionControllerProvider.notifier).fetch();
       await ref.read(deviceControllerProvider.notifier).addCurrent();
-      await ref.read(deviceControllerProvider.notifier).touchLastSeen();
+      unawaited(ref.read(deviceControllerProvider.notifier).load());
     } on ApiException catch (e) {
       if (!ct.isCancelled) state = FeatureError<User>(e.message);
     } catch (_) {
@@ -155,7 +155,7 @@ class AuthController extends StateNotifier<AuthState> {
       _userCache.set(user);
       state = FeatureReady<User>(user);
       await ref.read(subscriptionControllerProvider.notifier).fetch();
-      await ref.read(deviceControllerProvider.notifier).touchLastSeen();
+      unawaited(ref.read(deviceControllerProvider.notifier).touchLastSeen());
     } on UnauthorizedException {
       await logout(silent: true);
       state = const FeatureIdle();

@@ -1,5 +1,6 @@
 // lib/features/vpn/platform/vpn_channel.dart
 import 'dart:async';
+import 'dart:io' show Platform, Process;
 import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart';
 import 'package:wireguard_flutter/wireguard_flutter.dart';
@@ -59,7 +60,7 @@ class VpnChannel {
       await _wg!.stopVpn();
       await Future.delayed(const Duration(seconds: 1));
     }
-
+    await waitServiceDeleted(timeout: const Duration(seconds: 7));
     await _wg!.startVpn(
       serverAddress: serverAddress,
       wgQuickConfig: wgQuickConfig,
@@ -92,12 +93,8 @@ class VpnChannel {
     try {
       final s = await stage();
       _controller.add(VpnStatusEvent(stage: s));
-      if (s == VpnStage.disconnected) {
-        _stopPolling();
-      }
     } catch (e) {
       _controller.add(VpnStatusEvent(stage: VpnStage.disconnected, reason: '$e'));
-      _stopPolling();
     }
   }
 
@@ -107,6 +104,32 @@ class VpnChannel {
     _controller.close();
     _initialized = false;
     _wg = null;
+  }
+
+  Future<void> waitServiceDeleted({Duration timeout = const Duration(seconds: 7)}) async {
+    if (!Platform.isWindows) return;
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      final exists = await _serviceExists();
+      if (!exists) return;
+      await Future.delayed(const Duration(milliseconds: 250));
+    }
+  }
+
+  Future<bool> _serviceExists() async {
+    if (!Platform.isWindows) return false;
+    final name = 'WireGuardTunnel\$$_ifaceName';
+    try {
+      final res = await Process.run('sc', ['query', name]);
+      final out = '${res.stdout}${res.stderr}'.toLowerCase();
+      // Когда сервиса нет, sc пишет 1060/does not exist
+      if (out.contains('1060') || out.contains('does not exist')) return false;
+      // exitCode==0 -> сервис есть
+      return res.exitCode == 0;
+    } catch (_) {
+      // Если sc не доступен по какой-то причине — считаем, что сервиса нет, чтобы не блокировать
+      return false;
+    }
   }
 }
 

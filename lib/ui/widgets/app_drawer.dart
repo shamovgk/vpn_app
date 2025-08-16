@@ -18,7 +18,6 @@ class AppDrawer extends ConsumerWidget {
 
     final isAuth = ref.watch(isAuthenticatedProvider);
     final username = ref.watch(currentUsernameProvider);
-    final themeNotifier = ref.read(themeProvider);
 
     return Drawer(
       backgroundColor: c.bg,
@@ -89,10 +88,11 @@ class AppDrawer extends ConsumerWidget {
             title: 'Сменить тему',
             onTap: () {
               ref.read(themeProvider).toggleTheme();
+              final newMode = ref.read(themeProvider).themeMode;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Тема изменена на ${themeNotifier.themeMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}',
+                    'Тема изменена на ${newMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}',
                     style: t.typography.body.copyWith(color: c.text),
                   ),
                   backgroundColor: c.bgLight,

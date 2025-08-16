@@ -1,5 +1,5 @@
 // lib/features/auth/mappers/user_mapper.dart
-import '../models/user_dto.dart';
+import '../models/dto/user_dto.dart';
 import '../models/domain/user.dart';
 
 User userFromDto(UserDto dto) => User(

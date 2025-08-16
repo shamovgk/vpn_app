@@ -51,6 +51,7 @@ class VpnController extends StateNotifier<VpnState> {
         .listen(_onVpnStatus);
 
     ref.onDispose(() => _vpnSub?.cancel());
+    ref.onDispose(() => _connectTimeout?.cancel());
   }
 
   final ConnectVpn connect;
@@ -58,6 +59,7 @@ class VpnController extends StateNotifier<VpnState> {
   final IsVpnConnected isConnected;
   final Ref ref;
   StreamSubscription<VpnStatusEvent>? _vpnSub;
+  Timer? _connectTimeout;
 
   Future<void> bootstrap() async {
     try {
@@ -75,14 +77,29 @@ class VpnController extends StateNotifier<VpnState> {
       return;
     }
 
-    if (e.stage == VpnStage.connected) {
-      if (state is! VpnConnected) state = const VpnConnected();
-    } else {
-      if (state is VpnConnecting) {
-        state = VpnError(e.reason ?? 'Не удалось подключиться');
-      } else if (state is! VpnIdle) {
-        state = const VpnIdle();
-      }
+    switch (e.stage) {
+      case VpnStage.connected:
+        _connectTimeout?.cancel();
+        if (state is! VpnConnected) state = const VpnConnected();
+        break;
+      case VpnStage.disconnected:
+        if (state is VpnDisconnecting) {
+          state = const VpnIdle();
+        } else if (state is VpnConnecting) {
+        } else if (state is! VpnIdle) {
+          state = const VpnIdle();
+        }
+        break;
+      case VpnStage.connecting:
+        if (state is! VpnConnecting) {
+          state = const VpnConnecting();
+        }
+        break;
+      default:
+        if (state is VpnConnecting) {
+        } else if (state is! VpnIdle) {
+          state = const VpnIdle();
+        }
     }
   }
 
@@ -93,15 +110,23 @@ class VpnController extends StateNotifier<VpnState> {
       return;
     }
     state = const VpnConnecting();
+    _connectTimeout?.cancel();
+    _connectTimeout = Timer(const Duration(seconds: 20), () {
+      if (mounted && state is VpnConnecting) {
+        state = const VpnError('Не удалось подключиться: таймаут');
+      }
+    });
     try {
       await connect();
     } catch (e) {
+      _connectTimeout?.cancel();
       state = VpnError(presentableError(e));
     }
   }
 
   Future<void> disconnectPressed() async {
     if (state is VpnDisconnecting) return;
+    _connectTimeout?.cancel();
     state = const VpnDisconnecting();
     try {
       await disconnect();

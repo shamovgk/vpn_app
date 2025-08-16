@@ -1,14 +1,4 @@
 // lib/core/config/app_config.dart
-// Централизованная конфигурация приложения.
-// Значения можно пробрасывать через --dart-define.
-//
-// Пример:
-// flutter run \
-//  --dart-define=BASE_URL=https://api.example.com \
-//  --dart-define=CONNECT_TIMEOUT_MS=15000 \
-//  --dart-define=RECEIVE_TIMEOUT_MS=15000 \
-//  --dart-define=PAYMENT_SUCCESS_PREFIX=myvpn://payment/success \
-//  --dart-define=PAYMENT_CANCEL_PREFIX=myvpn://payment/cancel
 class AppConfig {
   final String baseUrl;
   final Duration connectTimeout;
@@ -30,8 +20,8 @@ class AppConfig {
   static const _kDefaultConnectMs = 15000;
   static const _kDefaultReceiveMs = 15000;
 
-  static const _kDefaultPaySuccess = 'https://sham.shetanvpn.ru/payment/success';
-  static const _kDefaultPayCancel  = 'https://sham.shetanvpn.ru/payment/cancel';
+  static const _kDefaultPaySuccess = 'https://sham.shetanvpn.ru/payment-return';
+  static const _kDefaultPayCancel  = 'https://sham.shetanvpn.ru/payment-return';
 
   static AppConfig fromEnv() {
     final baseUrl = const String.fromEnvironment('BASE_URL', defaultValue: _kDefaultBaseUrl);
