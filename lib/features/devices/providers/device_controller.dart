@@ -88,11 +88,13 @@ class DeviceController extends StateNotifier<DeviceState> {
     }
   }
 
-  Future<void> touchLastSeen() async {
+  Future<void> touchLastSeen({bool refresh = false}) async {
     final ct = _replaceToken();
     try {
       await _updateLastSeen.call(cancelToken: ct);
-      await pullToRefresh();
+      if (refresh) {
+        await pullToRefresh();
+      }
     } catch (e) {
       if (!ct.isCancelled) state = FeatureError<List<Device>>(presentableError(e));
     }

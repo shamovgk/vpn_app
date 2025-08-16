@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_service.dart';
 import '../../../core/errors/error_mapper.dart';
-import '../models/user_dto.dart';
+import '../models/dto/user_dto.dart';
 import '../mappers/user_mapper.dart';
 import '../models/domain/user.dart';
 import '../models/domain/login_result.dart';

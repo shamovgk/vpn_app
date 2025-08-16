@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vpn_app/core/extensions/context_ext.dart';
 import 'package:vpn_app/core/extensions/nav_ext.dart';
 import 'package:vpn_app/core/models/feature_state.dart';
-import 'package:vpn_app/features/devices/widgets/device_summary.dart';
+import 'package:vpn_app/features/devices/widgets/device_limit_hint.dart';
 import 'package:vpn_app/ui/widgets/app_snackbar.dart';
 import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
 import 'package:vpn_app/ui/widgets/atoms/ghost_button.dart';
@@ -35,16 +35,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    await ref.read(authControllerProvider.notifier).login(_username.text.trim(), _password.text);
-    if (!mounted) return;
-    final state = ref.read(authControllerProvider);
-    final err = state.errorMessage;
-    if (err != null) {
-      showAppSnackbar(context, text: err, type: AppSnackbarType.error);
-    }
+Future<void> _submit() async {
+  if (!_formKey.currentState!.validate()) return;
+
+  final container = ProviderScope.containerOf(context, listen: false);
+
+  await container.read(authControllerProvider.notifier)
+      .login(_username.text.trim(), _password.text);
+
+  if (!mounted) return;
+
+  final state = container.read(authControllerProvider);
+  final err = state.errorMessage;
+  if (err != null) {
+    showAppSnackbar(context, text: err, type: AppSnackbarType.error);
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +91,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               },
             ),
             SizedBox(height: t.spacing.sm),
-            const DeviceSummary(),
+            const DeviceLimitHint(maxDevices: 3),
+            SizedBox(height: t.spacing.sm),
             if (isLoading)
               Padding(
                 padding: EdgeInsets.symmetric(vertical: t.spacing.lg),

@@ -11,7 +11,7 @@ final subscriptionControllerProvider =
     StateNotifierProvider<SubscriptionController, SubscriptionState>(
   (ref) {
     final ctrl = SubscriptionController(ref.watch(subscriptionRepositoryProvider));
-    ref.onDispose(ctrl.dispose);
+    ctrl.bind(ref);
     return ctrl;
   },
   name: 'subscriptionController',
@@ -21,11 +21,23 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   SubscriptionController(this._repo) : super(const SubscriptionIdle());
 
   final SubscriptionRepository _repo;
-  CancelToken? _cancel;
+  CancelToken? _ct;
 
-  void _resetCancel() {
-    _cancel?.cancel();
-    _cancel = CancelToken();
+  void bind(Ref ref) {
+    ref.onDispose(_cancelActive);
+  }
+
+  CancelToken _replaceToken() {
+    _ct?.cancel('subscription:replaced');
+    final t = CancelToken();
+    _ct = t;
+    return t;
+  }
+
+  void _cancelActive() {
+    final t = _ct;
+    if (t != null && !t.isCancelled) t.cancel('subscription:dispose');
+    _ct = null;
   }
 
   Future<void> fetch() async {
@@ -43,20 +55,16 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   }
 
   Future<void> _refresh() async {
-    _resetCancel();
+    final ct = _replaceToken();
     try {
-      final fresh = await _repo.fetchFresh(cancelToken: _cancel);
+      final fresh = await _repo.fetchFresh(cancelToken: ct);
+      if (!mounted || ct.isCancelled) return;
       state = SubscriptionReady(fresh);
     } catch (e) {
+      if (!mounted || ct.isCancelled) return;
       if (state is! SubscriptionReady) {
         state = SubscriptionError(presentableError(e));
       }
     }
-  }
-
-  @override
-  void dispose() {
-    _cancel?.cancel();
-    super.dispose();
   }
 }
