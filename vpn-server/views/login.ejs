@@ -2,6 +2,7 @@
 <div style="display:flex; justify-content:center;">
   <form id="loginForm" method="POST" action="/admin/login" style="width:320px; margin-top:20px;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="next"  value="<%= typeof next !== 'undefined' ? next : '' %>">
     <div style="margin-bottom:12px;">
       <input type="text" name="username" placeholder="Username" required style="width:100%;padding:8px;">
     </div>

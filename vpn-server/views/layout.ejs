@@ -1,88 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %></title>
+  <meta name="csrf-token" content="<%= csrfToken %>">
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+    :root { --card-w: 1100px; }
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f7fb; color:#222; }
     header {
-      background: #262626;
-      color: #fff;
-      padding: 0 24px;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      position:sticky; top:0; z-index:50;
+      background:#262626; color:#fff; padding:0 24px; height:56px;
+      display:flex; align-items:center; justify-content:space-between;
     }
-    .nav-menu {
-      display: flex;
-      gap: 20px;
-      align-items: center;
+    .nav-menu { display:flex; gap:20px; align-items:center; }
+    .nav-menu a { color:#fff; text-decoration:none; font-weight:500; padding:8px 12px; border-radius:4px; transition:background .2s; }
+    .nav-menu a:hover, .nav-menu .active { background:#444; }
+    .logout-btn { background:#e74c3c; border:none; color:#fff; padding:6px 16px; border-radius:4px; font-weight:600; cursor:pointer; }
+    main {
+      max-width: var(--card-w);
+      margin: 40px auto 24px;
+      background:#fff; border-radius:12px; padding:32px 24px;
+      box-shadow:0 2px 16px rgba(0,0,0,0.08);
+      overflow-x:auto; /* ← чтобы ничего не вылезало */
     }
-    .nav-menu a {
-      color: #fff;
-      text-decoration: none;
-      font-weight: 500;
-      padding: 8px 12px;
-      border-radius: 4px;
-      transition: background 0.2s;
-    }
-    .nav-menu a:hover, .nav-menu .active {
-      background: #444;
-    }
-    .logout-btn {
-      background: #e74c3c;
-      border: none;
-      color: #fff;
-      padding: 6px 16px;
-      border-radius: 4px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-left: 10px;
-      transition: background 0.2s;
-    }
-    .logout-btn:hover { background: #c0392b; }
-    main { max-width: 1100px; margin: 40px auto 0 auto; background: #fff; border-radius: 12px; padding: 32px 24px; box-shadow: 0 2px 16px rgba(0,0,0,0.08);}
-    h1, h2 { font-weight: 600; margin-bottom: 18px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
-    th, td { border: 1px solid #eee; padding: 8px 12px; text-align: left; }
-    th { background: #f7f7f7; }
-    .search-box { margin-bottom: 24px; }
-    .error { color: #e74c3c; margin-bottom: 14px; }
-    .btn { padding: 6px 16px; border-radius: 4px; border: none; cursor: pointer; }
-    .edit-btn { background: #2980b9; color: #fff; }
-    .edit-btn:hover { background: #1565a7; }
+    h1 { font-weight:700; margin:0 0 18px; font-size:36px; letter-spacing:.2px; }
+    table { width:100%; border-collapse: collapse; margin-bottom: 18px; table-layout:auto; }
+    th, td { border:1px solid #eee; padding:8px 12px; text-align:left; white-space:nowrap; }
+    th { background:#f7f7f7; }
+    .btn { padding:6px 16px; border-radius:4px; border:none; cursor:pointer; }
+    .edit-btn { background:#2980b9; color:#fff; }
+    .edit-btn:hover { background:#1565a7; }
+    .error { color:#e74c3c; margin-bottom:14px; }
+
+    /* адаптив + таблица в скролл-карман */
+    .table-wrap { width:100%; overflow:auto; }
+    .w-date { max-width: 165px; }
+    .w-actions { min-width: 140px; }
+    @media (max-width: 1140px) { :root { --card-w: 96vw; } }
     @media (max-width: 700px) {
-      main { padding: 12px; }
+      main { padding: 16px 12px; }
       table, th, td { font-size: 13px; }
-      header { flex-direction: column; align-items: flex-start; height: auto; padding: 8px; }
-      .nav-menu { gap: 10px; margin-top: 6px; }
+      header { flex-direction: column; align-items: flex-start; height: auto; padding: 8px 12px; gap: 8px; }
+      .nav-menu { gap: 10px; }
     }
   </style>
 </head>
 <body>
   <header>
-    <div>
-      <b style="font-size: 19px; letter-spacing: 1px;">UgbuganVPN Admin</b>
-    </div>
+    <div><b style="font-size:19px; letter-spacing:1px;">UgbuganVPN Admin</b></div>
     <nav class="nav-menu">
       <a href="/admin" class="<%= title === 'Admin Panel' ? 'active' : '' %>">Пользователи</a>
       <a href="/admin/stats" class="<%= title === 'Admin Statistics' ? 'active' : '' %>">Статистика</a>
-      <button class="logout-btn" onclick="logout()">Выйти</button>
+      <button class="logout-btn" id="logoutBtn">Выйти</button>
     </nav>
   </header>
+
   <main>
-    <% if (error) { %>
+    <% if (typeof error !== 'undefined' && error) { %>
       <p class="error"><%= error %></p>
     <% } %>
     <%- body %>
   </main>
+
   <form id="logoutForm" action="/admin/logout" method="POST" style="display:none;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   </form>
-  <script>
-    function logout() { document.getElementById('logoutForm').submit(); }
-  </script>
+
+  <script src="/static/admin.js"></script>
 </body>
 </html>

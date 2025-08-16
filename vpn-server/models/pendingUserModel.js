@@ -1,3 +1,4 @@
+// models/pendingUserModel.js
 module.exports = (db) => {
   db.run(`
     CREATE TABLE IF NOT EXISTS PendingUsers (
@@ -10,4 +11,6 @@ module.exports = (db) => {
       verification_expiry TEXT
     )
   `);
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS uq_pending_username ON PendingUsers(username)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_pending_user_email ON PendingUsers(email)`);
 };

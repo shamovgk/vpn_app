@@ -12,43 +12,30 @@ function getCurrentDatePlusDays(days, meta = {}) {
 
 function generateToken(meta = {}) {
   const token = crypto.randomBytes(16).toString('hex');
-  logger.info('Генерация токена', { ...meta, token });
+  logger.info('Генерация токена', { ...meta });
   return token;
 }
 
 function generateVerificationCode(meta = {}) {
-  const code = crypto.randomBytes(3).toString('hex').toUpperCase();
-  logger.info('Генерация кода верификации', { ...meta, code });
+  const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+
+  logger.info('Генерация кода верификации', {
+    ...meta,
+    code_preview: `${code.slice(0, 2)}****`
+  });
+
   return code;
 }
 
-async function generateVpnKey(userId, db) {
+async function generateVpnKey(userId) {
   const scriptPath = __dirname + '/../scripts/generate_vpn_key.sh';
   const configScriptPath = __dirname + '/../scripts/add_to_wg_conf.sh';
 
   try {
     const { privateKey } = await executeScript(scriptPath);
     logger.info('Сгенерирован приватный ключ WireGuard', { userId });
-
-    await new Promise((resolve, reject) => {
-      db.run(
-        `UPDATE Users SET vpn_key = ? WHERE id = ?`,
-        [privateKey, userId],
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
-
-    const { clientIp } = await executeScript(configScriptPath, [privateKey, userId.toString()]);
+    const { clientIp } = await executeScript(configScriptPath, [privateKey, String(userId)]);
     logger.info('Назначен IP для клиента WireGuard', { userId, clientIp });
-
-    await new Promise((resolve, reject) => {
-      db.run(
-        `UPDATE Users SET client_ip = ? WHERE id = ?`,
-        [clientIp, userId],
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
-
     return { privateKey, clientIp };
   } catch (error) {
     logger.error('Ошибка генерации VPN-ключа', { userId, error: error.message });
@@ -58,7 +45,9 @@ async function generateVpnKey(userId, db) {
 
 function executeScript(scriptPath, args = []) {
   return new Promise((resolve, reject) => {
-    const child = require('child_process').spawn('bash', [scriptPath, ...args], { maxBuffer: 1024 * 1024, encoding: 'utf8' });
+    const child = require('child_process').spawn('bash', [scriptPath, ...args]);
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
 
     let stdout = '';
     let stderr = '';

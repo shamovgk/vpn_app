@@ -1,3 +1,4 @@
+// models/userStatsModel.js
 module.exports = (db) => {
   db.run(`
     CREATE TABLE IF NOT EXISTS UserStats (
@@ -11,7 +12,10 @@ module.exports = (db) => {
       active_duration INTEGER DEFAULT 0,
       payment_count INTEGER DEFAULT 0,
       last_payment_date TEXT,
-      FOREIGN KEY (user_id) REFERENCES Users(id)
+      FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
     )
   `);
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_userstats_user ON UserStats(user_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_userstats_last_login ON UserStats(last_login)`);
 };

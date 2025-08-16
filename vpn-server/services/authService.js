@@ -63,15 +63,21 @@ async function verifyEmail({ username, email, verificationCode, db }) {
   if (pendingUser.verification_code !== verificationCode) throw new Error('CODE_INVALID');
   if (new Date(pendingUser.verification_expiry) < new Date()) throw new Error('CODE_EXPIRED');
 
-  // Генерим VPN-ключ при создании юзера
-  const { privateKey, clientIp } = await generateVpnKey(pendingUser.id, db);
-  // Создаём пользователя
   const userId = await new Promise((resolve, reject) =>
     db.run(
-      `INSERT INTO Users (username, password, email, vpn_key, client_ip)
-       VALUES (?, ?, ?, ?, ?)`,
-      [username, pendingUser.password, email, privateKey, clientIp],
+      `INSERT INTO Users (username, password, email)
+       VALUES (?, ?, ?)`,
+      [username, pendingUser.password, email],
       function (err) { err ? reject(err) : resolve(this.lastID); }
+    )
+  );
+
+  const { privateKey, clientIp } = await generateVpnKey(userId);
+  await new Promise((resolve, reject) =>
+    db.run(
+      `UPDATE Users SET vpn_key = ?, client_ip = ? WHERE id = ?`,
+      [privateKey, clientIp, userId],
+      (err) => (err ? reject(err) : resolve())
     )
   );
 
