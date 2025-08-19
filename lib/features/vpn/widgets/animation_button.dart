@@ -23,6 +23,13 @@ enum _Kind { connect, disconnect }
 
 class _AnimationButtonState extends ConsumerState<AnimationButton>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  // === НАСТРОЙКИ СКОРОСТИ ===
+  // 1.0 — как есть; 1.2 — быстрее на 20%; 0.9 — медленнее на 10% и т.д.
+  static const double kSpeed = 1.05;
+  // Базовая длительность проигрыша гифки в мс. Увеличь, если хочется медленнее.
+  static const int kNominalMs = 1500;
+
+  // Контроллеры: light/dark × connect/disconnect
   late final GifController _ctlConnectLight;
   late final GifController _ctlDisconnectLight;
   late final GifController _ctlConnectDark;
@@ -133,6 +140,10 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
     _bootstrapped = true;
   }
 
+  // Длительность с учётом множителя
+  Duration get _playDuration =>
+      Duration(milliseconds: (kNominalMs / kSpeed).round());
+
   Future<void> _onTap() async {
     if (widget.isConnecting || _animating || widget.onConnect == null) return;
 
@@ -148,9 +159,13 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
     });
 
     final ctl = _controllerFor(isDark: isDark, kind: kind);
-    ctl.reset();
-    await Future<void>.delayed(const Duration(milliseconds: 1));
-    ctl.forward();
+
+    // Запуск с нужной длительностью без обращения к protected duration.
+    ctl.value = 0.0;
+    // Не await — окончание поймает statusListener, чтобы не блокировать onConnect.
+    // Если нужно дождаться окончания — добавь await.
+    // ignore: discarded_futures
+    ctl.animateTo(1.0, duration: _playDuration, curve: Curves.linear);
 
     try {
       await widget.onConnect?.call();
