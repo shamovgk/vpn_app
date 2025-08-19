@@ -1,3 +1,4 @@
+// lib/features/vpn/widgets/animation_button.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gif/gif.dart';
@@ -36,6 +37,21 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
   bool _bootstrapped = false;
   bool? _pendingIdleThemeIsDark;
 
+  // Прогрев ассетов GIF — уменьшает шанс FormatException у декодера
+  Future<void> _precacheGifs() async {
+    final assets = const [
+      AssetImage('assets/anim/dark/connect.gif'),
+      AssetImage('assets/anim/dark/disconnect.gif'),
+      AssetImage('assets/anim/light/connect.gif'),
+      AssetImage('assets/anim/light/disconnect.gif'),
+    ];
+    for (final a in assets) {
+      try {
+        await precacheImage(a, context);
+      } catch (_) {}
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +84,10 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
     attach(_ctlDisconnectLight);
     attach(_ctlConnectDark);
     attach(_ctlDisconnectDark);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _precacheGifs();
+    });
   }
 
   @override
@@ -98,7 +118,6 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
     }
   }
 
-  // Текущий анимирующий контроллер
   GifController? _currentAnimatingController() {
     final kind = _animKind;
     final dark = _animThemeIsDark;
@@ -106,11 +125,9 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
     return _controllerFor(isDark: dark, kind: kind);
   }
 
-  // Инициализируем «стартовый» показ
   void _bootstrapIfNeeded(BuildContext context) {
     if (_bootstrapped) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // В покое показываем «что будет при следующем тапе»
     _idleKind = widget.isConnected ? _Kind.disconnect : _Kind.connect;
     _idleThemeIsDark = isDark;
     _bootstrapped = true;
@@ -126,13 +143,13 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
       _animating = true;
       _animKind = kind;
       _animThemeIsDark = isDark;
-      // После завершения останемся на последнем кадре этого же набора
       _idleKind = kind;
       _idleThemeIsDark = isDark;
     });
 
     final ctl = _controllerFor(isDark: isDark, kind: kind);
     ctl.reset();
+    await Future<void>.delayed(const Duration(milliseconds: 1));
     ctl.forward();
 
     try {
@@ -161,13 +178,13 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
       }
     }
 
-    // Во время анимации держим тему/направление зафиксированными.
-    final showDark = _animating ? (_animThemeIsDark ?? isDarkNow) : (_idleThemeIsDark ?? isDarkNow);
-    final showKind = _animating ? (_animKind ?? (_idleKind ?? _Kind.connect)) : (_idleKind ?? _Kind.connect);
+    final showDark =
+        _animating ? (_animThemeIsDark ?? isDarkNow) : (_idleThemeIsDark ?? isDarkNow);
+    final showKind =
+        _animating ? (_animKind ?? (_idleKind ?? _Kind.connect)) : (_idleKind ?? _Kind.connect);
 
     final activeIndex = _indexFor(isDark: showDark, kind: showKind);
 
-    // NB: Все 4 Gif находятся в дереве постоянно — никакой подмены ассетов.
     return GestureDetector(
       onTap: widget.onConnect != null && !_animating && !widget.isConnecting ? _onTap : null,
       child: AbsorbPointer(
@@ -181,30 +198,30 @@ class _AnimationButtonState extends ConsumerState<AnimationButton>
               // dark/connect
               Gif(
                 image: const AssetImage('assets/anim/dark/connect.gif'),
-                controller: _ctlConnectDark,
                 autostart: Autostart.no,
                 placeholder: (context) => const SizedBox.shrink(),
+                controller: _ctlConnectDark,
               ),
               // dark/disconnect
               Gif(
                 image: const AssetImage('assets/anim/dark/disconnect.gif'),
-                controller: _ctlDisconnectDark,
                 autostart: Autostart.no,
                 placeholder: (context) => const SizedBox.shrink(),
+                controller: _ctlDisconnectDark,
               ),
               // light/connect
               Gif(
                 image: const AssetImage('assets/anim/light/connect.gif'),
-                controller: _ctlConnectLight,
                 autostart: Autostart.no,
                 placeholder: (context) => const SizedBox.shrink(),
+                controller: _ctlConnectLight,
               ),
               // light/disconnect
               Gif(
                 image: const AssetImage('assets/anim/light/disconnect.gif'),
-                controller: _ctlDisconnectLight,
                 autostart: Autostart.no,
                 placeholder: (context) => const SizedBox.shrink(),
+                controller: _ctlDisconnectLight,
               ),
             ],
           ),
