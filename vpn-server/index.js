@@ -2,6 +2,7 @@
 const express = require('express');
 const path = require('path');
 const helmet = require('helmet');
+const compression = require('compression');
 const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
@@ -15,6 +16,7 @@ const logger = require('./utils/logger.js');
 const config = require('./config/config');
 
 // Routers
+const publicRoutes = require('./routes/publicRoutes');
 const authRoutes = require('./routes/authRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -33,7 +35,12 @@ const db = new sqlite3.Database(config.dbPath, async (err) => {
     await require('./db/bootstrap')(db);
     startServer(db);
   } catch (e) {
-    logger.error('bootstrap failed', { error: e });
+    logger.error('bootstrap failed', {
+      error: e,
+      message: e && e.message,
+      stack: e && e.stack,
+      name: e && e.name,
+    });
     process.exit(1);
   }
 });
@@ -43,17 +50,26 @@ function startServer(db) {
   app.set('trust proxy', 1);
   app.set('view engine', 'ejs');
   app.set('views', __dirname + '/views');
-  app.use(expressLayouts);
 
   // Безопасность/база
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "'unsafe-inline'"], // 👉 потом уберём inline
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "data:", "https:"],
+      },
+    },
+  }));
+  app.use(compression()); // gzip/br сжатие
   app.use(cors(config.cors));
-  app.use(express.json());              // JSON для API
-  app.use(session(config.session));     // сессии
+  app.use(express.json());
+  app.use(session(config.session));
   app.set('db', db);
-
-  // Раздача статики (внешний JS/CSS админки)
-  app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
+  // статика: /public → /, кеш подольше
+  app.use(express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
 
   // locals для layout
   app.use((req, res, next) => {
@@ -86,6 +102,7 @@ function startServer(db) {
   );
 
   // Публичные API
+  app.use('/', publicRoutes);
   app.use('/auth', authRoutes);
   app.use('/devices', deviceRoutes);
   app.use('/pay', paymentRoutes);
@@ -96,7 +113,8 @@ function startServer(db) {
   app.use('/admin',
     cookieParser(),
     express.urlencoded({ extended: false }),    // для формы логина
-    csurf({ cookie: { sameSite: 'lax' } })
+    csurf({ cookie: { sameSite: 'lax' } }),
+    expressLayouts
   );
 
   // Роуты админки

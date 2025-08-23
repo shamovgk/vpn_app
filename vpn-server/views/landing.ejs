@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= site.appName %> — <%= site.tagline %></title>
+  <meta name="description" content="<%= site.description %>" />
+  <meta name="theme-color" content="<%= site.theme.colors.bg %>" />
+  <link rel="stylesheet" href="/landing.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="container header__inner">
+      <div class="brand">
+        <span class="logo">🛰️</span>
+        <span class="brand__name"><%= site.appName %></span>
+      </div>
+      <nav class="nav">
+        <a href="#features">Возможности</a>
+        <a href="#download">Скачать</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">Контакты</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero__inner">
+        <div class="hero__content">
+          <h1><%= site.tagline %></h1>
+          <p class="lead"><%= site.description %></p>
+          <div class="cta">
+            <a class="btn btn-primary" href="#download">Скачать</a>
+            <a class="btn btn-ghost" href="<%= site.legal.privacyUrl %>">Приватность</a>
+          </div>
+        </div>
+        <div class="hero__media">
+          <img src="/images/app-mock.png" alt="Скриншот приложения" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="section">
+      <div class="container">
+        <h2>Почему <%= site.appName %>?</h2>
+        <div class="grid">
+          <% site.features.forEach(function(f){ %>
+            <div class="card">
+              <div class="card__icon"><%= f.icon %></div>
+              <div class="card__title"><%= f.title %></div>
+              <div class="card__desc"><%= f.desc %></div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download -->
+    <section id="download" class="section section--alt">
+      <div class="container">
+        <h2>Скачать приложение</h2>
+        <div class="downloads">
+          <a class="btn btn-primary" href="<%= site.downloads.ios %>">iOS</a>
+          <a class="btn btn-primary" href="<%= site.downloads.android %>">Android</a>
+          <a class="btn btn-primary" href="<%= site.downloads.windows %>">Windows</a>
+          <a class="btn btn-primary" href="<%= site.downloads.macos %>">macOS</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="section">
+      <div class="container">
+        <h2>FAQ</h2>
+        <details>
+          <summary>Нужна ли регистрация?</summary>
+          <p>Да, чтобы активировать подписку.</p>
+        </details>
+        <details>
+          <summary>Сколько устройств можно подключить?</summary>
+          <p>Зависит от тарифа. Базовый — 3 устройства, расширенный — до 10.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- Contacts -->
+    <section id="contact" class="section section--alt">
+      <div class="container">
+        <h2>Контакты</h2>
+        <p>Email: <a href="mailto:<%= site.contacts.email %>"><%= site.contacts.email %></a></p>
+        <p>Telegram: <a href="<%= site.contacts.telegram %>">чат</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <span>© <%= new Date().getFullYear() %> <%= site.appName %></span>
+      <nav>
+        <a href="<%= site.legal.privacyUrl %>">Политика конфиденциальности</a>
+        <a href="<%= site.legal.termsUrl %>">Условия использования</a>
+      </nav>
+    </div>
+  </footer>
+  <script src="/landing.js?v=3" defer></script>
+</body>
+</html>
