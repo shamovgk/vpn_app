@@ -6,7 +6,6 @@ import 'package:vpn_app/core/extensions/context_ext.dart';
 import 'package:vpn_app/core/extensions/nav_ext.dart';
 import 'package:vpn_app/core/models/feature_state.dart';
 import 'package:vpn_app/ui/widgets/app_snackbar.dart';
-import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
 import 'package:vpn_app/ui/widgets/atoms/ghost_button.dart';
 import 'package:vpn_app/ui/widgets/atoms/secondary_button.dart';
 
@@ -76,7 +75,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> with AutomaticK
         key: _formKey,
         child: Column(
           children: [
-            Icon(Icons.person_add, size: 50, color: c.primary),
+            Icon(Icons.person_add, size: t.icons.xl, color: c.primary),
             SizedBox(height: t.spacing.lg),
             UsernameField(controller: _username, onSubmitted: (_) => FocusScope.of(context).nextFocus()),
             SizedBox(height: t.spacing.sm),

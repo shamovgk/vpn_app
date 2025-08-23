@@ -34,20 +34,17 @@ class SubscriptionBanner extends ConsumerWidget {
       padding: EdgeInsets.symmetric(horizontal: t.spacing.md, vertical: t.spacing.sm),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: c.danger, size: 28),
-          SizedBox(width: t.spacing.sm),
+          Icon(Icons.warning_amber_rounded, color: c.danger, size: t.icons.lg),
           Expanded(
             child: Text(
               'Доступ ограничен — требуется оплата подписки',
-              style: t.typography.body.copyWith(color: c.text, fontWeight: FontWeight.w600, fontSize: 16),
+              style: t.typography.body.copyWith(color: c.text, fontWeight: FontWeight.w600),
             ),
           ),
-          SizedBox(width: t.spacing.sm),
           PrimaryButton(
             label: 'Оплатить',
             onPressed: () => context.pushSubscription(),
             fullWidth: false,
-            height: 40,                 // компактнее
             icon: Icons.diamond_rounded,
           ),
         ],

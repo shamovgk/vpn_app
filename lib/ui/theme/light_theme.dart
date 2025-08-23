@@ -43,6 +43,9 @@ final _lightTokens = AppTheme(
   opacities: const Opacities(),
   typography: TypographyTokens.regular(),
   colors: _lightAppColors,
+  icons: const IconSizes(),
+  elevations: const Elevations(),
+  durations: const DurationsTokens(),
 );
 
 final ThemeData appLightTheme = ThemeData(
@@ -63,12 +66,11 @@ final ThemeData appLightTheme = ThemeData(
     headlineLarge: _lightTokens.typography.h1.copyWith(color: _lightAppColors.text),
     bodyMedium:    _lightTokens.typography.body.copyWith(color: _lightAppColors.textMuted),
   ),
-  appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, elevation: 0),
-  // оставляем ТОЛЬКО AppTheme
+  appBarTheme: AppBarTheme(
+    backgroundColor: Colors.transparent,
+    elevation: _lightTokens.elevations.none,
+  ),
   extensions: <ThemeExtension<dynamic>>[
     _lightTokens,
   ],
 );
-
-
-

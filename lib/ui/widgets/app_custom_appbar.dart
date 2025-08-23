@@ -26,7 +26,7 @@ class AppCustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return AppBar(
       backgroundColor: Colors.transparent,
-      elevation: 0,
+      elevation: t.elevations.none,
       centerTitle: centerTitle,
       leading: leading,
       title: Text(title, style: t.typography.h1.copyWith(color: c.text)),
@@ -34,4 +34,3 @@ class AppCustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
-

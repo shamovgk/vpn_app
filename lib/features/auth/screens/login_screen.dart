@@ -6,7 +6,6 @@ import 'package:vpn_app/core/extensions/nav_ext.dart';
 import 'package:vpn_app/core/models/feature_state.dart';
 import 'package:vpn_app/features/devices/widgets/device_limit_hint.dart';
 import 'package:vpn_app/ui/widgets/app_snackbar.dart';
-import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
 import 'package:vpn_app/ui/widgets/atoms/ghost_button.dart';
 import 'package:vpn_app/ui/widgets/atoms/primary_button.dart';
 
@@ -66,7 +65,7 @@ Future<void> _submit() async {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.lock, size: 50, color: c.primary),
+            Icon(Icons.lock, size: t.icons.xl, color: c.primary),
             SizedBox(height: t.spacing.lg),
             UsernameField(
               controller: _username,

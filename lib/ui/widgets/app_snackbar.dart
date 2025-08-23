@@ -23,7 +23,7 @@ class AppSnackbar extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(style.icon, color: style.iconColor, size: 28),
+        Icon(style.icon, color: style.iconColor, size: t.icons.lg),
         SizedBox(width: t.spacing.sm),
         Expanded(
           child: Text(
@@ -31,7 +31,6 @@ class AppSnackbar extends StatelessWidget {
             style: t.typography.body.copyWith(
               color: style.textColor,
               fontWeight: FontWeight.w600,
-              fontSize: 16,
             ),
           ),
         ),
@@ -85,4 +84,25 @@ class AppSnackbarStyle {
         );
     }
   }
+}
+
+void showAppSnackbar(
+  BuildContext context, {
+  required String text,
+  AppSnackbarType type = AppSnackbarType.info,
+  Duration? duration,
+}) {
+  final t = context.tokens;
+  final style = AppSnackbarStyle.fromType(type, context.colors);
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: AppSnackbar(text: text, type: type),
+      backgroundColor: style.bgColor,
+      behavior: SnackBarBehavior.floating,
+      elevation: t.elevations.xl,     
+      duration: duration ?? t.durations.snackbar,
+      shape: RoundedRectangleBorder(borderRadius: t.radii.brLg),
+    ),
+  );
 }

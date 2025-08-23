@@ -1,6 +1,7 @@
 // lib/features/subscription/widgets/status_card.dart
 import 'package:flutter/material.dart';
 import 'package:vpn_app/core/extensions/context_ext.dart';
+import 'package:vpn_app/ui/widgets/atoms/app_surface.dart';
 
 class StatusCard extends StatelessWidget {
   final String statusText;
@@ -19,19 +20,22 @@ class StatusCard extends StatelessWidget {
     final c = context.colors;
     final t = context.tokens;
 
-    return Card(
-      color: c.bgLight,
-      shape: RoundedRectangleBorder(borderRadius: t.radii.brLg),
-      child: Padding(
-        padding: EdgeInsets.all(t.spacing.md + 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(statusText, style: t.typography.h2.copyWith(color: statusColor)),
-            SizedBox(height: t.spacing.xs),
-            Text(periodText, style: t.typography.body.copyWith(color: c.textMuted)),
-          ],
-        ),
+    return AppSurface(
+      radius: t.radii.brLg,
+      padding: t.spacing.all(t.spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            statusText,
+            style: t.typography.h2.copyWith(color: statusColor),
+          ),
+          SizedBox(height: t.spacing.xs),
+          Text(
+            periodText,
+            style: t.typography.body.copyWith(color: c.textMuted),
+          ),
+        ],
       ),
     );
   }

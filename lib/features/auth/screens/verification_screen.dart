@@ -6,7 +6,6 @@ import 'package:vpn_app/core/extensions/nav_ext.dart';
 import 'package:vpn_app/core/models/feature_state.dart';
 import 'package:vpn_app/features/auth/widgets/auth_fields.dart';
 import 'package:vpn_app/ui/widgets/app_snackbar.dart';
-import 'package:vpn_app/ui/widgets/app_snackbar_helper.dart';
 import 'package:vpn_app/ui/widgets/atoms/secondary_button.dart';
 import 'package:vpn_app/features/auth/providers/auth_providers.dart';
 import '../widgets/auth_scaffold.dart';
@@ -71,7 +70,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Au
         key: _formKey,
         child: Column(
           children: [
-            Icon(Icons.verified_user, size: 100, color: c.primary),
+            Icon(Icons.verified_user, size: t.spacing.xxxl, color: c.primary),
             SizedBox(height: t.spacing.md),
             Text(
               'Введите код, отправленный на ${widget.email}',

@@ -7,6 +7,7 @@ import 'package:vpn_app/core/extensions/nav_ext.dart';
 import 'package:vpn_app/ui/theme/theme_provider.dart';
 import 'package:vpn_app/features/auth/providers/auth_providers.dart';
 import 'package:vpn_app/ui/widgets/atoms/list_tile_x.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar.dart';
 
 class AppDrawer extends ConsumerWidget {
   const AppDrawer({super.key});
@@ -40,7 +41,8 @@ class AppDrawer extends ConsumerWidget {
                         decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
                         child: Padding(
                           padding: EdgeInsets.all(t.spacing.xs),
-                          child: Icon(Icons.account_circle, size: 48, color: c.text),
+                          // 48 -> используем токен spacing.xxl как размер иконки
+                          child: Icon(Icons.account_circle, size: t.spacing.xxl, color: c.text),
                         ),
                       ),
                     ),
@@ -79,9 +81,7 @@ class AppDrawer extends ConsumerWidget {
               rootCtx.pushAbout();
             },
           ),
-
           const Spacer(),
-
           ListTileX(
             leadingIcon: Icons.brightness_6,
             leadingColor: c.highlight,
@@ -89,16 +89,10 @@ class AppDrawer extends ConsumerWidget {
             onTap: () {
               ref.read(themeProvider).toggleTheme();
               final newMode = ref.read(themeProvider).themeMode;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Тема изменена на ${newMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}',
-                    style: t.typography.body.copyWith(color: c.text),
-                  ),
-                  backgroundColor: c.bgLight,
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 2),
-                ),
+              showAppSnackbar(
+                context,
+                text: 'Тема изменена на ${newMode == ThemeMode.dark ? 'Тёмную' : 'Светлую'}',
+                type: AppSnackbarType.info,
               );
             },
           ),

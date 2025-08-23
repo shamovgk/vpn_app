@@ -25,7 +25,7 @@ class SecondaryButton extends StatelessWidget {
 
     final btn = OutlinedButton.icon(
       onPressed: onPressed,
-      icon: icon != null ? Icon(icon, size: 20, color: c.primary) : const SizedBox.shrink(),
+      icon: icon != null ? Icon(icon, size: t.icons.sm, color: c.primary) : const SizedBox.shrink(), // 20 -> токен
       label: Text(label, style: t.typography.button.copyWith(color: c.primary)),
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: c.primary, width: 1.5),
@@ -39,7 +39,9 @@ class SecondaryButton extends StatelessWidget {
       ),
     );
 
-    final h = height ?? 48.0;
-    return fullWidth ? SizedBox(width: double.infinity, height: h, child: btn) : SizedBox(height: h, child: btn);
+    if (fullWidth) {
+      return SizedBox(width: double.infinity, height: height, child: btn);
+    }
+    return SizedBox(height: height, child: btn);
   }
 }

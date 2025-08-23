@@ -7,6 +7,7 @@ import 'package:vpn_app/core/extensions/context_ext.dart';
 import 'package:vpn_app/core/models/feature_state.dart';
 import 'package:vpn_app/features/devices/models/domain/device.dart';
 import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
+import 'package:vpn_app/ui/widgets/app_snackbar.dart';
 import 'package:vpn_app/ui/widgets/themed_scaffold.dart';
 import 'package:vpn_app/ui/widgets/atoms/list_tile_x.dart';
 import 'package:vpn_app/core/extensions/date_time_ext.dart';
@@ -93,7 +94,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                                           onPressed: () async {
                                             await ref.read(deviceControllerProvider.notifier).removeByToken(d.token);
                                             if (context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Устройство отключено')));
+                                              showAppSnackbar(context, text: 'Устройство отключено', type: AppSnackbarType.success);
                                             }
                                           },
                                         ),

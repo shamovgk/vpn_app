@@ -20,8 +20,8 @@ class SubscriptionConfirmingBlock extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 22,
-            height: 22,
+            width: t.icons.md,
+            height: t.icons.md,
             child: CircularProgressIndicator(
               strokeWidth: 3,
               valueColor: AlwaysStoppedAnimation(c.primary),
