@@ -1,7 +1,7 @@
 // lib/ui/theme/app_theme.dart
 import 'package:flutter/material.dart';
 
-// Общая палитра
+// ===================== PALLETE =====================
 class AppColors extends ThemeExtension<AppColors> {
   final Color bgDark, bg, bgLight;
   final Color text, textMuted, highlight;
@@ -32,21 +32,21 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? border, Color? borderMuted,
     Color? primary, Color? secondary, Color? danger, Color? warning, Color? success, Color? info,
   }) => AppColors(
-    bgDark: bgDark ?? this.bgDark,
-    bg: bg ?? this.bg,
-    bgLight: bgLight ?? this.bgLight,
-    text: text ?? this.text,
-    textMuted: textMuted ?? this.textMuted,
-    highlight: highlight ?? this.highlight,
-    border: border ?? this.border,
-    borderMuted: borderMuted ?? this.borderMuted,
-    primary: primary ?? this.primary,
-    secondary: secondary ?? this.secondary,
-    danger: danger ?? this.danger,
-    warning: warning ?? this.warning,
-    success: success ?? this.success,
-    info: info ?? this.info,
-  );
+        bgDark: bgDark ?? this.bgDark,
+        bg: bg ?? this.bg,
+        bgLight: bgLight ?? this.bgLight,
+        text: text ?? this.text,
+        textMuted: textMuted ?? this.textMuted,
+        highlight: highlight ?? this.highlight,
+        border: border ?? this.border,
+        borderMuted: borderMuted ?? this.borderMuted,
+        primary: primary ?? this.primary,
+        secondary: secondary ?? this.secondary,
+        danger: danger ?? this.danger,
+        warning: warning ?? this.warning,
+        success: success ?? this.success,
+        info: info ?? this.info,
+      );
 
   @override
   AppColors lerp(ThemeExtension<AppColors>? other, double t) {
@@ -70,18 +70,34 @@ class AppColors extends ThemeExtension<AppColors> {
   }
 }
 
-// Общие токены
+// ===================== TOKENS =====================
 class Spacing {
   final double xxs, xs, sm, md, lg, xl, xxl, xxxl;
-  const Spacing({this.xxs = 4, this.xs = 8, this.sm = 12, this.md = 16, this.lg = 24, this.xl = 32, this.xxl = 48, this.xxxl = 64});
+  const Spacing({
+    this.xxs = 4,
+    this.xs = 8,
+    this.sm = 12,
+    this.md = 16,
+    this.lg = 24,
+    this.xl = 32,
+    this.xxl = 48,
+    this.xxxl = 64,
+  });
   EdgeInsets all(double v) => EdgeInsets.all(v);
-  EdgeInsets h(double v)   => EdgeInsets.symmetric(horizontal: v);
-  EdgeInsets v(double v)   => EdgeInsets.symmetric(vertical: v);
+  EdgeInsets h(double v) => EdgeInsets.symmetric(horizontal: v);
+  EdgeInsets v(double v) => EdgeInsets.symmetric(vertical: v);
 }
 
 class Radii {
   final double xs, sm, md, lg, xl, pill;
-  const Radii({this.xs = 4, this.sm = 8, this.md = 12, this.lg = 16, this.xl = 24, this.pill = 999});
+  const Radii({
+    this.xs = 4,
+    this.sm = 8,
+    this.md = 12,
+    this.lg = 16,
+    this.xl = 24,
+    this.pill = 999, // специальный большой радиус для "pill"
+  });
   BorderRadius br(double r) => BorderRadius.circular(r);
   BorderRadius get brXs => br(xs);
   BorderRadius get brSm => br(sm);
@@ -93,12 +109,27 @@ class Radii {
 
 class Shadows {
   final List<BoxShadow> z1, z2, z3, z4, z5, z6;
-  const Shadows({required this.z1, required this.z2, required this.z3, required this.z4, required this.z5, required this.z6});
+  const Shadows({
+    required this.z1,
+    required this.z2,
+    required this.z3,
+    required this.z4,
+    required this.z5,
+    required this.z6,
+  });
 }
 
 class Opacities {
   final double disabled, hover, focus, pressed, scrim, overlay, divider;
-  const Opacities({this.disabled = 0.38, this.hover = 0.08, this.focus = 0.12, this.pressed = 0.16, this.scrim = 0.50, this.overlay = 0.30, this.divider = 0.12});
+  const Opacities({
+    this.disabled = 0.38,
+    this.hover = 0.08,
+    this.focus = 0.12,
+    this.pressed = 0.16,
+    this.scrim = 0.50,
+    this.overlay = 0.30,
+    this.divider = 0.12,
+  });
 }
 
 class TypographyTokens {
@@ -120,8 +151,20 @@ class TypographyTokens {
   });
 
   factory TypographyTokens.regular({String? fontFamily}) {
-    TextStyle s(double size, double height, {FontWeight w = FontWeight.w400, String? ff}) =>
-        TextStyle(fontSize: size, height: height / size, fontWeight: w, fontFamily: ff);
+    TextStyle s(
+      double size,
+      double height, {
+      FontWeight w = FontWeight.w400,
+      String? ff,
+      double? letterSpacing,
+    }) =>
+        TextStyle(
+          fontSize: size,
+          height: height / size,
+          fontWeight: w,
+          fontFamily: ff,
+          letterSpacing: letterSpacing,
+        );
     final ff = fontFamily;
     return TypographyTokens(
       fontFamily: ff,
@@ -138,7 +181,42 @@ class TypographyTokens {
   }
 }
 
-// Единый контейнер токенов
+// Новые токены: размеры иконок, уровни elevation, длительности анимаций/таймингов
+class IconSizes {
+  final double xs, sm, md, lg, xl;
+  const IconSizes({
+    this.xs = 16,
+    this.sm = 20,
+    this.md = 24,
+    this.lg = 28, // часто используемый размер (например, в Snackbar)
+    this.xl = 32,
+  });
+}
+
+class Elevations {
+  final double none, xs, sm, md, lg, xl, xxl;
+  const Elevations({
+    this.none = 0,
+    this.xs = 1,
+    this.sm = 2,
+    this.md = 4,
+    this.lg = 8,
+    this.xl = 12, // соответствует частому кейсу (SnackBar/картам)
+    this.xxl = 24,
+  });
+}
+
+class DurationsTokens {
+  final Duration fast, normal, slow, snackbar;
+  const DurationsTokens({
+    this.fast = const Duration(milliseconds: 150),
+    this.normal = const Duration(milliseconds: 250),
+    this.slow = const Duration(milliseconds: 400),
+    this.snackbar = const Duration(seconds: 3), // дефолт для Snackbar
+  });
+}
+
+// ===================== THEME EXTENSION =====================
 class AppTheme extends ThemeExtension<AppTheme> {
   final Spacing spacing;
   final Radii radii;
@@ -147,10 +225,35 @@ class AppTheme extends ThemeExtension<AppTheme> {
   final TypographyTokens typography;
   final AppColors colors;
 
-  const AppTheme({required this.spacing, required this.radii, required this.shadows, required this.opacities, required this.typography, required this.colors});
+  // Новые токены:
+  final IconSizes icons;
+  final Elevations elevations;
+  final DurationsTokens durations;
+
+  const AppTheme({
+    required this.spacing,
+    required this.radii,
+    required this.shadows,
+    required this.opacities,
+    required this.typography,
+    required this.colors,
+    this.icons = const IconSizes(),
+    this.elevations = const Elevations(),
+    this.durations = const DurationsTokens(),
+  });
 
   @override
-  AppTheme copyWith({Spacing? spacing, Radii? radii, Shadows? shadows, Opacities? opacities, TypographyTokens? typography, AppColors? colors}) {
+  AppTheme copyWith({
+    Spacing? spacing,
+    Radii? radii,
+    Shadows? shadows,
+    Opacities? opacities,
+    TypographyTokens? typography,
+    AppColors? colors,
+    IconSizes? icons,
+    Elevations? elevations,
+    DurationsTokens? durations,
+  }) {
     return AppTheme(
       spacing: spacing ?? this.spacing,
       radii: radii ?? this.radii,
@@ -158,6 +261,9 @@ class AppTheme extends ThemeExtension<AppTheme> {
       opacities: opacities ?? this.opacities,
       typography: typography ?? this.typography,
       colors: colors ?? this.colors,
+      icons: icons ?? this.icons,
+      elevations: elevations ?? this.elevations,
+      durations: durations ?? this.durations,
     );
   }
 
@@ -171,7 +277,9 @@ class AppTheme extends ThemeExtension<AppTheme> {
       opacities: t < .5 ? opacities : other.opacities,
       typography: t < .5 ? typography : other.typography,
       colors: colors.lerp(other.colors, t),
+      icons: t < .5 ? icons : other.icons,
+      elevations: t < .5 ? elevations : other.elevations,
+      durations: t < .5 ? durations : other.durations,
     );
   }
 }
-

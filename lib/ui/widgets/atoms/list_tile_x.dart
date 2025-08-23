@@ -35,7 +35,7 @@ class ListTileX extends StatelessWidget {
         if (leadingIcon != null)
           Padding(
             padding: EdgeInsets.only(right: t.spacing.sm),
-            child: Icon(leadingIcon, color: leadingColor ?? c.primary),
+            child: Icon(leadingIcon, color: leadingColor ?? c.primary, size: t.icons.md),
           ),
         Expanded(
           child: Column(
@@ -83,4 +83,3 @@ class ListTileX extends StatelessWidget {
     );
   }
 }
-

@@ -43,6 +43,9 @@ final _darkTokens = AppTheme(
   opacities: const Opacities(),
   typography: TypographyTokens.regular(),
   colors: _darkAppColors,
+  icons: const IconSizes(),
+  elevations: const Elevations(),
+  durations: const DurationsTokens(),
 );
 
 final ThemeData appDarkTheme = ThemeData(
@@ -63,12 +66,11 @@ final ThemeData appDarkTheme = ThemeData(
     headlineLarge: _darkTokens.typography.h1.copyWith(color: _darkAppColors.text),
     bodyMedium:    _darkTokens.typography.body.copyWith(color: _darkAppColors.textMuted),
   ),
-  appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, elevation: 0),
-  // оставляем ТОЛЬКО AppTheme
+  appBarTheme: AppBarTheme(
+    backgroundColor: Colors.transparent,
+    elevation: _darkTokens.elevations.none,
+  ),
   extensions: <ThemeExtension<dynamic>>[
     _darkTokens,
   ],
 );
-
-
-

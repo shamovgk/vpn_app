@@ -27,8 +27,8 @@ void showPaymentMethodSheet(BuildContext context, WidgetRef ref) {
       children: [
         SizedBox(height: t.spacing.xs),
         Container(
-          width: 48,
-          height: 5,
+          width: t.spacing.xxl,
+          height: t.spacing.xs * 0.6,
           margin: EdgeInsets.only(bottom: t.spacing.xs),
           decoration: BoxDecoration(
             color: c.borderMuted,
@@ -86,16 +86,19 @@ class _PaymentMethodButton extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: t.spacing.lg, vertical: t.spacing.xs),
       child: SizedBox(
         width: double.infinity,
-        height: 54,
         child: ElevatedButton.icon(
           onPressed: onTap,
-          icon: Icon(icon(), color: c.primary, size: 26),
-          label: Text(label(), style: t.typography.body.copyWith(fontSize: 17, color: c.text)),
+          icon: Icon(icon(), color: c.primary, size: t.icons.md),
+          label: Text(label(), style: t.typography.body.copyWith(color: c.text)),
           style: ElevatedButton.styleFrom(
             backgroundColor: c.bg,
             foregroundColor: c.text,
             shape: RoundedRectangleBorder(borderRadius: t.radii.brMd),
-            elevation: 0,
+            elevation: t.elevations.none,
+            padding: EdgeInsets.symmetric(
+              horizontal: t.spacing.md,
+              vertical: t.spacing.sm,
+            ),
           ),
         ),
       ),

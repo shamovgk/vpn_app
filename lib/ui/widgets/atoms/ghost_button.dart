@@ -28,7 +28,7 @@ class GhostButton extends StatelessWidget {
 
     final btn = TextButton.icon(
       onPressed: onPressed,
-      icon: icon != null ? Icon(icon, size: 18, color: base) : const SizedBox.shrink(),
+      icon: icon != null ? Icon(icon, size: t.icons.sm, color: base) : const SizedBox.shrink(),
       label: Text(label, style: t.typography.button.copyWith(color: base)),
       style: TextButton.styleFrom(
         shape: RoundedRectangleBorder(borderRadius: t.radii.brSm),
@@ -40,10 +40,13 @@ class GhostButton extends StatelessWidget {
       ),
     );
 
-    final h = height; // чаще без фиксированной высоты
     if (fullWidth) {
-      return SizedBox(width: double.infinity, height: h, child: Align(alignment: Alignment.centerLeft, child: btn));
+      return SizedBox(
+        width: double.infinity,
+        height: height,
+        child: Align(alignment: Alignment.centerLeft, child: btn),
+      );
     }
-    return SizedBox(height: h, child: btn);
+    return SizedBox(height: height, child: btn);
   }
 }

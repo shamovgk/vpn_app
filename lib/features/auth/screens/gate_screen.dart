@@ -16,7 +16,7 @@ class GateScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.verified_user, size: 56, color: c.primary),
+            Icon(Icons.verified_user, size: t.icons.xl, color: c.primary),
             SizedBox(height: t.spacing.sm),
             CircularProgressIndicator(color: c.primary),
             SizedBox(height: t.spacing.xs),

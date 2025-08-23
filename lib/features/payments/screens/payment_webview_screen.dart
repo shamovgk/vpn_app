@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vpn_app/core/extensions/context_ext.dart';
 import 'package:vpn_app/features/payments/widgets/payment_webview.dart';
 import 'package:vpn_app/ui/widgets/app_custom_appbar.dart';
+import 'package:vpn_app/ui/widgets/themed_scaffold.dart';
 
 class PaymentWebViewArgs {
   final String url;
@@ -40,8 +41,7 @@ class PaymentWebViewScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
 
-    return Scaffold(
-      backgroundColor: c.bgLight,
+    return ThemedScaffold(
       appBar: AppCustomAppBar(
         title: 'Оплата',
         leading: IconButton(
@@ -61,10 +61,7 @@ class PaymentWebViewScreen extends StatelessWidget {
           onSuccess();
         },
         onPaymentCancel: onCancel != null
-            ? () {
-                context.pop();
-                onCancel!();
-              }
+            ? () { context.pop(); onCancel!(); }
             : null,
       ),
     );
